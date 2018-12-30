@@ -182,7 +182,7 @@ function GUI.Font(name, size, bold)
     else
         i = 500
     end
-    return render.createFont(name, size, i, true, false, false, false, false)
+    return render.createFont(name, size, i, true, false, false, false, 0)
 end
 
 function GUI.Line(x1, y1, x2, y2, stroke, c)

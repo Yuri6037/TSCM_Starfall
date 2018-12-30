@@ -259,7 +259,7 @@ elseif (CLIENT) then
 
 	local Scale = 0.2
 
-	local fnt = render.createFont("Arial Black", 24, 900, true, false, false, false, false)
+	local fnt = render.createFont("Arial Black", 24, 900, true, false, false, false, 0)
 
 	hook("net", "DoorIndicator_Receive", function(len, ply)
 		local cmd = net.readString()

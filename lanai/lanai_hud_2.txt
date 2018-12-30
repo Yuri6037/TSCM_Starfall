@@ -15,9 +15,9 @@ if (CLIENT) then
 
 	local Messages = {}
 	local AIHelp = {}
-	local StandardFont = render.createFont("Arial Black", 40, 900, true, false, false, false, false)
-	local SmallFont = render.createFont("Federation Classic", 24, 900, true, false, false, false, false)
-	local Small16Font = render.createFont("Federation Classic", 22, 900, true, false, false, false, false)
+	local StandardFont = render.createFont("Arial Black", 40, 900, true, false, false, false, 0)
+	local SmallFont = render.createFont("Federation Classic", 24, 900, true, false, false, false, 0)
+	local Small16Font = render.createFont("Federation Classic", 22, 900, true, false, false, false, 0)
 	local ScrW, ScrH = render.getScreenRes()
 
 	function OpenChatVGUI()
