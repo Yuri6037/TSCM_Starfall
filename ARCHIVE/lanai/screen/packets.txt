@@ -1,0 +1,260 @@
+--@name PacketRegistry
+--@author Yuri6037
+
+--PacketRegistry
+RegisterPacket("LOAD", {
+	ReadData = function(args)
+		local option = args.Option
+		local par = args.Par
+		CurGui = 0
+		if (option == "START") then
+			StartNet(function()
+				net.writeString("LOAD.START")
+			end)
+			Loading = true
+		elseif (option == "END") then
+			StartNet(function()
+				net.writeString("LOAD.END")
+			end)
+			Loading = false
+		elseif (option == "UPD") then
+			StartNet(function()
+				net.writeString("LOAD.UPD")
+				net.writeInt(par, 8, true)
+			end)
+			LoadingStr = par
+		end
+	end
+})
+
+--The PiratedLoader packet
+RegisterPacket("PRELOAD", {
+	ReadData = function(args)
+		local option = args.Option
+		local par = args.Par
+		CurGui = 0
+		if (option == "START") then
+			StartNet(function()
+				net.writeString("PRELOAD.START")
+			end)
+			GettingConstraints = true
+		elseif (option == "END") then
+			StartNet(function()
+				net.writeString("PRELOAD.END")
+			end)
+			GettingConstraints = false
+		elseif (option == "UPD") then
+			StartNet(function()
+				net.writeString("PRELOAD.UPD")
+				net.writeString(par)
+			end)
+			PiratedLoaderStr = par
+		end
+	end
+})
+
+RegisterPacket("OFFICER_ACT", {
+	ReadData = function(args)
+		local o = args.Option
+		if (o == "DESTRUCT") then
+			SelfDestruct = not(SelfDestruct)
+			StartNet(function()
+				net.writeString("D")
+			end)
+		end
+	end,
+	WriteData = function(args)
+		return {Player = args[1], Option = args[2]}
+	end
+})
+
+RegisterPacket("CHGUI", {
+	WriteData = function(args)
+		return {ID = args[1]}
+	end
+})
+
+RegisterPacket("WARPGUI", {
+	ReadData = function(args)
+		local list = args.WarpData
+		StartNet(function()
+			net.writeString("GW")
+			net.writeTable(list)
+		end)
+		WarpList = list
+	end
+})
+
+RegisterPacket("DATA_CHANGE", {
+	ReadData = function(args)
+		StartNet(function()
+			net.writeString("NET_UPD")
+			if (args.Net == nil) then
+				net.writeTable({})
+			else
+				net.writeTable(args.Net)
+			end
+		end)
+	end
+})
+
+RegisterPacket("FUNC_TOGGLE", {
+	WriteData = function(args)
+		return {Player = args[1], Name = args[2]}
+	end
+})
+
+RegisterPacket("ALERT", {
+	ReadData = function(args)
+		local id = args.ID
+		StartNet(function()
+			net.writeString("A")
+			net.writeInt(id, 4, true)
+		end)
+	end,
+	WriteData = function(args)
+		return {Player = args[1], ID = args[2]}
+	end
+})
+
+RegisterPacket("LOCKDOWN", {
+	WriteData = function(args)
+		return {Player = args[1], Option = args[2]}
+	end,
+	ReadData = function(args)
+		local o = args.Option
+		if (o == "Unlock") then
+			ScreenLocked = false
+			StartNet(function()
+				net.writeString("U")
+			end)
+		elseif (o == "Lock") then
+			ScreenLocked = true
+			StartNet(function()
+				net.writeString("L")
+			end)
+		end
+	end
+})
+
+RegisterPacket("WARP", {
+	WriteData = function(args)
+		return {Player = args[1], Option = args[2]}
+	end
+})
+
+RegisterPacket("RELOAD", {
+	WriteData = function(args)
+		return {Realm = args[1]}
+	end
+})
+
+RegisterPacket("RUNTIME_INFO", {
+	ReadData = function(args)
+		StartNet(function()
+			net.writeString("RI")
+			net.writeTable({CPUUsage = args.CPUUsage, OPSUsage = args.OPSUsage, CrashNumber = args.CrashNumber})
+		end)
+	end
+})
+
+RegisterPacket("EXT_FUNC", {
+	WriteData = function(args)
+		return {Player = args[1], ID = args[2], VAR = args[3]}
+	end
+})
+
+RegisterPacket("PROC", {
+	ReadData = function(args)
+		local t = args.Opt
+		if (t == "START") then
+			StartNet(function()
+				net.writeString("PROC.START")
+				net.writeString(args.Data)
+			end)
+		elseif (t == "UPD") then
+			StartNet(function()
+				net.writeString("PROC.UPD")
+				net.writeInt(args.Data, 8, true)
+			end)
+		elseif (t == "END") then
+			StartNet(function()
+				net.writeString("PROC.END")
+			end)
+		end
+	end
+})
+
+RegisterPacket("MESSAGE", {
+	ReadData = function(args)
+		StartNet(function()
+			net.writeString("MB")
+			net.writeInt(args.Type, 4, true)
+			net.writeString(args.Text)
+		end)
+	end
+})
+
+function StartBroadcastingPlans(ply)
+	if (#ShipPlans <= 0) then return end
+	StartNet(function()
+		net.writeString("PROC.START")
+		net.writeString("Receiving Plans...")
+	end, ply)
+	bypass.Iterator("LanAI_PlanSend", ShipPlans, function(k, v)
+		StartNet(function()
+			net.writeString("PS")
+			net.writeInt(0, 4, true)
+			net.writeTable(v)
+		end, ply)
+		StartNet(function()
+			net.writeString("PROC.UPD")
+			net.writeInt(k * 100 / #ShipPlans, 8, true)
+		end, ply)
+	end, function()
+		StartNet(function()
+			net.writeString("PS")
+			net.writeInt(1, 4, true)
+			net.writeTable(Floors)
+		end, ply)
+		StartNet(function()
+			net.writeString("PROC.END")
+		end, ply)
+	end)
+end
+
+RegisterPacket("PLANS", {
+	ReadData = function(args)
+		local p = args.ShipPlans
+		local fs = args.Floors
+		ShipPlans = p
+		Floors = fs
+		StartBroadcastingPlans(nil)
+	end
+})
+
+RegisterPacket("INF", {
+	ReadData = function(args)
+		SubInfos[args.Key] = args.Value
+		StartNet(function()
+			net.writeString("SI.U")
+			net.writeString(args.Key)
+			net.writeType(args.Value)
+		end)
+	end
+})
+
+RegisterPacket("AUTOMODE", {
+	WriteData = function(args)
+		return {Code = args[1]}
+	end
+})
+
+RegisterPacket("PLYLIST", {
+	ReadData = function(args)
+		StartNet(function()
+			net.writeString("PL")
+			net.writeTable(args.PlayerList)
+		end)
+	end
+})

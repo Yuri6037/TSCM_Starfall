@@ -1,0 +1,164 @@
+--@name IntelliHUD II Server
+--@author Yuri6037
+
+globaltables.player.IntelliHUDLinkedPlayers = {}
+
+NULL_ENVIRONMENT = {
+	Air = 0, --Normalized float
+	Oxygen = 0, --Float from 0 to 100 (percentage)
+	Hydrogen = 0, --Float from 0 to 100 (percentage)
+	Nitrogen = 0, --Float from 0 to 100 (percentage)
+	CO2 = 0, --Float from 0 to 100 (percentage)
+	Gravity = 0, --Normalized float
+	Name = "CLOAKED", --String (Never nil)
+	Temperature = 0, --Degrees Kalvin (do Temperature - 273.15 to get degrees celcius)
+	Galaxy = "NONE"
+}
+
+--Declares
+Players = {}
+linkedPlys = {}
+plysEnvData = {}
+plysVehData = {}
+plysSGData = {}
+--End
+
+local ShouldSend = false
+local function CheckVar(tbl, name, val)
+	if (not(tbl == nil) and not(tbl[name] == val)) then
+		tbl[name] = val
+		ShouldSend = true
+	end
+end
+
+local function CheckEnvData(ply)
+	if (ply:getEnvironmentData() == nil and not(plysEnvData[ply] == NULL_ENVIRONMENT)) then
+		plysEnvData[ply] = NULL_ENVIRONMENT
+		return NULL_ENVIRONMENT
+	end
+	if (not(ply:getEnvironmentData() == nil)) then
+		local data = ply:getEnvironmentData()
+		if (plysEnvData[ply] == nil) then plysEnvData[ply] = {}	end
+		CheckVar(plysEnvData[ply], "Oxygen", data.air.Oxygen)
+		CheckVar(plysEnvData[ply], "Hydrogen", data.air.Hydrogen)
+		CheckVar(plysEnvData[ply], "Nitrogen", data.air.Nitrogen)
+		CheckVar(plysEnvData[ply], "CO2", data.air.CO2)
+		CheckVar(plysEnvData[ply], "Gravity", data.gravity)
+		CheckVar(plysEnvData[ply], "Temperature", data.temperature)
+		if (data.name == nil) then
+			CheckVar(plysEnvData[ply], "Name", "NULL")
+		else
+			CheckVar(plysEnvData[ply], "Name", data.name)
+		end
+		local g = GetGalaxy(ply)
+		CheckVar(plysEnvData[ply], "Galaxy", g)
+		if (ShouldSend) then return plysEnvData[ply] end
+	end
+	return nil
+end
+local function CheckVehData(ply)
+	if (ply:inVehicle() and not(globaltables.global.IntelliHUD == nil)) then
+		local veh = ply:vehicle()
+		local b = false
+		if (IsValid(veh) and not(globaltables.global.IntelliHUD[veh:index()] == nil)) then
+			local data = globaltables.global.IntelliHUD[veh:index()]
+			if (IsValid(data.ZPM) and data.ZPM:class() == "starfall_processor") then
+				plysVehData[ply] = {Entity = data.ZPM:getWirelink(), Name = data.Name, NameColor = data.NameColor, HorizonBase = data.HorizonBase}
+			end
+		end
+		if (not(plysVehData[ply] == nil)) then
+			CheckVar(plysVehData[ply], "Energy", plysVehData[ply].Entity["P"])
+		end
+		if (ShouldSend) then return plysVehData[ply] end
+	else
+		if (not(plysVehData[ply] == nil)) then
+			plysVehData[ply] = nil
+			return nil
+		end
+	end
+	return nil
+end
+local function CheckSGData(ply)
+	local weap = ply:activeWeapon()
+	local ent = ply:eyeTrace().Entity
+	if (IsValid(weap) and weap:class() == "kinoremote" and IsValid(ent) and IsSGEnt(ent)) then
+		if (plysSGData[ply] == nil) then
+			plysSGData[ply] = {}
+			plysSGData[ply].Entity = ent
+		end
+		CheckVar(plysSGData[ply], "Address", stargate.address(ent))
+		if (stargate.open(ent) and IsValid(stargate.target(ent))) then
+			local e = stargate.target(ent)
+			CheckVar(plysSGData[ply], "TargetClass", e:class())
+			CheckVar(plysSGData[ply], "TargetAddress", stargate.address(e))
+			if (not(plysSGData[ply].Signal == GetSignal(ent))) then
+				plysSGData[ply].Signal = GetSignal(ent)
+				ShouldSend = true
+				if (not(SG_CTRL_VERSIONS[plysSGData[ply].Signal] == nil)) then
+					chat.tell(ply, Color(0, 128, 255), "[IntelliHUD II] -> Righ-Click to send iris lower request.")
+				end
+			end
+		elseif (not(plysSGData[ply].TargetClass == nil)) then
+			plysSGData[ply].TargetClass = nil
+			plysSGData[ply].TargetAddress = nil
+			plysSGData[ply].Signal = nil
+			ShouldSend = true
+		end
+		if (ShouldSend) then return plysSGData[ply] end
+	else
+		if (not(plysSGData[ply] == nil)) then
+			plysSGData[ply] = nil
+			return {}
+		end
+	end
+	return nil
+end
+
+timer.create("IntelliHUD2Update", 1, 0, function()
+	for k, v in pairs(Players) do
+		if (not(IsValid(v))) then
+			Players[k] = nil
+			linkedPlys[v] = nil
+		else
+			ShouldSend = false
+			local tbl = CheckEnvData(v)
+			if (not(tbl == nil)) then
+				StartNet(function()
+					net.writeUInt(0, 4)
+					net.writeTable(tbl)
+				end, v)
+			end
+			ShouldSend = false
+			local tbl1 = CheckVehData(v)
+			if (not(tbl1 == nil)) then
+				StartNet(function()
+					net.writeUInt(1, 4)
+					net.writeTable(tbl1)
+				end, v)
+			end
+			ShouldSend = false
+			local tbl2 = CheckSGData(v)
+			if (not(tbl2 == nil)) then
+				StartNet(function()
+					net.writeUInt(2, 4)
+					net.writeTable(tbl2)
+				end, v)
+			end
+		end
+	end
+end)
+
+hook("net", "IntelliHUD2Net", function(len, ply)
+	local id = net.readUInt(4)
+	if (id == 0) then
+		linkedPlys[ply] = #Players
+		Players[#Players] = ply
+		globaltables.player.IntelliHUDLinkedPlayers[ply] = true
+	elseif (id == 1) then
+		Players[linkedPlys[ply]] = nil
+		linkedPlys[ply] = nil
+		globaltables.player.IntelliHUDLinkedPlayers[ply] = nil
+	elseif (id == 2) then
+		TryOpenIris(ply)
+	end
+end)

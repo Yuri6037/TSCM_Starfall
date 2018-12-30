@@ -1,0 +1,117 @@
+--@name InfoGui
+--@author Yuri6037
+
+function RenderInfoGUI(x, y)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("Ship AI II By Yuri6037 ; System V. " .. VERSION_AI, x + 10, y + 10)
+	gl.glText("GL Version " .. VERSION_GL .. " | Libs V. " .. VERSION_LIBS, x + 10, y + 40)
+	gl.glText("Running on ScreenEngine Version " .. VERSION_SCRENGINE, x + 10, y + 70)
+
+	--PacificTravellers logo
+	gl.glBindColor(255, 0, 0)
+	gl.glRect(x + 650, y + 20, 256, 64)
+	render.setTexture(nil)
+	render.setColor(0, 0, 255, 255)
+	render.drawFilledCircle(x + 900, y + 84, 64, 32)
+	render.setColor(255, 255, 0, 255)
+	render.drawFilledCircle(x + 650, y + 20, 64, 32)
+	gl.glBindColor(0, 128, 255)
+	gl.glText("Pacific", x + 655, y + 15)
+	gl.glBindColor(133, 133, 133)
+	gl.glText("Travellers", x + 775, y + 54)
+
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.TitleFont)
+	if (ShipName == nil) then
+		gl.glText("NULL_SHIP_NAME", x + 33, y + 100)
+	else
+		local w = gl.glTextWidth(ShipName)
+		gl.glText(ShipName, (x + 984) / 2 - w / 2, y + 100)
+	end
+
+	--Buttons draw
+	--Lock down but
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(0, 0, 0)
+	if (Screen:IsMouseInRect(x + 10, y + 230, 128, 32)) then
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRect(x + 10, y + 230, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Lockdown", x + 10, y + 230)
+	--Allerts Start
+	--High alert but
+	gl.glBindColor(255, 0, 0)
+	if (Screen:IsMouseInRect(x + 148, y + 230, 128, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 148, y + 230, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("HighAlert", x + 153, y + 230)
+	--Normal alert but
+	gl.glBindColor(255, 64, 0)
+	if (Screen:IsMouseInRect(x + 286, y + 230, 128, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 286, y + 230, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("NormAlert", x + 286, y + 230)
+	--Low alert but
+	gl.glBindColor(7, 128, 3)
+	if (Screen:IsMouseInRect(x + 424, y + 230, 128, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 424, y + 230, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("LowAlert", x + 431, y + 230)
+	--Alerts End
+	--Evacuate but
+	gl.glBindColor(255, 0, 0)
+	if (Screen:IsMouseInRect(x + 562, y + 230, 128, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 562, y + 230, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Evacuate", x + 569, y + 230)
+	--Autodestruction
+	gl.glBindColor(255, 0, 0)
+	if (Screen:IsMouseInRect(x + 700, y + 230, 270, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 700, y + 230, 270, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Start autodestruction", x + 702, y + 230)
+end
+
+function CheckInfoInputs(x, y)
+	if (Screen:IsMouseInRect(x + 148, y + 230, 128, 32)) then
+		StartNet(function()
+			net.writeString("Alert")
+			net.writeInt(0, 4, true)
+		end)
+	elseif (Screen:IsMouseInRect(x + 286, y + 230, 128, 32)) then
+		StartNet(function()
+			net.writeString("Alert")
+			net.writeInt(1, 4, true)
+		end)
+	elseif (Screen:IsMouseInRect(x + 424, y + 230, 128, 32)) then
+		StartNet(function()
+			net.writeString("Alert")
+			net.writeInt(2, 4, true)
+		end)
+	elseif (Screen:IsMouseInRect(x + 562, y + 230, 128, 32)) then
+		StartNet(function()
+			net.writeString("ToggleEva")
+		end)
+	elseif (Screen:IsMouseInRect(x + 10, y + 230, 128, 32)) then
+		StartNet(function()
+			net.writeString("Lock")
+		end)
+	elseif (Screen:IsMouseInRect(x + 700, y + 230, 270, 32)) then
+		StartNet(function()
+			net.writeString("DestroyToggle")
+		end)
+	end
+end

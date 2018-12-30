@@ -1,0 +1,23 @@
+--@name Monitor1_WarpGui
+--@author Yuri6037
+
+local gui = {}
+
+local Delay = 0
+local WarpPoint = nil
+
+function gui.Render(x, y)
+	gl.glPushMatrix()
+		gl.glTranslate(0, 0)
+		Delay = UI.NumberSelect(0, x + 156, 380, 0, 3599, 10, "s")
+		UI.ListBox(0, 20, 130, 472, 200, WarpList, 5)
+		if (UI.Button("Start Timers", 156, 450, 200, 32)) then
+			SendTripleScreenPacket(-1, "MONITOR_FUNC", "TIMERS_ON", {Delay, WarpPoint})
+		end
+	gl.glPopMatrix()
+end
+
+function gui.CheckInputs(x, y)
+end
+
+RegisterSecondaryGUI(4, gui)

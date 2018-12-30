@@ -1,0 +1,54 @@
+--@name HardDisk
+--@author Yuri6037
+--@class processor
+--@model models/lt_c/sci_fi/computers/crystal_hdd.mdl
+--@autoupdate
+
+wire.createInputs({"Address", "Data", "Read", "Write"}, {"Normal", "String", "Normal", "Normal"})
+wire.createOutputs({"Data", "MaxSectors", "MaxSize", "Size"}, {"String", "Normal", "Normal", "Normal"})
+
+local MaxSectors = 32
+local Size = 0
+local MaxSize = 128
+
+wire.ports["MaxSectors"] = MaxSectors
+wire.ports["MaxSize"] = MaxSize
+wire.ports["Size"] = Size
+
+local EnumActions = {
+	READ = 0,
+	WRITE = 1
+}
+
+local Request = {Add = -1, Data = nil}
+
+local DATA = {}
+
+local function Execute(act)
+	if (Request.Add < 0 or Request.Add > MaxSectors) then return end
+	if (act == EnumActions.WRITE) then
+		if (not(DATA[Request.Add] == nil)) then
+			Size = Size - string.len(DATA[Request.Add])
+		end
+		if (not(Request.Data == nil)) then
+			Size = Size + string.len(Request.Data)
+		end
+		DATA[Request.Add] = Request.Data
+		wire.ports["Size"] = Size
+	elseif (act == EnumActions.READ) then
+		wire.ports["Data"] = DATA[Request.Add] or ""
+	end
+end
+
+hook("input", "HardDisk_Update", function(inn, out)
+	if (inn == "Address") then Request.Add = out end
+	if (inn == "Data") then
+		if (out == "") then
+			Request.Data = nil
+		else
+			Request.Data = out
+		end
+	end
+	if (inn == "Read" and out == 1) then Execute(EnumActions.READ) end
+	if (inn == "Write" and out == 1) then Execute(EnumActions.WRITE) end
+end)

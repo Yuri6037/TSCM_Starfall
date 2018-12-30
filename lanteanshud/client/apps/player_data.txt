@@ -1,0 +1,23 @@
+--@name PlayerDataApp
+--@author Yuri6037
+
+local function CalcPlyHealth()
+	if (LocalPlayer:health() > LocalPlayer:maxHealth()) then
+		return 1
+	else
+		return LocalPlayer:health() / LocalPlayer:maxHealth()
+	end
+end
+
+local app = {
+	OverrideList = {
+		"CHudHealth"
+	},
+	Render = function()
+		GUI.GradiantRect(0, ScrH - 32, 512, 32, COLOR(0, 0, 0))
+		GUI.GradiantRect(0, ScrH - 32, CalcPlyHealth() * 512, 32, COLOR(255, 0, 0))
+		GUI.Text(LocalPlayer:name(), 10, ScrH - 24, SmallFont, COLOR(255, 255, 255))
+	end
+}
+
+HUD.DefineApp("PlayerData", app, true)

@@ -1,0 +1,387 @@
+--@name Lanteans OS AppLib
+--@author Yuri6037
+
+Icon16None = {
+	{
+		Color = COLOR(255, 255, 255),
+		Vertices = {
+			VERTEX(0, 0),
+			VERTEX(16, 0),
+			VERTEX(16, 16),
+			VERTEX(0, 16)
+		}
+	}
+}
+Icon32None = {
+	{
+		Color = COLOR(255, 255, 255),
+		Vertices = {
+			VERTEX(0, 0),
+			VERTEX(32, 0),
+			VERTEX(32, 32),
+			VERTEX(0, 32)
+		}
+	}
+}
+
+Comps = {}
+function DefineComponent(id, tbl)
+    Comps[id] = tbl
+    tbl.__index = tbl
+end
+
+WINAPI = {
+	--Overridable methods
+	OnClose = function() end, --Called when this application is closing
+	OnReduced = function(flag) end, --Called when window is reduced (reduce flag passed as argument)
+	PreRender = function() end, --Called before component rendering
+	PostRender = function() end, --Called after component rendering
+	Update = function(ticks) end, --Called each frames only if ShouldUpdate returns true
+	OnTouched = function(x, y) end, --Called when this window gets touched
+	OnDataReceived = function(data) end, --Called when server sends a new data table, the new data table is passed
+	Init = function() end --Called when window intializes (used to set up the display/add components)
+}
+
+local function HandleCrash(app, err)
+	app.Crashed = true
+	app:SetFullScreen(false)
+	OS.CloseApp(app.Handle, true)
+	OS.Dialog("msg", "Sorry, the application '" .. app.Type .. "' has crashed :)", nil, err)
+end
+
+function PROTECT(func)
+	local fnc = function(app, ...)
+		local tbl = {pcall(func, ...)}
+		if (not(tbl[1])) then HandleCrash(app, tbl[2]) return nil end
+		return unpack(tbl, 2)
+	end
+	return fnc
+end
+
+function ImplementCrashHandler(apptbl)
+	local parsed = {}
+	for k, v in pairs(apptbl) do
+		if (type(v) == "function" and not(parsed[v])) then
+			apptbl["Checked" .. k] = v
+			local genericpcaller = function(self, ...)
+				local tbl = {pcall(apptbl["Checked" .. k], self, ...)}
+				if (not(tbl[1])) then HandleCrash(self, tbl[2]) end
+				return unpack(tbl, 2)
+			end
+			apptbl[k] = genericpcaller
+			parsed[v] = true
+			parsed[genericpcaller] = true
+		end
+	end
+end
+
+LOCATION_CENTER = 1
+LOCATION_TOPLEFT = 2
+LOCATION_TOPRIGHT = 3
+LOCATION_BOTTOMLEFT = 4
+LOCATION_BOTTOMRIGHT = 5
+
+function WINAPI:Construct(hdl)
+	self.Renderables = {}
+	self.Components = {}
+	self.ComponentsMap = {}
+	self.Icon = {}
+	self:SetIcon32(Icon32None)
+	self:SetIcon16(Icon16None)
+	self:SetSize(0, 0)
+	self:SetTitle("GENERIC_APP")
+	self:SetPos(LOCATION_TOPLEFT)
+	self.Handle = hdl
+	self.DrawDecos = true
+	self.Reduced = false
+	self.BGBase = COLOR(210, 210, 210)
+	self.BGOver = COLOR(210, 210, 210, 200)
+	self.CurFullScreen = false
+	self.ShouldUpdate = false
+end
+
+function WINAPI:Destroy()
+	for k, v in pairs(self.Components) do
+		v:Destroy()
+	end
+end
+
+function WINAPI:SetUpdates()
+	self.ShouldUpdate = true
+end
+
+function WINAPI:SetFullScreen(flag)
+	if (self.CurFullScreen == flag) then return end
+	if (flag) then
+		self.BackX, self.BackY = self:GetPos()
+		self.BackW, self.BackH = self:GetSize()
+		OS.SwitchScreen("fullscreen")
+	else
+		OS.SwitchScreen("main")
+		self:SetPos(self.BackX, self.BackY)
+		self:SetSize(self.BackW, self.BackH)
+	end
+	self.CurFullScreen = flag
+end
+
+function WINAPI:SetBackground(color)
+	self.BGBase = color
+	self.BGOver = COLOR(color[1], color[2], color[3], 200)
+end
+
+function WINAPI:Render()
+	self:PreRender()
+    for k, v in pairs(self.Renderables) do
+        local x, y = self.X + v.X, self.Y + v.Y
+        GUI.SetTranslation(x, y)
+        v:Render(x, y)
+    end
+    GUI.SetTranslation(self.X, self.Y)
+    self:PostRender()
+end
+
+function WINAPI:Touched(x, y)
+	if (not(self:HasFocus())) then return end
+    for k, v in pairs(self.Renderables) do
+        if (GUI.MouseInRect(self.X + v.X, self.Y + v.Y, v.W, v.H)) then
+            v:Touched(self.X + v.X, self.Y + v.Y)
+        end
+    end
+    self:OnTouched(x, y)
+end
+
+function WINAPI:SetModal(parenthdl)
+	self.ParentHandle = parenthdl
+	self.Parent = OS.GetApp(parenthdl)
+end
+
+function WINAPI:Close()
+	OS.CloseApp(self.Handle)
+	if (OS.ValidHandle(self.ParentHandle)) then
+		local app = OS.GetApp(self.ParentHandle)
+		app:RequestFocus()
+	end
+end
+
+function WINAPI:GetPos()
+	return self.X, self.Y
+end
+
+function WINAPI:SetPos(x, y)
+	if (y == nil) then
+		if (x == LOCATION_CENTER) then
+			self.X = ScrW / 2 - self.Width / 2
+			self.Y = ScrH / 2 - self.Height / 2
+		elseif (x == LOCATION_TOPLEFT) then
+			self.X = 0
+			self.Y = 32
+		elseif (x == LOCATION_TOPRIGHT) then
+			self.X = ScrW - self.Width
+			self.Y = 32
+		elseif (x == LOCATION_BOTTOMLEFT) then
+			self.X = 0
+			self.Y = ScrH - self.Height
+		elseif (x == LOCATION_BOTTOMRIGHT) then
+			self.X = ScrW - self.Width
+			self.Y = ScrH - self.Height
+		end
+		return
+	end
+	self.X = x
+	self.Y = y
+end
+
+function WINAPI:MousePos()
+    local x, y = OS.MousePos()
+    return x - self.X, y - self.Y
+end
+
+function WINAPI:EnableAINetContext()
+	self.AI = self:AddComponent("lanai")
+	self.AI:Connect()
+end
+
+local CurID = 0
+
+function WINAPI:AddComponent(id, x, y, ...)
+	if (Comps[id] == nil) then
+		util.Log("WINAPI", LOG_ERR, "Component ", id, " has been internally removed that is REALLY BAD !")
+		return nil
+	end
+	local instance = {}
+	--Before everything, set up class inheritance
+	instance.__index = instance
+	setmetatable(Comps[id], COMP_META)
+	setmetatable(instance, Comps[id])
+	instance:Construct(x, y, self, CurID)
+	util.Log("WINAPI", LOG_DEBUG, "Adding component '", id, "', with pos : ", CurID, "...")
+	CurID = CurID + 1
+	local data = {...}
+	instance:Init(data)
+	instance.Type = id
+	--End
+	if (not(Comps[id].NoDraw)) then
+		table.insert(self.Renderables, instance)
+	else
+		instance.NoDraw = true
+	end
+	table.insert(self.Components, instance)
+	if (self.ComponentsMap[id] == nil) then self.ComponentsMap[id] = {} end
+	table.insert(self.ComponentsMap[id], instance)
+	self:NotifyRenderer()
+	return instance
+end
+
+function WINAPI:RemoveComponent(id)
+	util.Log("WINAPI", LOG_DEBUG, "Removing component '", id, "'...")
+	for k, v in pairs(self.Components) do
+		if (v.Index == id) then
+			if (not(v.NoDraw)) then
+				for k1, v1 in pairs(self.Renderables) do
+					if (v1.Index == id) then
+						table.remove(self.Renderables, k1)
+						self:NotifyRenderer()
+						util.Log("WINAPI", LOG_DEBUG, "Removed renderable '", id, "'")
+						break
+					end
+				end
+			end
+			for k1, v1 in pairs(self.ComponentsMap[v.Type]) do
+				if (v1.Index == id) then
+					table.remove(self.ComponentsMap[v.Type], k1)
+					util.Log("WINAPI", LOG_DEBUG, "Cleaned component map for '", id, "'")
+					break
+				end
+			end
+			table.remove(self.Components, k)
+			v:Destroy()
+			util.Log("WINAPI", LOG_DEBUG, "Removed component '", id, "'")
+			break
+		end
+	end
+end
+
+function WINAPI:RemoveComponents(tbl)
+	for k, v in pairs(tbl) do
+		v:Remove()
+	end
+end
+
+function WINAPI:RemoveComponentsOfType(typename)
+	if (self:HasComponent(typename)) then
+		local tblrmbugfixer = {}
+		util.Log("WINAPI", LOG_DEBUG, #self.ComponentsMap[typename], " component(s) to remove")
+		for k, v in pairs(self.ComponentsMap[typename]) do
+			table.insert(tblrmbugfixer, v)
+		end
+		self:RemoveComponents(tblrmbugfixer)
+	end
+end
+
+function WINAPI:GetComponents(id)
+	return (self.ComponentsMap[id])
+end
+
+function WINAPI:HasComponent(id)
+	return (not(self.ComponentsMap[id] == nil))
+end
+
+function WINAPI:HasFocus()
+	return CurWindowHdl == self.Handle
+end
+
+function WINAPI:SetTitle(title, apptitle)
+    self.DisplayName = title
+    if (apptitle == nil) then
+    	self.Title = title
+    else
+    	self.Title = apptitle
+    end
+end
+
+--Use SFScreenDesigner
+function WINAPI:SetIcon32(ic)
+    self.Icon.Dock = ic
+end
+
+--Use SFScreenDesigner
+function WINAPI:SetIcon16(ic)
+    self.Icon.Window = ic
+end
+
+function WINAPI:DisableDecorations()
+	self.DrawDecos = false
+end
+
+function WINAPI:DrawTitleBar()
+	GUI.ColoredRect(self.X, self.Y + 28, self.Width + 2, self.Height - 28, COLOR(0, 0, 0, 170))
+	GUI.RoundedRect(self.X, self.Y, self.Width + 2, 28, COLOR(0, 0, 0, 170))
+	if (self:HasFocus()) then
+		GUI.ColoredRect(self.X, self.Y + 28, self.Width, self.Height - 30, self.BGOver)
+		GUI.RoundedRect(self.X, self.Y, self.Width, 26, COLOR(61, 134, 254, 200))
+	else
+		GUI.RoundedRect(self.X, self.Y, self.Width, 26, COLOR(255, 255, 255))
+		GUI.ColoredRect(self.X, self.Y + 28, self.Width, self.Height - 30, self.BGBase)
+	end
+	--Name (app title)
+	if (self.DrawDecos) then
+		GUI.Text(self.Title, self.X + 25, self.Y + 3, SmallFont, COLOR(0, 0, 0))
+	else
+		GUI.Text(self.Title, self.X + 10, self.Y + 3, SmallFont, COLOR(0, 0, 0))
+	end
+end
+
+function WINAPI:SetSize(w, h)
+    self.Width = w
+    self.Height = h
+end
+
+function WINAPI:GetSize()
+	return self.Width, self.Height
+end
+
+function WINAPI:EnableCursor(cursorColor)
+    self.DrawCursor = cursorColor
+end
+
+function WINAPI:AddPullDownMenu(name)
+    if (self.Menu == nil) then
+        self.Menu = {}
+    end
+    table.insert(self.Menu, {Name = name, Buttons = {}})
+end
+function WINAPI:AddPullDownMenuItem(name, fnc)
+	if (OS.IsUserApp(self.Type)) then
+		table.insert(self.Menu[#self.Menu].Buttons, {name, PROTECT(fnc)})
+	else
+		table.insert(self.Menu[#self.Menu].Buttons, {name, fnc})
+	end
+end
+
+function WINAPI:Reduce(flag)
+	self:SetFullScreen(false)
+    self.Reduced = flag
+	if (flag) then
+		DWMFocusChange(nil)
+	else
+		DWMResume(self.Handle)
+		DWMFocusChange(self.Handle)
+	end
+    self:OnReduced(flag)
+end
+
+function WINAPI:NotifyRenderer()
+	if (self:HasFocus() or self.NoCache) then return end
+	self.NeedRender = true
+end
+
+function WINAPI:SetNoCache()
+	self.NoCache = true
+end
+
+function WINAPI:RequestFocus()
+	if (self.Reduced or self:HasFocus()) then return end
+	DWMFocusChange(self.Handle)
+end
+
+WINAPI.__index = WINAPI

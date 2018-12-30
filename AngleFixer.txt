@@ -1,0 +1,35 @@
+--@name AngleFixer
+--@author Yuri6037
+
+local RoundToNearest = 45
+
+--local tbl = ents.self():getConstraints()
+
+--[[for k, v in pairs(tbl) do
+	local ang = v:getAngles()
+	local copy = Angle(ang.X, ang.Y, ang.Z)
+	print("Before : " .. tostring(ang))
+	ang.X = math.round(ang.X / RoundToNearest) * RoundToNearest
+	ang.Y = math.round(ang.Y / RoundToNearest) * RoundToNearest
+	ang.Z = math.round(ang.Z / RoundToNearest) * RoundToNearest
+	print("After : " .. tostring(ang))
+	local diff = ang - copy
+	print(diff)
+	local pos = v:pos()
+	pos:Rotate(diff)
+	v:setPos(pos)
+end]]--
+
+local ent = ents.self():getSingleConstrainedEnts()[1]
+local ang = ent:getAngles()
+local copy = Angle(ang.X, ang.Y, ang.Z)
+print("Before : " .. tostring(ang))
+ang.X = math.round(ang.X / RoundToNearest) * RoundToNearest
+ang.Y = math.round(ang.Y / RoundToNearest) * RoundToNearest
+ang.Z = math.round(ang.Z / RoundToNearest) * RoundToNearest
+print("After : " .. tostring(ang))
+ent:setAngles(ang)
+ents.self():remove()
+--local diff = ang - copy
+--print(diff)
+--print(ent)

@@ -1,0 +1,74 @@
+--@name SF_EmitterKernelExtension
+--@author Yuri6037
+
+--Mouse handling vars
+local FrameMsX = nil
+local FrameMsY = nil
+local prevX = 0
+local prevY = 0
+
+local KernelVars = OS.GetKernelVars()
+
+local Player = KernelVars.Player
+local Self = KernelVars.Self
+
+if (OS.IsEmitter()) then
+	local Scale = 0.2
+	ScrW = 1024
+	ScrH = 512
+
+	function OS.MousePos()
+		return FrameMsX, FrameMsY
+	end
+
+	local function MainRTDrawer()
+		render.clear(0, 0, 0, 0)
+		if (FrameMsX == nil or FrameMsY == nil) then
+			FrameMsX, FrameMsY = prevX, prevY
+			KernelVars.IsOnScr = false
+		else
+			prevX, prevY = FrameMsX, FrameMsY
+			KernelVars.IsOnScr = true
+		end
+		if (not(KernelVars.CurScreen == nil)) then
+			KernelVars.CurScreen:Render()
+			KernelVars.CurScreen:Update(time.frameTime())
+		end
+	end
+	local MainRT = rendertarget.create(false, ScrW, ScrH)
+	local function SFEmitterMainRender()
+		if (KernelVars.KillRender) then return end
+		MainRT:drawToTexture(MainRTDrawer)
+		local pos = Self:pos() + Self:up() * 110 + Self:right() * -(ScrW * Scale) / 2
+		local ang = Self:getAngles()
+		ang:RotateAroundAxis(Self:right(), 90)
+		ang:RotateAroundAxis(Self:forward(), 90)
+		FrameMsX, FrameMsY = util.MousePos3D2D(pos, ang, Scale)
+		render.start3D2D(pos, ang, Scale)
+			MainRT:draw(0, 0, ScrW, ScrH)
+			render.setColor(255, 0, 0)
+			render.drawRect(FrameMsX, FrameMsY, 4, 4)
+		render.end3D2D()
+	end
+	hook("render", "LanteansOS_Render", SFEmitterMainRender)
+
+	local Hooked = true
+	timer.create("LanteansOS_RenderCheckArea", 1, 0, function()
+		if (Player:pos():DistToSqr(Self:pos()) >= 30000 and Hooked) then
+			Parametters["LoadTXT"] = "Reconnecting..."
+			OS.SwitchScreen("boot")
+			hook.remove("render", "LanteansOS_Render")
+			MainRT:freeRT()
+			Hooked = false
+			net.SendPacket("DISCONNECT")
+		elseif (Player:pos():DistToSqr(Self:pos()) < 30000 and not(Hooked)) then
+			hook("render", "LanteansOS_Render", SFEmitterMainRender)
+			MainRT = rendertarget.create(false, ScrW, ScrH)
+			Hooked = true
+			net.SendPacket("CONNECT")
+		end
+	end)
+
+	net.SendPacket("CONNECT")
+end
+

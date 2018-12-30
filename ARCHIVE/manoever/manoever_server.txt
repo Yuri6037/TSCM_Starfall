@@ -1,0 +1,76 @@
+--@name ManoeverServer
+--@author Yuri6037
+--@sharedscreen
+
+--@requiresv lanai/processor/api/lanai_api.txt
+--@requiresv lanai/libs/processor/string_lib.txt
+--@requiresv lanai/libs/processor/lanaifiles.txt
+--@requiresv lanai/processor/utilities.txt
+
+--@requirecl manoever/manoever_client.txt
+
+--@include lanai/libs/screen/safe_net.txt
+
+require("lanai/libs/screen/safe_net.txt")
+
+if (SERVER) then
+	local WarpDevice = nil
+
+	LanAI:SetLoadCallback(function()
+		LanAI:Connect("A4CFD-BGHD2")
+		WarpDevice = LanAI:GetShipWarp()
+		Ship = {Warp = WarpDevice, Node = LanAI:GetShipNode()}
+		LanAI:Disconnect()
+	end)
+
+	CurLock = false
+	hook("think", "ManoeverServer_IsAiLockdown", function()
+		if (not(CurLock == LanAI:ScreenLocked())) then
+			CurLock = LanAI:ScreenLocked()
+			if (CurLock) then
+				StartNet(function()
+					net.writeString("L")
+				end)
+			else
+				StartNet(function()
+					net.writeString("U")
+				end)
+			end
+		end
+	end)
+
+	hook("net", "Manoever_Receiver", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "REBOOT") then
+			StartNet(function()
+				net.writeString("B")
+				if (CurLock) then
+					net.writeString("L")
+				else
+					net.writeString("U")
+				end
+			end)
+		elseif (cmd == "ROT_X") then
+			if (IsPlayerInFaction(ply)) then
+				local rdeg = net.readInt(16, false)
+				WarpToAngle(Angle(rdeg, 0, 0))
+			else
+				aiSayGuest(ply, "Only faction members can access this function.")
+			end
+		elseif (cmd == "ROT_Y") then
+			if (IsPlayerInFaction(ply)) then
+				local rdeg = net.readInt(16, false)
+				WarpToAngle(Angle(0, rdeg, 0))
+			else
+				aiSayGuest(ply, "Only faction members can access this function.")
+			end
+		elseif (cmd == "ROT_Z") then
+			if (IsPlayerInFaction(ply)) then
+				local rdeg = net.readInt(16, false)
+				WarpToAngle(Angle(0, 0, rdeg))
+			else
+				aiSayGuest(ply, "Only faction members can access this function.")
+			end
+		end
+	end)
+end

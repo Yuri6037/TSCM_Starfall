@@ -1,0 +1,106 @@
+--@name DirSelectComponent
+--@author Yuri6037
+
+EDirection = {
+	UP = 0,
+	DOWN = 1,
+	LEFT = 2,
+	RIGHT = 3,
+	FORWARD = 4,
+	BACKWARD = 5
+}
+
+local dirselect = {}
+function dirselect:Init(data)
+	self.Icon = self.Parent.Icon.Window
+	self.Dir = EDirection.FORWARD
+	self.DirTxt = "Forward"
+	self.BaseColor = COLOR(0, 0, 128)
+	self.OverColor = COLOR(0, 0, 255)
+	self.SelColor = COLOR(0, 0, 255)
+	self.BackColor = COLOR(0, 0, 0)
+	self.TxtColor = COLOR(255, 255, 255)
+	self.Font = SmallFont
+end
+
+function dirselect:GetDir()
+	return self.Dir
+end
+
+function dirselect:Render(x, y)
+	--Forward
+	if (self.Dir == EDirection.FORWARD) then
+		GUI.ColoredRect(self.W / 2 - 4, 2, 8, self.H / 2, self.SelColor)
+	elseif (GUI.MouseInRect(x + self.W / 2 - 4, y + 2, 8, self.H / 2)) then
+		GUI.ColoredRect(self.W / 2 - 4, 2, 8, self.H / 2, self.OverColor)
+	else
+		GUI.ColoredRect(self.W / 2 - 4, 2, 8, self.H / 2, self.BaseColor)
+	end
+	--Backward
+	if (self.Dir == EDirection.BACKWARD) then
+		GUI.ColoredRect(self.W / 2 - 4, self.H / 2, 8, self.H / 2 - 2, self.SelColor)
+	elseif (GUI.MouseInRect(x + self.W / 2 - 4, y + self.H / 2, 8, self.H / 2 - 2)) then
+		GUI.ColoredRect(self.W / 2 - 4, self.H / 2, 8, self.H / 2 - 2, self.OverColor)
+	else
+		GUI.ColoredRect(self.W / 2 - 4, self.H / 2, 8, self.H / 2 - 2, self.BaseColor)
+	end
+	--Right
+	if (self.Dir == EDirection.RIGHT) then
+		GUI.ColoredRect(self.W / 2, self.H / 2 - 4, self.W / 2 - 10, 8, self.SelColor)
+	elseif (GUI.MouseInRect(x + self.W / 2, y + self.H / 2 - 4, self.W / 2 - 10, 8)) then
+		GUI.ColoredRect(self.W / 2, self.H / 2 - 4, self.W / 2 - 10, 8, self.OverColor)
+	else
+		GUI.ColoredRect(self.W / 2, self.H / 2 - 4, self.W / 2 - 10, 8, self.BaseColor)
+	end
+	--Left
+	if (self.Dir == EDirection.LEFT) then
+		GUI.ColoredRect(2, self.H / 2 - 4, self.W / 2, 8, self.SelColor)
+	elseif (GUI.MouseInRect(x + 2, y + self.H / 2 - 4, self.W / 2, 8)) then
+		GUI.ColoredRect(2, self.H / 2 - 4, self.W / 2, 8, self.OverColor)
+	else
+		GUI.ColoredRect(2, self.H / 2 - 4, self.W / 2, 8, self.BaseColor)
+	end
+	--Up
+	if (self.Dir == EDirection.UP) then
+		GUI.ColoredRect(self.W - 9, self.H / 2 - 16, 8, 8, self.SelColor)
+	elseif (GUI.MouseInRect(x + self.W - 9, y + self.H / 2 - 16, 8, 8)) then
+		GUI.ColoredRect(self.W - 9, self.H / 2 - 16, 8, 8, self.OverColor)
+	else
+		GUI.ColoredRect(self.W - 9, self.H / 2 - 16, 8, 8, self.BaseColor)
+	end
+	--Down
+	if (self.Dir == EDirection.DOWN) then
+		GUI.ColoredRect(self.W - 9, self.H / 2 + 8, 8, 8, self.SelColor)
+	elseif (GUI.MouseInRect(x + self.W - 9, y + self.H / 2 + 8, 8, 8)) then
+		GUI.ColoredRect(self.W - 9, self.H / 2 + 8, 8, 8, self.OverColor)
+	else
+		GUI.ColoredRect(self.W - 9, self.H / 2 + 8, 8, 8, self.BaseColor)
+	end
+	local sx, sy = GUI.TextSize(self.DirTxt, self.Font)
+	GUI.Text(self.DirTxt, self.W / 2 - sx / 2, 2, self.Font, self.TxtColor)
+	GUI.Icon(self.W / 2 - 8, self.H / 2 - 8, self.Icon)
+end
+
+function dirselect:Touched(x, y)
+	if (GUI.MouseInRect(x + self.W / 2 - 4, y + 2, 8, self.H / 2)) then
+		self.Dir = EDirection.FORWARD
+		self.DirTxt = "Forward"
+	elseif (GUI.MouseInRect(x + self.W / 2 - 4, y + self.H / 2, 8, self.H / 2 - 2)) then
+		self.Dir = EDirection.BACKWARD
+		self.DirTxt = "Backward"
+	elseif (GUI.MouseInRect(x + self.W / 2, y + self.H / 2 - 4, self.W / 2 - 2, 8)) then
+		self.Dir = EDirection.RIGHT
+		self.DirTxt = "Right"
+	elseif (GUI.MouseInRect(x + 2, y + self.H / 2 - 4, self.W / 2, 8)) then
+		self.Dir = EDirection.LEFT
+		self.DirTxt = "Left"
+	elseif (GUI.MouseInRect(x + self.W - 9, y + self.H / 2 - 16, 8, 8)) then
+		self.Dir = EDirection.UP
+		self.DirTxt = "Up"
+	elseif (GUI.MouseInRect(x + self.W - 9, y + self.H / 2 + 8, 8, 8)) then
+		self.Dir = EDirection.DOWN
+		self.DirTxt = "Down"
+	end
+end
+
+DefineComponent("dirselect", dirselect)

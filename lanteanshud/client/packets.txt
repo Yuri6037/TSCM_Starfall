@@ -1,0 +1,28 @@
+--@name Lanteans HUD ClientPackets
+--@author Yuri6037
+
+net.RegPacket(0, "LINK", nil, function(args)
+	net.writeEntity(args[1])
+end, true)
+
+net.RegPacket(1, "UNLINK", nil, function(args)
+	net.writeEntity(args[1])
+end, true)
+
+net.RegPacket(2, "OPENCONFIG", function()
+	HUD.OpenConfigPanel()
+end, nil, true)
+
+net.RegPacket(3, "APP_ON", nil, function(args)
+	net.writeString(args[1])
+end, true)
+
+net.RegPacket(4, "APP_OFF", nil, function(args)
+	net.writeString(args[1])
+end, true)
+
+net.RegPacket(5, "APP_UPDATE", function()
+	local name = net.readString()
+	local tbl = net.readTable()
+	HUD.NetworkEvent(name, tbl)
+end, nil, false)

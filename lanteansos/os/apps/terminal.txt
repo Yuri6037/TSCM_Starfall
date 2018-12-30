@@ -1,0 +1,47 @@
+--@name TerminalApp
+--@author Yuri6037
+
+if (OS.IsHUD()) then
+	local app = {}
+	function app:Init()
+		self:SetSize(500, 300)
+		self:SetPos(LOCATION_CENTER)
+		self:SetTitle("Terminal")
+		self.TXT = self:AddComponent("textfield", 10, 258)
+		self.TXT:SetSize(480, 32)
+		self.TXT:SetMaxChars(43)
+		self.List = self:AddComponent("listbox", 10, 32)
+		self.List:SetSize(480, 218)
+		self.List:SetMaxLines(12)
+		self.Data = {}
+		self.List:SetData(self.Data)
+		self:AddKeyboard()
+	end
+	function app:HandleCommand(cmd)
+		table.insert(self.Data, cmd)
+		local args = {}
+		local tbl = string.SplitLeaveChar(cmd, " ", "|")
+		for i = 2, #tbl, 2 do
+			args[tbl[i]] = tbl[i + 1]
+		end
+		if (tbl[1] == "terminal") then
+			table.insert(self.Data, "Application can not duplicate itself !")
+		else
+			if (OS.AppExists(tbl[1])) then
+				OS.StartApp(tbl[1], args)
+			else
+				table.insert(self.Data, "No such application !")
+			end
+		end
+		self.List:SetData(self.Data)
+	end
+	function app:OnKeyTyped(key, char)
+		if (key == KEY_ENTER) then
+			local cmd = self.TXT:GetText()
+			self:HandleCommand(cmd)
+			self.TXT:SetText("")
+		end
+	end
+	OS.DefineApp("terminal", app)
+	OS.AddAppMenuItem("terminal", "Terminal", "System")
+end

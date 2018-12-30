@@ -1,0 +1,68 @@
+--@name LoadScreen
+--@author Yuri6037
+
+local loadScreen = {}
+loadScreen.Name = "Load"
+local G = 255
+local INC = false
+function loadScreen:OnRender()
+	gl.glBindColor(0, G, 255)
+	gl.glRect(0, 0, 1024, 512)
+
+	if (LoadingStr == nil) then
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(Screen.TitleFont)
+		local w = gl.glTextWidth("INFINITE %")
+		gl.glText("INFINITE %", 512 - w / 2, 256 - 64)
+
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(Screen.StandardFont)
+		local w1 = gl.glTextWidth("LanAI " .. VERSION_AI .. " - initializing...")
+		gl.glText("LanAI " .. VERSION_AI .. " - initializing...", 512 - w1 / 2, 20)
+		local w2 = gl.glTextWidth("Lanteans private AI")
+		gl.glText("Lanteans private AI", 512 - w2 / 2, 512 - 54)
+		return
+	end
+
+	gl.glBindColor(0, 0, 0, 200)
+	gl.glRoundedRect(20, 256 - 80, 1024 - 40, 128, 16)
+	local w = LoadingStr * (1024 - 40) / 100
+	gl.glBindColor(0, 255, 255, 200)
+	gl.glRoundedRect(20, 256 - 80, w, 128, 16)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.TitleFont)
+	local percent = math.floor(LoadingStr)
+	local w = gl.glTextWidth(percent .. " %")
+	gl.glText(percent .. " %", 512 - w / 2, 256 - 64)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	local w1 = gl.glTextWidth("LanAI initializing - " .. VERSION_AI)
+	gl.glText("LanAI initializing... - " .. VERSION_AI, 512 - w1 / 2, 20)
+	local w2 = gl.glTextWidth("Lanteans private AI")
+	gl.glText("Lanteans private AI", 512 - w2 / 2, 512 - 54)
+end
+function loadScreen:OnShow()
+end
+function loadScreen:Animate(cur)
+	if (G <= 0) then
+		INC = true
+		G = 0
+	elseif (G >= 255) then
+		G = 255
+		INC = false
+	end
+
+	if (INC) then
+		G = G + cur * 100
+	else
+		G = G - cur * 100
+	end
+end
+function loadScreen:OnExit()
+end
+function loadScreen:OnTouched()
+end
+
+Screen:Register(loadScreen)

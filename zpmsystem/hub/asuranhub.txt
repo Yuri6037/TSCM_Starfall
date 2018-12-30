@@ -1,0 +1,29 @@
+--@name AsuranHub
+--@author Yuri6037
+--@class processor
+--@model models/pg_props/pg_stargate/pg_asuran_hub.mdl
+--@autoupdate
+
+--@require zpmsystem/hub/hublib.txt
+
+local hub = {
+	Model = "models/pg_props/pg_stargate/pg_asuran_hub.mdl",
+	ZPMModel = "models/pg_props/pg_zpm/pg_zpm.mdl",
+	ZPMCount = 1,
+	GetZPMStart = function(self, zpm)
+		return self:obbCenterW() + self:forward() * 2 + self:up() * 20, self:ang()
+	end,
+	GetZPMEnd = function(self, zpm)
+		return self:obbCenterW() + self:forward() * 2 + self:up() * 10, self:ang()
+	end,
+	OnSpawned = function(self)
+		self:setSkin(1)
+	end,
+	OnActivated = function(self)
+		self:setSkin(0)
+	end,
+	OnDeactivated = function(self)
+		self:setSkin(1)
+	end
+}
+hubs.Define(hub)

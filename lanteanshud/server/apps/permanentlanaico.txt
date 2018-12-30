@@ -1,0 +1,34 @@
+--@name PermanentLanAIConnectionApp (SERVER)
+--@author Yuri6037
+
+globaltables.player.IntelliHUDLinkedPlayers = {}
+
+local ShipName = ""
+local LanAICoreEnt = nil
+
+local app = {
+	Update = function()
+		CheckVar("ShipName", ShipName)
+		CheckVar("Core", LanAICoreEnt)
+	end,
+	OnActivated = function(ply)
+		if (globaltables.player.IntelliHUDLinkedPlayers == nil) then
+			globaltables.player.IntelliHUDLinkedPlayers = {}
+		end
+		globaltables.player.IntelliHUDLinkedPlayers[ply] = true
+		LanAI:SendRequest(Requests.GET_SHIP_NAME, function(var)
+			ShipName = var
+			LanAI:SendRequest(Requests.GET_LANAI_CORE, function(var)
+				LanAICoreEnt = var
+			end)
+		end)
+	end,
+	OnDeactivated = function(ply)
+		if (globaltables.player.IntelliHUDLinkedPlayers == nil) then
+			globaltables.player.IntelliHUDLinkedPlayers = {}
+		end
+		globaltables.player.IntelliHUDLinkedPlayers[ply] = nil
+	end
+}
+
+HUD.DefineApp("Permanent LanAI Connection", app)

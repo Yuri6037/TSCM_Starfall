@@ -1,0 +1,33 @@
+--@name RadarGui
+--@author Yuri6037
+
+function RenderRadarGUI(x, y)
+	--Rendering Areas
+	--render.setColor(0, 0, 255, 128)
+	--render.drawFilledCircle(x + 90, y + 50, 200, 250)
+
+	for k, v in pairs(find.allPlayers()) do
+		if (not(v == nil) and v:isValid()) then
+			local x1 = v:getPos().x / x + 512
+			local y1 = v:getPos().y / y + 256
+
+			gl.glBindColor(0, 255, 0)
+			gl.glRect(x1, y1, 16, 16);
+			gl.glBindColor(0, 0, 0)
+			gl.glBindFont(Screen.StandardFont)
+			gl.glText(v:name(), x1, y1)
+		end
+	end
+	for k, v in pairs(find.byClass("ship_core")) do
+		if (not(v == nil) and v:isValid()) then
+			local x1 = v:getPos().x / x + 512
+			local y1 = v:getPos().y / y + 256
+
+			gl.glBindColor(255, 0, 0)
+			gl.glRect(x1, y1, 16, 16);
+			gl.glBindColor(0, 0, 0)
+			gl.glBindFont(Screen.StandardFont)
+			gl.glText(v:class(), x1, y1)
+		end
+	end
+end

@@ -1,0 +1,52 @@
+--@name Lanteans OS MainScreen
+--@author Yuri6037
+
+function ReloadDesktopEnvironment()
+	render.clear(0, 0, 0)
+	GUI.TexturedRect(0, 0, ScrW, ScrH, MainTex, MainColor)
+	GUI.RoundedRect(5, 5, ScrW - 10, 27, COLOR(255, 255, 255, 200))
+	GUI.RoundedRect(ScrW / 2 - 256, ScrH - 50, 512, 40, COLOR(255, 255, 255, 200))
+	GUI.Text("A", (ScrW / 2 - 256) + 5, ScrH - 46, StandardFont, COLOR(0, 0, 0))
+end
+
+local scr = {
+	Init = function(self)
+		DesktopEnv = rendertarget.create(render.getIsHighRes(), ScrW, ScrH)
+		ReloadDesktopEnv = true
+	end,
+	Close = function(self)
+		DesktopEnv:freeRT()
+	end,
+	Render = function(self)
+		--Render desktop environment
+		if (ReloadDesktopEnv) then
+			DesktopEnv:DrawToTexture(ReloadDesktopEnvironment)
+			GUI.Reset()
+			ReloadDesktopEnv = false
+			DWMFocusChange(CurWindowHdl)
+		end
+		DesktopEnv:Draw(0, 0, ScrW, ScrH)
+		DWMMain()
+	end,
+	Update = function(self, ticks)
+		DWMUpdate()
+		if (self.elapsed == nil) then self.elapsed = 0 end
+       	self.elapsed = self.elapsed + ticks * 500
+       	if (self.elapsed >= 10000) then
+            if (self.inactive) then
+               	OS.SwitchScreen("sleep")
+               	self.inactive = nil
+               	self.elapsed = nil
+           	else
+                self.inactive = true
+               	self.elapsed = 0
+           	end
+       	end
+	end,
+	Touched = function(self)
+		DWMTouched()
+		self.inactive = false
+	end
+}
+
+OS.DefineScreen("main", scr)

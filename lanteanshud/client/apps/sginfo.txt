@@ -1,0 +1,69 @@
+--@name StargateInfoApp (CLIENT)
+--@author Yuri6037
+
+local SGType = nil
+local SGName = nil
+local SGIris = false
+local SGOwner = nil
+local SGAddress = nil
+local SGTargetA = nil
+local SGTargetN = nil
+local SGIn = false
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {},
+	Render = function()
+		if (not(SGType == nil)) then
+			local y = ScrH / 2 - 128
+			GUI.InvGradiantRect(ScrW / 2 - 128, ScrH / 2 - 128, 256, 256, COLOR(0, 0, 0))
+			GUI.NormGradiantRect(ScrW / 2 - 128, ScrH / 2 - 128, 256, 256, COLOR(0, 0, 0))
+			--Type
+			local w = GUI.TextSize(SGType, SmallFont)
+			GUI.Text(SGType, ScrW / 2 - w / 2, y + 10, SmallFont, COLOR(255, 255, 255))
+			--Owner
+			local txt = "Owner : " .. SGOwner
+			w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW / 2 - w / 2, y + 40, SmallFont, COLOR(255, 255, 255))
+			--Name
+			txt = SGName
+			w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW / 2 - w / 2, y + 60, SmallFont, COLOR(255, 255, 255))
+			--Address
+			txt = "(" .. SGAddress .. ")"
+			w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW / 2 - w / 2, y + 80, SmallFont, COLOR(255, 255, 255))
+
+			--Target--
+			txt = "Target"
+			w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW / 2 - w / 2, y + 110, SmallFont, COLOR(255, 255, 255))
+			--Name
+			txt = SGTargetN
+			w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW / 2 - w / 2, y + 130, SmallFont, COLOR(255, 255, 255))
+			--Address
+			txt = "(" .. SGTargetA .. ")"
+			w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW / 2 - w / 2, y + 150, SmallFont, COLOR(255, 255, 255))
+
+			if (SGIn or SGIris) then
+				txt = "! UNSAFE GATE !"
+				w = GUI.TextSize(txt, SmallFont)
+				GUI.Text(txt, ScrW / 2 - w / 2, y + 180, SmallFont, COLOR(255, 0, 0))
+			end
+		end
+	end,
+	OnDataReceived = function(data)
+		SGType = data.SGType
+		SGName = data.SGName
+		SGIris = data.SGIris
+		SGIn = data.SGIn
+		SGOwner = data.SGOwner
+		SGAddress = data.SGAddr
+		SGTargetA = data.SGTargetA
+		SGTargetN = data.SGTargetN
+	end
+}
+
+HUD.DefineApp("StargateInfo", app, true)

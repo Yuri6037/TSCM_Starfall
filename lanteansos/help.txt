@@ -1,0 +1,248 @@
+--@name LanteansOS API Help
+
+--[[
+-> OS functions <-
+function OS.GetTextColor()
+function OS.GetSystemTextColor()
+function OS.GetFontSettings()
+function OS.SetFontSettings(name, sizes)
+function OS.CanUse() --For Kernel extensions
+function OS.GetCurScreen() --For Kernel extensions
+function OS.Reboot()
+function OS.EnableGL()
+function OS.DisableGL()
+function OS.ValidHandle(hdl)
+function OS.SwitchScreen(id)
+function OS.DefineScreen(id, tbl)
+function OS.MousePos()
+function OS.StartApp(identifier)
+function OS.DefineApp(identifier, tbl)
+function OS.AddAppMenuItem(appid, appname, category[, icon32 = nil])
+function OS.GetApp(handle)
+function OS.CloseApp(handle)
+function OS.Time()
+function OS.MouseDown()
+function OS.WriteConfig()
+function OS.Dialog(type, title, okfnc, data)
+function OS.AppList()
+function OS.UndefineApp(identifier)
+function OS.IsOnDesktop()
+function OS.TaskKill(identifier)
+function OS.GetTaskCount(identifier)
+function OS.PlaySound(file, loop)
+function OS.SoundPlaying()
+function OS.StopSound()
+function OS.DefineUninstall(identifier, func)
+function OS.IsUserApp(identifier)
+function OS.DefineMessage(type, onrecv) --Defines a message that can be broadcasted from one client to all other client instances
+function OS.ExecMessage(type, variable) --Executes a message on that client instance only
+function OS.Message(type, variable) --Broadcasts the specified message to all other client instances
+function OS.AppExists(identifier)
+
+-> FS functions <-
+function FS.FileWrite(path, content)
+function FS.FileRequest(path)
+function FS.FileRead(path)
+function FS.FileExists(path)
+function FS.FileSize(path)
+function FS.FileCount()
+function FS.FileMax()
+function FS.FileList()
+function FS.SpaceMax()
+function FS.SpaceUsed()
+function FS.RegisterFileAssociation(ext, appid)
+function FS.GetFileAssociation(ext)
+
+-> GUI functions <-
+function COLOR(r, g, b)
+function VERTEX(x, y, u, v)
+function GUI.Reset()
+function GUI.GradiantRect(x, y, w, h, c)
+function GUI.NormGradiantRect2(x, y, w, h, c)
+function GUI.SetTranslation(x, y)
+function GUI.NormGradiantRect(x, y, w, h, c)
+function GUI.InvGradiantRect(x, y, w, h, c)
+function GUI.ANormGradiantRect(x, y, w, h, c, a) --Alpha override
+function GUI.AInvGradiantRect(x, y, w, h, c, a) --Alpha override
+function GUI.MouseInRect(x, y, w, h)
+function GUI.Icon(x, y, ico)
+function GUI.Poly(verts, c)
+function GUI.PregenCircle(x, y, rad, vc, startang, endang)
+function GUI.WindowButton(x, y, c)
+function GUI.IconTransform(ico, x, y, scale)
+function GUI.PolyTransform(poly, x, y, scale)
+function GUI.Text(txt, x, y, fnt, c)
+function GUI.TextSize(txt, fnt)
+function GUI.OutRect(x, y, w, h, stroke, c)
+function GUI.ColoredRect(x, y, w, h, c)
+function GUI.TexturedRect(x, y, w, h, tex, c)
+function GUI.Texture(str) --Allocates new texture (return value usable with render.*)
+function GUI.Font(name, size, bold) --Alocates new font (return value usable with render.*)
+function GUI.Line(x1, y1, x2, y2, stroke, c)
+
+-> GL functions <-
+function gl.glEnable(opt)
+function gl.glDisable(opt)
+function gl.glGenTextures(str) --Allocates new texture (return value usable with render.*)
+function gl.glGenFonts(family, bold, size) --Allocates new font (unusable with render.*)
+function gl.glBindColor(r, g, b, a)
+function gl.glBindTexture(id)
+function gl.glBindFont(id)
+function gl.glTextWidth(str)
+function gl.glTextHeight(str)
+
+
+-> GL globals <-
+GL_CRYPT
+GL_POWERSAVE
+GL_SCISSOR
+GL_BLEND
+GL_TEXT_SHADOW
+GL_TEXT_OUTLINE
+
+-> Globals <-
+-------- OS --------
+AppCount number
+ScrW number
+ScrH number
+StandardFont = "Federation", 32 pixels character size, bold
+LargeFont = "Federation", 20 pixels character size, bold
+SmallFont = "Federation", 12 pixels character size, bold
+function DefineComponent(id, tbl)
+-------- Keyboard --------
+KEY_ENTER = 13
+KEY_BACKSPACE = 127
+KEY_LEFT = 19
+KEY_RIGHT = 20
+KEY_UP = 17
+KEY_DOWN = 18
+KEY_TAB = 9
+KEY_LOCKSHIFT = 144
+KEY_LSHIFT = 154
+KEY_RSHIFT = 155
+KEY_LCONTROL = 158
+KEY_RCONTROL = 159
+KEY_F1 = 163
+KEY_F2 = 164
+KEY_F3 = 165
+KEY_F4 = 166
+KEY_F5 = 167
+KEY_F6 = 168
+KEY_F7 = 169
+KEY_F8 = 170
+KEY_F9 = 171
+KEY_F11 = 173
+KEY_START = 149
+KEY_END = 150
+KEY_DELETE = 148
+function SpecialKey(key)
+
+-> WINAPI <-
+--> Overridable methods
+OnClose = function() end, --Called when this application is closing
+OnReduced = function(flag) end, --Called when window is reduced (reduce flag passed as argument)
+PreRender = function() end, --Called before component rendering
+PostRender = function() end, --Called after component rendering
+Update = function(ticks) end, --Called each frames only if ShouldUpdate returns true
+OnTouched = function(x, y) end, --Called when this window gets touched
+ShouldUpdate = function() return false end, --Used to toggle window custom update
+OnDataReceived = function(data) end, --Called when server sends a new data table, the new data table is passed
+Init = function() end --Called when window intializes (used to set up the display/add components)
+OnKeyTyped = function(key, char) end --Called when a key is typed on the keyboard (only works if AddKeyboard was called)
+--> Globals
+LOCATION_CENTER = 1
+LOCATION_TOPLEFT = 2
+LOCATION_TOPRIGHT = 3
+LOCATION_BOTTOMLEFT = 4
+LOCATION_BOTTOMRIGHT = 5
+--> Callable Methods
+function WINAPI:SetBackground(color as COLOR(r, g, b))
+function WINAPI:SetPos(x, y)
+function WINAPI:SetPos(loc as LOCATION_* enum)
+function WINAPI:GetPos()
+function WINAPI:MousePos()
+function WINAPI:AddComponent(id, x, y, ...)
+function WINAPI:RemoveComponent(id)
+function WINAPI:RemoveComponentRange(lowid, upid)
+function WINAPI:GetComponentNum()
+function WINAPI:HasFocus()
+function WINAPI:SetTitle(title)
+function WINAPI:SetIcon32(ic)
+function WINAPI:SetIcon16(ic)
+function WINAPI:DisableDecorations()
+function WINAPI:SetSize(w, h)
+function WINAPI:EnableCursor(cursorColor as COLOR(r, g, b))
+function WINAPI:AddPullDownMenu(name)
+function WINAPI:AddPullDownMenuItem(name, fnc)
+function WINAPI:Reduce(flag (true/false))
+function WINAPI:EnableAINetContext()
+function WINAPI:NotifyRenderer()
+function WINAPI:SetNoCache()
+function WINAPI:Close()
+function WINAPI:GetSize()
+function WINAPI:SetFullScreen(flag) --Either true or false as flag
+function WINAPI:RequestFocus()
+function WINAPI:AddKeyboard()
+function WINAPI:SetModal(parenthdl)
+
+-> Components <-
+	ID : "button"
+	ARGS : Text, Function on pressed (takes app instance as parameter)
+	function button:SetText(txt)
+	function button:SetColors(base, over, text)
+	function button:SetFont(fnt)
+
+	ID : "icobutton"
+	ARGS : Text, Function on pressed (takes app instance as parameter)
+	function icobutton:SetText(txt)
+	function icobutton:SetColors(base, over, text)
+	function icobutton:SetFont(fnt)
+	function icobutton:SetIcon16(ico)
+
+	ID : "progress"
+	ARGS : ChargeColor as COLOR(r, g, b), Text
+	function progress:SetValue(val)
+	function progress:SetColors(base, charge, text)
+	function progress:SetFont(fnt)
+
+	ID : "indicator"
+	function indicator:SetActive(b)
+
+	ID : "label"
+	function label:SetText(str)
+	function label:SetColor(r, g, b)
+	function label:SetFont(fnt (SmallFont/LargeFont/StandardFont))
+
+	ID : "listbox"
+	function listbox:ScrollUp()
+	function listbox:ScrollDown()
+	function listbox:SetMaxLines(nbr)
+	function listbox:GetSelected() returns id number and string text
+	function listbox:SetData(data as string list)
+	function listbox:SetColors(background, text, mouseover, selected)
+	function listbox:SetButtonColors(base, over)
+	function listbox:SetFont(fnt)
+	function listbox:SetNoSelect()
+	function listbox:RecalculateSelected()
+
+	ID : "numselect"
+	function numselect:SetBounds(min, max, def)
+	function numselect:SetDecorations(prefix, suffix)
+	function numselect:GetValue()
+	function numselect:SetValue(val)
+	function numselect:SetStep(step)
+	function numselect:SetButtonColors(base, over)
+	function numselect:SetColors(base, text)
+	function numselect:SetFont(fnt)
+
+	ID : "textfield"
+	function textfield:SetMaxChars(num)
+	function textfield:SetColors(base, text)
+	function textfield:SetFont(fnt)
+	function textfield:GetText()
+	function textfield:SetText(txt)
+	function textfield:SetCursor(newcursor)
+
+	ID : "rendertarget"
+	ARGS : Width, Height
+]]

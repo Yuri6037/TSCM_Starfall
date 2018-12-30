@@ -1,0 +1,10 @@
+--@name BroadcasterCommands
+--@author Yuri6037
+
+AIRegisterCommand("say", function(args, ply)
+	local msg = args[1]
+	if (string.find(msg, "*lenny")) then
+		msg = string.Replace(msg, "*lenny", "( ͡° ͜ʖ ͡°)")
+	end
+	aiSay(msg)
+end, {"Displays a message to all players that can hear LanAI.", "<command> <string>"}, {"string"})

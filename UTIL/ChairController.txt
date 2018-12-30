@@ -1,0 +1,43 @@
+--@name ChairControler
+--@author Yuri6037
+--@class processor
+--@autoupdate
+
+wire.createInputs({"User", "BaseProp"}, {"Entity", "Entity"})
+wire.createOutputs({"Exit Pos", "Relative Exit", "Active"}, {"Vector", "Number", "Normal"})
+
+wire.ports["Relative Exit"] = 1
+wire.ports["Exit Pos"] = Vector(40, 0, 0)
+
+hook("input", "ChairControler_Wire", function(inp, val)
+	if (inp == "User") then
+		if (IsValid(val)) then wire.ports["Active"] = 1 else wire.ports["Active"] = 0 end
+	end
+end)
+
+hook("think", "ChairControler_Updater", function()
+	if (IsValid(wire.ports["BaseProp"]) and IsValid(wire.ports["User"])) then
+		local e = wire.ports["User"]
+		if (e:keyDown(input.IN_MOVELEFT)) then
+			RotatePositive()
+		elseif (e:keyDown(input.IN_MOVERIGHT)) then
+			RotateNegative()
+		end
+	end
+end)
+
+function RotatePositive()
+	local base = wire.ports["BaseProp"]
+
+	local a = base:getAngles()
+	a.yaw = a.yaw + 1
+	base:setAngles(a)
+end
+
+function RotateNegative()
+	local base = wire.ports["BaseProp"]
+
+	local a = base:getAngles()
+	a.yaw = a.yaw - 1
+	base:setAngles(a)
+end

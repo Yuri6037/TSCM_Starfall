@@ -1,0 +1,87 @@
+--@name ConfigKernelExtension
+--@author Yuri6037
+
+local RawCfg = {}
+local CfgStruct = {}
+local CfgChanged = false
+
+function OS.CreateConfig(name, default, onLoad)
+	if (not(CfgStruct[name] == nil)) then
+		error("Config key '" .. name .. "' already exists")
+	end
+	CfgStruct[name] = {Type = type(default), Default = default, OnLoad = onLoad}
+end
+
+function OS.GetConfig(name)
+	if (CfgStruct[name] == nil) then
+		error("Config key '" .. name .. "' does not exist")
+	end
+	return (RawCfg[name])
+end
+
+function OS.SetConfig(name, val)
+	if (CfgStruct[name] == nil) then
+		error("Config key '" .. name .. "' does not exist")
+	end
+	if (not(CfgStruct[name].Type == type(val))) then
+		error("Config value type mismatch at key '" .. name .. "'")
+	end
+	if (not(RawCfg[name] == val)) then
+		RawCfg[name] = val
+		CfgChanged = true
+	end
+end
+
+function von.FixedDeserialize(data)
+	local b, err = pcall(function()
+		return (von.deserialize(data))
+	end, data)
+	if (not(b)) then
+		util.Log("KernelExt.Config", LOG_ERR, "An error occured trying to deserialize config : ", err)
+		return (nil)
+	else
+		return (err)
+	end
+end
+
+function OS.LoadConfig(data)
+	if (data == "") then
+		RawCfg = nil
+		OS.ResetConfig()
+	else
+		RawCfg = von.FixedDeserialize(data)
+		if (RawCfg == nil) then
+			OS.ResetConfig()
+		end
+	end
+	for k, v in pairs(RawCfg) do
+		if (not(CfgStruct[k].OnLoad == nil)) then
+			CfgStruct[k].OnLoad(v)
+		end
+	end
+end
+
+function OS.SaveConfig()
+	if (not(CfgChanged)) then return end
+	local str = von.serialize(RawCfg)
+	net.SendPacket("CONFIG", "W", str)
+end
+
+function OS.ResetConfig(name)
+	if (name == nil) then
+		if (not(RawCfg == nil)) then
+			net.SendPacket("CONFIG", "O")
+		end
+		RawCfg = {}
+		for k, v in pairs(CfgStruct) do
+			RawCfg[k] = v.Default
+		end
+		CfgChanged = true
+	else
+		if (CfgStruct[name] == nil) then
+			error("Config key '" .. name .. "' does not exist")
+		end
+		RawCfg[name] = CfgStruct[name].Default
+		CfgChanged = true
+	end
+end

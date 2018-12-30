@@ -1,0 +1,68 @@
+--@name DanceAreaManipulator
+--@author Yuri6037
+
+wire.createOutputs({"Mat Type"}, {"String"})
+
+wire.createInputs({"Activate", "Switch Type", "Ent1", "Ent2", "Ent3", "Ent4", "Ent5", "Ent6", "Ent7", "Ent8", "Ent9", "Ent10", "Ent11", "Ent12"}, {"Normal", "Normal", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity"})
+
+local curActive = 0
+local curType = 0
+local wanted = 0
+
+local typeChanged = false
+timer.create("DanceAreaManipulator_InputUpdater", 0.2, 0, function()
+	if (wire.ports["Switch Type"] == 1) then
+		if (wanted >= 2) then
+			wanted = 0
+			typeChanged = true
+			return
+		end
+		wanted = wanted + 1
+		typeChanged = true
+	end
+	if (typeChanged) then
+		local txt = "ERROR"
+		if (wanted == 0) then
+			txt = "Red Flash"
+		elseif (wanted == 1) then
+			txt = "Blue Flash"
+		elseif (wanted == 2) then
+			txt = "Yellow Light"
+		end
+		wire.ports["Mat Type"] = txt
+		typeChanged = false
+	end
+end)
+
+hook("think", "DanceAreaManipulator_Updater", function()
+	if (not(curActive == wire.ports["Activate"])) then
+		curActive = wire.ports["Activate"]
+		if (curActive == 0) then
+			UpdateMaterials(-1)
+		end
+	end
+	if (not(curType == wanted)) then
+		curType = wanted
+		UpdateMaterials(curType)
+	end
+end)
+
+function UpdateMaterials(t)
+	if (t == 0) then
+		for i = 1, 12 do
+			wire.ports["Ent" .. i]:setSubMaterial(0, "cmats/flash_red")
+		end
+	elseif (t == 1) then
+		for i = 1, 12 do
+			wire.ports["Ent" .. i]:setSubMaterial(0, "glow/flash_blue")
+		end
+	elseif (t == 2) then
+		for i = 1, 12 do
+			wire.ports["Ent" .. i]:setSubMaterial(0, "glow/yellow_light")
+		end
+	elseif (t == -1) then
+		for i = 1, 12 do
+			wire.ports["Ent" .. i]:setSubMaterial(0, "models/props/whiteon")
+		end
+	end
+end

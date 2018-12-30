@@ -1,0 +1,58 @@
+--@name Button
+--@author Yuri6037
+
+local texID = render.getTextureID("models/dav0r/hoverball")
+
+local tbl = {}
+
+tbl.Name = "Button"
+
+function tbl:OnRender(x, y, w, h, tbl)
+	if (Screen:IsMouseInRect(x, y, w, h)) then
+		gl.glBindColor(255, 255, 0)
+	else
+		gl.glBindColor(255, 255, 255)
+	end
+	if (Screen:IsMouseInRect(x, y, w, h) and Screen:KeyUse() or tbl.Selected) then
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glBindTexture(texID)
+	if (tbl.Vertices == nil) then
+		gl.glRect(x, y, w, h)
+	else
+		render.drawPoly(tbl.Vertices)
+	end
+
+	if (not(tbl.Text == nil)) then
+		if (Screen:IsMouseInRect(x, y, w, h)) then
+			gl.glBindColor(255, 255, 0)
+		else
+			gl.glBindColor(255, 255, 255)
+		end
+		if (Screen:IsMouseInRect(x, y, w, h) and Screen:KeyUse() or tbl.Selected) then
+			gl.glBindColor(255, 0, 0)
+		end
+		gl.glBindFont(Screen.StandardFont)
+		local merde = gl.glTextWidth(tbl.Text)
+		local merde1 = gl.glTextHeight(tbl.Text)
+		gl.glText(tbl.Text, (x + w / 2) - merde / 2, (y + h / 2) - merde1 / 2)
+	end
+end
+
+function tbl:OnTouched(x, y, tbl)
+	if (Screen:IsMouseInRect(tbl.x, tbl.y, tbl.w, tbl.h) and not(tbl.Selected)) then
+		if (not(tbl.Func == nil)) then
+			tbl.Func()
+		end
+	end
+end
+
+function tbl:OnInsert(x, y, w, h, tbl)
+	tbl.Selected = false
+	tbl.x = x
+	tbl.y = y
+	tbl.w = w
+	tbl.h = h
+end
+
+Screen:RegisterControl(tbl)

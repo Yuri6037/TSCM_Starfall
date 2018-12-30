@@ -1,0 +1,18 @@
+--@name StargateStatusAppUpdater
+--@author Yuri6037
+
+DefineOSApp("sgstatus", function()
+	if (Ship.Stargate == nil) then return end
+	CheckVar("Type", Ship.Stargate.Type)
+	CheckVar("SGOpen", Ship.Stargate.Wire["Open"])
+	CheckVar("SGActive", Ship.Stargate.Wire["Active"])
+	CheckVar("SGIncoming", Ship.Stargate.Wire["Inbound"])
+	CheckVar("SGAddr", Ship.Stargate.Addr)
+	CheckVar("SGName", Ship.Stargate.Name)
+	local addr, owner, name, iris = GetGateTarget()
+	CheckVar("SGTargetAddr", addr)
+	CheckVar("SGTargetOwner", owner)
+	CheckVar("SGTargetName", name)
+	CheckVar("SGTargetIris", iris)
+	CheckVar("Iris", Ship.Stargate.Iris["Activated"])
+end)

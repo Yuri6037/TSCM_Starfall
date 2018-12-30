@@ -1,0 +1,70 @@
+--@name WarpCommands
+--@author Yuri6037
+
+AIRegisterCommand("warp", function(cmd, ply)
+	local o = cmd[1]
+	if (o == "me") then
+		if (WarpToPlayer(ply)) then
+			return Command.PASSING, "Warping to " .. ply:name() .. "."
+		end
+		return Command.ERROR_GENERIC
+	elseif (o == "owner") then
+		if (WarpToPlayer(ents.owner())) then
+			return Command.PASSING, "Warping to owner : " .. ents.owner():name() .. "."
+		end
+		return Command.ERROR_GENERIC
+	elseif (o == "player") then
+		if (not(IsValid(cmd[2]))) then return Command.ERROR_CUSTOM, "invalid player specified" end
+		if (WarpToPlayer(cmd[2])) then
+			return Command.PASSING, "Warping to player : " .. cmd[2] .. "."
+		end
+		return Command.ERROR_GENERIC
+	elseif (o == "vector") then
+		if (args[2] == nil) then
+			return Command.INSUFFICIENT_ARGUMENT
+		end
+		local tbl = string.Split(args[2], " ")
+		local a = Vector(tonumber(tbl[1]), tonumber(tbl[2]), tonumber(tbl[3]))
+		WarpToVector(a)
+		return Command.PASSING, "Warping to vector (" .. tbl[1] .. ", " .. tbl[2] .. ", " .. tbl[3] .. ")."
+	elseif (o == "angle") then
+		if (args[2] == nil) then
+			return Command.INSUFFICIENT_ARGUMENT
+		end
+		local tbl = string.Split(args[2], " ")
+		local a = Angle(tonumber(tbl[1]), tonumber(tbl[2]), tonumber(tbl[3]))
+		WarpToAngle(a)
+		return Command.PASSING, "Warping to angle (" .. tbl[1] .. ", " .. tbl[2] .. ", " .. tbl[3] .. ")."
+	else
+		WarpToDefinedDirection(o)
+		return Command.PASSING
+	end
+end, {"Warp management.", "<command> <option> [vector/angle if needed]", "Option : me, owner, vector, angle"}, {"string", "player:string"}, {"warpto", "goto"}, 1)
+
+AIRegisterCommand("move", function(cmd, ply)
+	if (cmd[1] == "left" or cmd[1] == "q") then
+		WarpDirection(EDirection.LEFT, cmd[2])
+	elseif (cmd[1] == "right" or cmd[1] == "d") then
+		WarpDirection(EDirection.RIGHT, cmd[2])
+	elseif (cmd[1] == "forward" or cmd[1] == "z") then
+		WarpDirection(EDirection.FORWARD, cmd[2])
+	elseif (cmd[1] == "backward" or cmd[1] == "back" or cmd[1] == "s") then
+		WarpDirection(EDirection.BACKWARD, cmd[2])
+	elseif (cmd[1] == "up") then
+		WarpDirection(EDirection.UP, cmd[2])
+	elseif (cmd[1] == "down") then
+		WarpDirection(EDirection.DOWN, cmd[2])
+	end
+	return Command.PASSING
+end, {"Moves the ship.", "<command> <direction> <value>", "Direction : left/q, right/d, forward/z, backward/back/s, up, down"}, {"string", "number"}, {}, 2)
+
+AIRegisterCommand("rotate", function(cmd, ply)
+	if (cmd[1] == "pitch" or cmd[1] == "x") then
+		WarpToAngle(Angle(cmd[2], 0, 0))
+	elseif (cmd[1] == "yaw" or cmd[1] == "y") then
+		WarpToAngle(Angle(0, cmd[2], 0))
+	elseif (cmd[1] == "roll" or cmd[1] == "z") then
+		WarpToAngle(Angle(0, 0, cmd[2]))
+	end
+	return Command.PASSING
+end, {"Moves the ship.", "<command> <direction> <value>", "Direction : pitch/x, yaw/y, roll/z"}, {"string", "number"}, {}, 2)

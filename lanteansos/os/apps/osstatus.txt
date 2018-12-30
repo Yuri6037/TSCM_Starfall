@@ -1,0 +1,75 @@
+--@name OSStatusApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {
+		{
+			Color = COLOR(0, 255, 255),
+			Vertices = GUI.PregenCircle(16, 16, 8)
+		},
+		{
+			Color = COLOR(0, 255, 0),
+			Vertices = {
+				VERTEX(16, 16),
+				VERTEX(25, 16),
+				VERTEX(32, 32)
+			}
+		}
+	},
+	[16] = {
+		{
+			Color = COLOR(0, 255, 255),
+			Vertices = GUI.PregenCircle(8, 8, 4)
+		},
+		{
+			Color = COLOR(0, 255, 0),
+			Vertices = {
+				VERTEX(8, 8),
+				VERTEX(13, 8),
+				VERTEX(16, 16)
+			}
+		}
+	}
+}
+
+local app = {}
+function app:Init()
+	self:SetTitle("OS Status")
+	self:SetNoCache()
+	self:SetSize(200, 128)
+	self:SetIcon32(ico[32])
+	self:SetIcon16(ico[16])
+	self:SetPos(LOCATION_BOTTOMLEFT)
+	self:SetUpdates()
+
+	self:AddPullDownMenu("Information")
+	self:AddPullDownMenuItem("About", function()
+		OS.Dialog("msg", "Lanteans OS", nil, {
+			"Lanteans OS V." .. VERSION_OS .. " - GL V." .. VERSION_GL,
+			"You are currently running the " .. Edition:upper() .. " Edition"
+		})
+	end)
+	self:AddPullDownMenuItem("Credits", function()
+		OS.Dialog("msg", "Lanteans OS", nil, {
+			"Lanteans OS by Yuri6037",
+			"Core testing by Yuri6037 & Haraldsmbs",
+			"UI design by Yuri6037, Cynical Toaster and mursu"
+		})
+	end)
+	self.AV = self:AddComponent("progress", 10, 32, COLOR(0, 255, 255), "CPU Av.")
+	self.AV:SetSize(AUTO, 20)
+	self.CPU = self:AddComponent("progress", 10, 56, COLOR(0, 255, 255), "CPU Cur.")
+	self.CPU:SetSize(AUTO, 20)
+end
+
+function app:Update(t)
+	self.AV:SetValue(math.round(cpuAverage() / cpuMax(), 3))
+	self.CPU:SetValue(math.round(cpuTime() / cpuMax(), 3))
+end
+
+function app:PostRender()
+	GUI.Text("Number Apps " .. AppCount, 10, 96, SmallFont, COLOR(255, 0, 0))
+end
+
+OS.DefineApp("osstatus", app)
+OS.AddAppMenuItem("osstatus", "OS Status", "Tools", ico[16])

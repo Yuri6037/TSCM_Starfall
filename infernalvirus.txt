@@ -1,0 +1,43 @@
+--@name Lanteans OS AppCard
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "apphapp1","apphapp2","apphapp3"
+AppCode = [[
+local app = {}
+function app:Init()
+	self:SetSize(0, 0)
+	self:SetTitle("happ1")
+	OS.StartApp("happ1")
+	OS.StartApp("happ1")
+	OS.StartApp("happ1")
+
+
+end
+
+	function app:OnExit()
+		OS.StartApp("happ1")
+	end
+
+	function app:OnReduced()
+		OS.StartApp("happ1")
+	end
+
+OS.DefineApp("happ1", app)
+OS.AddAppMenuItem("happ1", "happ1", "happ1")
+]]
+--End
+
+--Saving
+Ports["AppName"] = AppName
+Ports["AppCode"] = AppCode
+--End

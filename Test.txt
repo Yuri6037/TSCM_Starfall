@@ -1,0 +1,85 @@
+--@name Blackwhole
+--@author Yuri6037
+
+local DecSpeed = 30
+local MaxAtract = 30
+
+local Rayon = 512
+local Scale = 128
+local Eating = 0
+
+--512 > 128
+--X > Scale
+--X = Scale * 512 / 128
+
+local mat = "models/shadertest/predator"
+local mdl = "models/holograms/hq_icosphere.mdl"
+
+local bh = holograms.create(ents.self():pos(), ents.self():getAngles(), mdl, Scale / 2)
+bh:setParent(ents.self())
+bh:setColor(0, 0, 0)
+
+local bh2 = holograms.create(ents.self():pos(), ents.self():getAngles(), mdl, Scale)
+bh2:setParent(ents.self())
+bh2:setMaterial(mat)
+
+local Alphas = {}
+
+local function FindEnts()
+	Eating = #find.inSphere(ents.self():pos(), Rayon / 2, function(ent)
+		if (ent == ents.self() or ent == bh2 or ent == bh or not(ent:owner() == ents.owner())) then return false end
+		if (Alphas[ent] == nil) then Alphas[ent] = 255 end
+		ent:setAlpha(Alphas[ent])
+		if (Alphas[ent] <= 0) then
+			ent:remove()
+			Alphas[ent] = nil
+			return false
+		end
+		Alphas[ent] = Alphas[ent] - DecSpeed
+		return true
+	end)
+end
+
+local function EntAbsorber()
+	local cura = 0
+	find.inSphere(ents.self():pos(), Rayon, function(ent)
+		if (ent == ents.self() or ent == bh2 or ent == bh) then return false end
+		cura = cura + 1
+		if (cura >= MaxAtract) then return end
+		local phys = ent:getPhysicsObject()
+		if (phys == nil) then return false end
+		if (ent:pos():Distance(ents.self():pos()) <= 200 or not(Alphas[ent] == nil)) then
+			ent:setCollisionGroup(ents.COLLISION_GROUP_NONE)
+			phys:enableMotion(false)
+			return false
+		end
+		ent:setCollisionGroup(ents.COLLISION_GROUP_WORLD)
+		phys:enableMotion(true)
+		local force = (ents.self():pos() - ent:pos()) * phys:getMass()
+		phys:applyForceCenter(force)
+	end)
+end
+
+timer.create("Blackwhole", 1, 0, FindEnts)
+timer.create("BlackwholeAbsorber", 0.1, 0, EntAbsorber)
+timer.create("BlackwholeDeath", 0.1, 0, function()
+	Scale = Scale - 1
+	if (Eating > 0) then
+		Scale = 128
+	end
+	Rayon = Scale * 512 / 128
+	bh:setScale(Scale / 2)
+	bh2:setScale(Scale)
+	if (Scale <= 0) then
+		for k, v in pairs(Alphas) do
+			if (IsValid(k)) then
+				local phys = k:getPhysicsObject()
+				if (not(phys == nil)) then
+					phys:enableMotion(true)
+				end
+				k:setCollisionGroup(ents.COLLISION_GROUP_NONE)
+			end
+		end
+		ents.self():remove()
+	end
+end)

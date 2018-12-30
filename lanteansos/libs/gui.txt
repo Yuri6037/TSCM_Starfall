@@ -1,0 +1,196 @@
+--@name GUILibrary
+--@author Yuri6037
+
+local LastColor = {-1, -1, -1}
+local LastTexture = nil
+local TX, TY = 0, 0
+
+function COLOR(r, g, b, a)
+	return {r, g, b, a or 255}
+end
+
+function VERTEX(x1, y1, u1, v1)
+	if (u1 == nil) then u1 = 0 end
+	if (v1 == nil) then v1 = 0 end
+	return {x = x1, y = y1, u = u1, v = v1}
+end
+
+GUI = {}
+function GUI.Reset()
+	LastColor = {-1, -1, -1}
+	LastTexture = nil
+	TX, TY = 0, 0
+end
+
+function GUI.GradiantRect(x, y, w, h, c)
+	render.setColor(c[1], c[2], c[3], c[4])
+	render.setTexture(GradiantTop)
+	render.drawTexturedRect(TX + x, TY + y, w, h / 2)
+	render.setTexture(GradiantBottom)
+	render.drawTexturedRect(TX + x, TY + y + h / 2, w, h / 2)
+end
+
+function GUI.NormGradiantRect2(x, y, w, h, c)
+	render.setColor(c[1], c[2], c[3], c[4])
+	render.setTexture(GradiantTop)
+	render.drawTexturedRect(TX + x, TY + y, w, h / 2)
+	render.drawTexturedRect(TX + x, TY + y + h / 2, w, h / 2)
+end
+
+function GUI.SetTranslation(x, y)
+    TX, TY = x, y
+end
+
+function GUI.NormGradiantRect(x, y, w, h, c)
+	render.setColor(c[1], c[2], c[3], c[4])
+	render.setTexture(GradiantTop)
+	render.drawTexturedRect(TX + x, TY + y, w, h)
+end
+
+function GUI.InvGradiantRect(x, y, w, h, c)
+  	render.setColor(c[1], c[2], c[3], c[4])
+   	render.setTexture(GradiantBottom)
+    render.drawTexturedRect(TX + x, TY + y, w, h)
+end
+
+function GUI.MouseInRect(x, y, w, h)
+    local mx, my = OS.MousePos()
+    return mx >= x and mx <= x + w and my >= y and my <= y + h
+end
+
+function GUI.Icon(x, y, ico)
+    local mat = Matrix()
+    mat:translate(Vector(TX + x, TY + y))
+    render.pushMatrix(mat)
+    for k, v in pairs(ico) do
+    	if (not(v.String == nil)) then
+    		GUI.Text(v.String, v.Vertices[1], v.Vertices[2], v.Font, v.Color)
+    	else
+        	GUI.Poly(v.Vertices, v.Color)
+        end
+    end
+    render.popMatrix()
+end
+
+function GUI.Poly(verts, c)
+    render.setTexture(nil)
+    render.setColor(c[1], c[2], c[3], c[4])
+    render.drawPoly(verts)
+end
+
+function GUI.PregenCircle(x, y, rad, vc, startang, endang)
+	if (vc == nil) then vc = rad * 2.5 end
+	if (startang == nil) then startang = 0 end
+	if (endang == nil) then endang = 360 end
+	local vertices = {}
+	local inc = endang - startang / vc
+	local ang = startang
+	for i = 0, vc do
+		table.insert(vertices, VERTEX(x + (rad * math.cos(ang)), y + (rad * math.sin(ang))))
+		ang = ang + inc
+	end
+	return vertices
+end
+
+function GUI.PregenCircleNoArtifact(x, y, rad, vc)
+	if (vc == nil) then vc = rad * 2.5 end
+	local vertices = {}
+	for i = 0, vc do
+		local theta = 2 * math.pi * i / vc
+		table.insert(vertices, VERTEX(x + (rad * math.cos(theta)), y + (rad * math.sin(theta))))
+	end
+	return vertices
+end
+
+local WinBut = GUI.PregenCircle(8, 8, 8)
+function GUI.WindowButton(x, y, c)
+    local mat = Matrix()
+    mat:translate(Vector(TX + x - 6, TY + y - 6))
+    render.pushMatrix(mat)
+    render.setColor(c[1], c[2], c[3], c[4])
+    render.drawPoly(WinBut)
+    render.popMatrix()
+end
+
+function GUI.IconTransform(ico, x, y, scale)
+	if (scale == nil) then scale = 1 end
+	for k, v in pairs(ico) do
+		for k1, v1 in pairs(v.Vertices) do
+			v1.x = v1.x + x
+			v1.y = v1.y + y
+			v1.x = v1.x * scale
+			v1.y = v1.y * scale
+		end
+	end
+	return ico
+end
+
+function GUI.PolyTransform(poly, x, y, scalex, scaley)
+	if (scalex == nil) then scalex = 1 end
+	if (scaley == nil) then scaley = scalex end
+	local ret = {}
+	for k1, v1 in pairs(poly) do
+		local v = {}
+		v.x = (v1.x + x) * scalex
+		v.y = (v1.y + y) * scaley
+		table.insert(ret, v)
+	end
+	return ret
+end
+
+function GUI.Text(txt, x, y, fnt, c)
+    render.setColor(c[1], c[2], c[3], c[4])
+    render.drawText(fnt, TX + x, TY + y, txt, render.TEXT_ALIGN_LEFT)
+end
+
+function GUI.TextSize(txt, fnt)
+    return render.getTextSize(fnt, txt)
+end
+
+function GUI.OutRect(x, y, w, h, stroke, c)
+	render.setColor(c[1], c[2], c[3], c[4])
+	render.drawRect(TX + x, TY + y, w, stroke)
+	render.drawRect(TX + (x + w) - stroke, TY + y, stroke, h)
+	render.drawRect(TX + x, TY + y, stroke, h)
+	render.drawRect(TX + x, TY + (y + h) - stroke, w, stroke)
+end
+
+function GUI.ColoredRect(x, y, w, h, c)
+    render.setColor(c[1], c[2], c[3], c[4])
+    render.drawRect(TX + x, TY + y, w, h)
+end
+
+function GUI.RoundedRect(x, y, w, h, c)
+	render.setColor(c[1], c[2], c[3], c[4])
+	render.drawRoundedRect(4, TX + x, TY + y, w, h)
+end
+
+function GUI.TexturedRect(x, y, w, h, tex, c)
+    render.setColor(c[1], c[2], c[3], c[4])
+    render.setTexture(tex)
+    render.drawTexturedRect(TX + x, TY + y, w, h)
+end
+
+function GUI.Texture(str)
+    return render.getTextureID(str)
+end
+
+function GUI.Font(name, size, bold)
+    local i = 0
+    if (bold) then
+        i = 900
+    else
+        i = 500
+    end
+    return render.createFont(name, size, i, true, false, false, false, false)
+end
+
+function GUI.Line(x1, y1, x2, y2, stroke, c)
+	render.setColor(c[1], c[2], c[3], c[4])
+	for i = 1, stroke do
+		render.drawLine(TX + x1 + i,TY + y1 + i,TX + x2 + i, TY + y2 + i)
+	end
+end
+
+GradiantTop = GUI.Texture("gui/gradient_up")
+GradiantBottom = GUI.Texture("gui/gradient_down")

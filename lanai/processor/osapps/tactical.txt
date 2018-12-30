@@ -1,0 +1,45 @@
+--@name TacticalAppUpdater
+--@author Yuri6037
+
+DefineOSApp("tactical", function()
+	CheckVar("Plating", Ship.Core["Plating"])
+	CheckVar("Health", Ship.Core["Health"])
+	CheckVar("MaxHealth", Ship.Core["Max Health"])
+
+	CheckVar("Shield", Ship.Shield["Total Charge"])
+	CheckVar("MaxShield", Ship.Shield["Max Charge"])
+	CheckVar("ShieldActive", Ship.Shield["Active"])
+
+	if (EnableSensor()) then
+		local str = "NULL Entity"
+		if (IsValid(Target.Entity:owner())) then
+			str = (Target.Entity:owner():name() or "NULL") .. "'s " .. (Target.Entity:class() or "CLASS_NULL")
+		else
+			str = (Target.Entity:class() or "CLASS_NULL")
+		end
+		CheckVar("TName", str)
+		local sactive, scharge, smax = GetTargetShieldData()
+		CheckVar("TShieldActive", sactive)
+		CheckVar("TShield", scharge)
+		CheckVar("TMaxShield", smax)
+		local hull, maxhull, plating = GetTargetHealthData()
+		CheckVar("THealth", hull)
+		CheckVar("TMaxHealth", maxhull)
+		CheckVar("TPlating", plating)
+	elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+		local str = (Target.Player:name() or "NULL")
+		CheckVar("TName", str)
+		CheckVar("TShieldActive", 0)
+		CheckVar("TShield", 0)
+		CheckVar("TMaxShield", 0)
+		CheckVar("THealth", Target.Player:health())
+		if (Target.Player:health() > Target.Player:maxHealth()) then
+			CheckVar("TMaxHealth", Target.Player:health())
+		else
+			CheckVar("TMaxHealth", Target.Player:maxHealth())
+		end
+		CheckVar("TPlating", 0)
+	else
+		CheckVar("TName", nil)
+	end
+end)

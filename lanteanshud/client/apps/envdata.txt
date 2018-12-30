@@ -1,0 +1,50 @@
+--@name EnvironmentDataApp (CLIENT)
+--@author Yuri6037
+
+local EnvName = "Undefined"
+local GalaxyName = "Unknown"
+local EnvAir = 1.0
+local EnvGrav = 1.0
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {},
+	Render = function()
+		local x = ScrW / 2 - 256
+		local y = ScrH - 64
+		if (EnvAir < 1.0) then
+			GUI.GradiantRect(x, y, 250, 32, COLOR(0, 0, 0))
+		end
+		if (EnvGrav < 1.0) then
+			GUI.GradiantRect(x + 262, y, 250, 32, COLOR(0, 0, 0))
+		end
+		GUI.GradiantRect(x, y - 32, 512, 32, COLOR(0, 0, 0))
+
+		if (EnvAir > 0.5) then
+			GUI.GradiantRect(x, y, EnvAir * 250, 32, COLOR(0, 128, 128))
+		elseif (EnvAir < 0.5 and EnvAir > 0.05) then
+			GUI.GradiantRect(x, y, EnvAir * 250, 32, COLOR(128, 128, 0))
+		elseif (EnvAir > 0.0) then
+			GUI.GradiantRect(x, y, EnvAir * 250, 32, COLOR(128, 0, 0))
+		end
+		if (EnvGrav > 0.0) then
+			GUI.GradiantRect(x + 511 - EnvGrav * 250, y, EnvGrav * 250, 32, COLOR(0, 128, 0))
+		end
+
+		GUI.Text("Air", x + 10, y + 8, SmallFont, COLOR(255, 255, 255))
+		GUI.Text("Gravity", x + 410, y + 8, SmallFont, COLOR(255, 255, 255))
+
+		local txt = EnvName .. " - " .. GalaxyName
+		local w = GUI.TextSize(txt, SmallFont)
+		GUI.Text(txt, ScrW / 2 - w / 2, y - 24, SmallFont, COLOR(255, 255, 255))
+	end,
+	OnDataReceived = function(data)
+		EnvName = data.EnvName
+		EnvAir = data.EnvAir
+		EnvGrav = data.EnvGrav
+		EnvName = data.EnvName
+		GalaxyName = data.GalaxyName
+	end
+}
+
+HUD.DefineApp("EnvironmentData", app)

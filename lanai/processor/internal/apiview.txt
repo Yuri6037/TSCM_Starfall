@@ -1,0 +1,168 @@
+--@name APIView
+--@author Yuri6037
+
+--File used exclusively by LanAI HUD
+
+APIView = {
+    ["Hooks"] = {
+        Type = 0,
+        {"HookPostLoad", "function", "Hook called right after LanAI has done intializing"},
+        {"HookUpdateLoop", "function", "Hook called each server ticks (same as think hook but protected against CPU time errors)"},
+        {"HookPostPromote", "function", "Hook called when a players gets promoted to higher rank ; the functions gets the player as argument"},
+        {"HookPostDemote", "function", "Hook called when a players gets demoted to lower rank ; the functions gets the player as argument"}
+    },
+    ["Drivers APIs"] = {
+        Type = 1,
+        ["basics"] = {
+            {"IsNoclipDisabled", "", "@Returns boolean"},
+            {"SwitchNoclip", "boolean", "Sets the noclip boolean"},
+            {"StartShieldDivertPower", "EShieldDivertPower", "Starts diverting power to a specified side or balance"}
+        },
+        ["beam"] = {
+            {"BeamToPoint", "string", "Beam to point named string parameter 1"},
+            {"BeamToVector", "vector", "Direct beam to vector"},
+            {"BeamPlayer", "player", "Direct player beam to ship's transporter pad"},
+            {"BeamToPad", "entity", "Direct beam to pad defined by entity parameter 1"}
+        },
+        ["props"] = {
+            {"ToggleEvacuation", "", "Toggles evacuation prop relooking"},
+            {"ToggleDestruction", "", "Toggles timed autodestruction (Screen relooking)"},
+            {"UpdateAlertStatus", "number", "Updates alert status prop relooking (3 = NONE, 2 = NORMAL, 1 = HIGH)"}
+        },
+        ["timer"] = {
+            {"StartTimerCountdown", "number, function", "Starts timers countdown of number parameter 1 seconds and calls fuction parameter 2 on end"},
+            {"EndTimerCountdown", "", "Finishes current timer countdown operation while it's running (Sometimes not working)"},
+            {"IsTimerInProgress", "", "@Returns boolean"},
+            {"AddTime", "number", "Adds time to current countdown"},
+            {"RemoveTime", "number", "Removes time from current countdown"}
+        },
+        ["valve"] = {
+            {"GetValveState", "", "@Returns string (ERROR, PUSHING, PULLING, OFFLINE)"},
+            {"EnableValve", "string, string, number", "Method used to enable the valve (args : resource, method 'Push' 'Pull', rate)"},
+            {"DisableValve", "", "Disables the valve"}
+        },
+        ["warp"] = {
+            {"GetWarpVectorFromWarpName", "string", "@Return string [INTERNAL]"},
+            {"CheckSafeWarp", "string", "@Return boolean [INTERNAL]"},
+            {"WarpToDefinedDirection", "string", "Warp to direction named string parameter 1"},
+            {"WarpToVector", "vector", "Direct warp to vector"},
+            {"WarpToPlayer", "player", "Direct warp to specified player"},
+            {"WarpToAngle", "angle", "Direct warp to specified angle, used internaly to rotate the ship"},
+            {"WarpDirection", "EDirection, number", "Warp towards a given direction of a specified amount of units"}
+        },
+        ["weapons"] = {
+            {"IsFiring", "", "@Return boolean"},
+            {"StartBeams", "", "Starts stargate weapons against Target"},
+            {"StartAngles", "", "Starts angle weapons against Target"},
+            {"StartTSCM", "", "Starts TSCM weapons against Target"},
+            {"StartRepair", "", "Starts repair beam for Target (Target.Entity only)"},
+            {"StopWeapons", "", "Stops all weapons, and reset all weapon variables (does not kill target)"}
+        }
+    },
+    ["Systems"] = {
+        Type = 1,
+        ["ai_auto_init"] = {
+            {"StartShipAutoPrepare", "entity", "Starts ship automatic load process using specified water probe entity"}
+        },
+        ["automatic_mode"] = {
+            {"EngageAutomaticMode", "", "Starts infinite timed warp loop process"},
+            {"ExitAutomaticMode", "", "Terminates infinite timed warp loop process"},
+            {"CheckAutoMode", "", "@Returns boolean"}
+        },
+        ["combat"] = {
+            {"IsShuttle", "entity", "@Returns boolean"},
+            {"IsSGWeapon", "entity", "@Returns boolean"},
+            {"GetShootingObject", "entity, entity", "Returns shooting object type (Player, Shuttle, SG, Ship) and entity from attacker and inflictor"},
+            {"CheckAndAutoTarget", "string, entity", "Checks and auto targets using given object type and entity"},
+            {"GetPlayerShipCore", "player", "Returns the ship core of the specified player"},
+            {"GetPlayerShipCore", "player", "Returns the first ship core of the specified player"},
+            {"EngageShipAnalysis", "entity", "Runs ship analysis process on given ship core"},
+            {"AutoFaceTarget", "entity", "Automatically warps our ship to face the target's ship core, returns warp angle and position"}
+        },
+        ["files_manager"] = {
+            {"SavePoint", "string, string, vector", "Saves the given point name parameter 2 with type parameter 1 (BEAM, WARP) and vector parameter 3"},
+            {"SaveFiles", "", "Saves the entire beam and warp point files"},
+            {"DeletePoint", "string, string", "Deletes point name parameter 2 of type parameter 1 (BEAM, WARP)"}
+        },
+        ["plan_gen"] = {
+            {"CalculateShipMiddlePoint", "", "Returns ship's middle point relative to shield's emitter"}
+        }
+    },
+    ["Ship variables"] = {
+        Type = 2,
+        {"Ship.EnergyGen", "wirelink", "Energy core wirelink"},
+        {"Ship.GazGen", "wirelink", "Refinement core wirelink"},
+        {"Ship.LS", "wirelink", "Life support core wirelink"},
+        {"Ship.Core", "wirelink", "Ship's core wirelink"},
+        {"Ship.Shield", "wirelink", "Shield wirelink"},
+        {"Ship.Cloak", "wirelink", "Cloaking device wirelink"},
+        {"Ship.Node", "wirelink", "Resource node wirelink"},
+        {"Ship.Probe", "wirelink", "Environment probe wirelink"},
+        {"Ship.TP", "wirelink", "Transporter pad's wirelink"},
+        {"Ship.TP", "wirelink", "Transporter pad's wirelink"},
+        {"Ship.EvaProps", "table", "Array of all interior props of the current loaded ship"},
+        {"Ship.Timers", "table", "Array of all timers currently loaded (destiny timers)"},
+        {"Ship.Valve", "wirelink", "Resource valve wirelink"},
+        {"Ship.Warp", "wirelink", "Warp's device wirelink"},
+        {"Ship.Weaps.STAR", "table", "All stargate weapons (ori_beam_cannon, asgard_beam)"},
+        {"Ship.Weaps.TSCM", "table", "All TSCM weapons that doesn't need targeting algorythm (beam_emitter, ship_turret_base, ship_laser, pulse_phaser_emitter)"},
+        {"Ship.Weaps.ANGLE", "table", "All TSCM weapons that needs targeting algorythm (ship_cannon, keeper_emitter, cruise_missile_launcher)"},
+        {"Ship.Sensor", "wirelink", "Sensor's wirelink"},
+        {"Target.Player", "player", "INTERNAL"},
+        {"Target.Entity", "entity", "INTERNAL"},
+        {"Target.Node", "entity", "Node target used by valve device"},
+        {"PlayersInsideShipList", "table", "Array containing all players inside the ship"},
+        {"PlayersInsideShip", "table", "Indexing table (PlayerEntity -> boolean)"},
+        {"SHIP_PARTS_BOOL", "table", "Indexing table (ShipEntity -> boolean)"},
+        {"SFAllowedSubEntities", "table", "Indexing table (ShipSFEntity -> boolean)"},
+        {"SHIP_PARTS", "table", "Array of all entities constrained to the ship"}
+    },
+    ["Global static shared variables"] = {
+        Type = 2,
+        {"Pegasus", "table", "Pegasus Min and Max bounds"},
+        {"Universe", "table", "Universe Min and Max bounds"},
+        {"Milkyway", "table", "Milkyway Min and Max bounds"},
+        {"WaterLakes", "table", "Water lakes present in the map"},
+        {"VERSION_AI", "string", "LanAI's version"},
+        {"VERSION_LIBS", "string", "LanAI's libs version"},
+        {"VERSION_PLOADER", "string", "LanAI's ConstraintsRetriever version"},
+        {"ShipName", "string", "Current Ship's name"}
+    },
+    ["Enumerations"] = {
+        Type = 2,
+        {"EDirection.UP", "0", "Basic enumartion for directions"},
+        {"EDirection.DOWN", "1", "Basic enumartion for directions"},
+        {"EDirection.LEFT", "2", "Basic enumartion for directions"},
+        {"EDirection.RIGHT", "3", "Basic enumartion for directions"},
+        {"EDirection.FORWARD", "4", "Basic enumartion for directions"},
+        {"EDirection.BACKWARD", "5", "Basic enumartion for directions"},
+
+        {"EShieldDivertPower.BALANCE", "-1", "Basic enumartion for shield divert power"},
+        {"EShieldDivertPower.FRONT", "1", "Basic enumartion for shield divert power"},
+        {"EShieldDivertPower.BACK", "2", "Basic enumartion for shield divert power"},
+        {"EShieldDivertPower.LEFT", "3", "Basic enumartion for shield divert power"},
+        {"EShieldDivertPower.RIGHT", "4", "Basic enumartion for shield divert power"},
+        {"EShieldDivertPower.TOP", "5", "Basic enumartion for shield divert power"},
+        {"EShieldDivertPower.BOTTOM", "6", "Basic enumartion for shield divert power"},
+
+        {"Command.PASSING", "0", ""},
+        {"Command.INSUFFICIENT_PERMISSION", "1", "Permission error message"},
+        {"Command.INVALID_ARGUMENT", "2", "Argument is not valid message"},
+        {"Command.INSUFFICIENT_ARGUMENT", "3", "Not enough arguments given"},
+        {"Command.ERROR_GENERIC", "4", "Generic message generated by LanAI"},
+        {"Command.ERROR_CUSTOM", "5", "Custom message generated by the command's function"}
+    },
+    ["Libraries"] = {
+        Type = 1,
+        ["string"] = {
+            {"StartsWith", "string, string", "Checks if the specified first string parameter starts with second string parameter"},
+            {"Replace", "string, string, string", "Replaces all occurances of string parameter 2 in string parameter 1 by string parameter 3"},
+            {"Split", "string, string", "Splits the string parameter 1 in a table using delimiting string parameter 2"},
+            {"SplitLeaveChar", "string, character, character", "Splits the string parameter 1 in a table using delimiting charcter parameter 2 escaping character parameter 3"},
+            {"AreSimilar", "string, string", "Are the two strings similar"},
+            {"AllignCharNumber", "string, number", "changes the string parameter 1 by adding or removing characters depending on size number parameter 2"},
+            {"CalculateEqualPercentage", "string, string", "Calculates the equal percentage of one string parameter 1 with anothing as parameter 2"},
+            {"GetMostSimilar", "string, table", "Returns the most similar string to string parameter 1 in the given table parameter 2"}
+        }
+    }
+}

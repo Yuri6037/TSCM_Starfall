@@ -1,0 +1,42 @@
+--@name RotatingSphere
+--@author Yuri6037
+
+local Speed = 1500
+
+wire.createInputs({"Sphere", "Forward", "Backward", "Left", "Right", "CamAng"}, {"Entity", "Normal", "Normal", "Normal", "Normal", "Angle"})
+wire.createOutputs({"CamPos", "CamAngle"}, {"Vector", "Angle"})
+
+local W = wire.ports
+local Phys = nil
+local Ent = nil
+if (IsValid(W["Sphere"])) then
+	Ent = W["Sphere"]
+	Phys = W["Sphere"]:getPhysicsObject()
+end
+W["CamAngle"] = Angle(0, 90, 0)
+
+hook("think", "RotatingSphere", function()
+	if (not(IsValid(Ent)) or Phys == nil) then return end
+	local ang = W["CamAng"] or Angle(0, 0, 0)
+	ang.Pitch = 0
+	ang.Roll = 0
+	local dirf = ang:Forward()
+	local dirr = ang:Right()
+	if (W["Forward"] > 0) then
+		Phys:applyForceCenter(dirf * Speed)
+	elseif (W["Backward"] > 0) then
+		Phys:applyForceCenter(dirf * -Speed)
+	elseif (W["Left"] > 0) then
+		Phys:applyForceCenter(dirr * -Speed)
+	elseif (W["Right"] > 0) then
+		Phys:applyForceCenter(dirr * Speed)
+	end
+	W["CamPos"] = Ent:pos() + Vector(0, 0, 100)
+end)
+
+hook("input", "RotatingSphere", function(iwire, val)
+	if (iwire == "Sphere" and IsValid(val)) then
+		Ent = val
+		Phys = val:getPhysicsObject()
+	end
+end)

@@ -1,0 +1,75 @@
+--@name DoorsViewApp
+--@author Yuri6037
+
+local Ico32 = {
+	{
+		Color = COLOR(180, 180, 180),
+		Vertices = {
+			VERTEX(0, 0),
+			VERTEX(26, 0),
+			VERTEX(26, 32),
+			VERTEX(0, 32)
+		}
+	},
+	{
+		Color = COLOR(255, 0, 0),
+		Vertices = {
+			VERTEX(19, 12),
+			VERTEX(26, 12),
+			VERTEX(26, 16),
+			VERTEX(19, 16)
+		}
+	}
+}
+
+local Ico16 = {
+	{
+		Color = COLOR(180, 180, 180),
+		Vertices = GUI.PolyTransform(Ico32[1].Vertices, 0, 0, 0.5)
+	},
+	{
+		Color = COLOR(255, 0, 0),
+		Vertices = GUI.PolyTransform(Ico32[2].Vertices, 0, 0, 0.5)
+	}
+}
+
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+	self:SetIcon32(Ico32)
+	self:SetIcon16(Ico16)
+	self:SetTitle("Doors Access")
+	self:SetSize(256, 240)
+	self:SetPos(LOCATION_CENTER)
+	self.Lst = self:AddComponent("listbox", 10, 32)
+	self.Lst:SetSize(236, 116)
+	self.Lst:SetMaxLines(6)
+
+	local block = self:AddComponent("button", 10, 156, "Lock/Unlock Selected", function()
+		local id, str = self.Lst:GetSelected()
+		if (str == nil) then return end
+		AIRunFunc("DoorLockUnlock", str)
+	end)
+	block:SetSize(236, 24)
+
+	local bopen = self:AddComponent("button", 10, 180, "Open/Close Selected", function()
+		local id, str = self.Lst:GetSelected()
+		if (str == nil) then return end
+		AIRunFunc("DoorOpenClose", str)
+	end)
+	bopen:SetSize(236, 24)
+
+	local bhangar = self:AddComponent("button", 10, 210, "Open/Close Hangar", function()
+		local id, str = self.Lst:GetSelected()
+		if (str == nil) then return end
+		AIRunFunc("HangarOpenClose")
+	end)
+	bhangar:SetSize(236, 24)
+end
+
+function app:OnDataReceived(data)
+	self.Lst:SetData(data)
+end
+
+OS.DefineApp("doorsview", app)
+OS.AddAppMenuItem("doorsview", "Doors Access", "LanAI", Ico16)

@@ -1,0 +1,25 @@
+--@name EmitterCursorPosLib
+--@author Yuri6037
+
+--Function that returns intersection t and position from a ray and a plane
+function util.IntersectRayWithPlane(rayorigin, raydir, planepos, planenormal)
+	local t = planenormal:Dot(planepos - rayorigin) / planenormal:Dot(raydir)
+	if (t < 0) then
+		return nil
+	end
+	local p = rayorigin + t * raydir
+	return p, t
+end
+
+function util.MousePos3D2D(origin, angle, scale)
+	local raystart = ents.player():eyePos()
+	local raydir = ents.player():aimVector()
+	local normal = -angle:Up()
+
+	local endpos = util.IntersectRayWithPlane(raystart, raydir, origin, normal)
+	if (not(endpos == nil)) then
+		local pos = worldToLocal(endpos, ents.player():eyeAngles(), origin, angle)
+		return pos.X / scale, -pos.Y / scale
+	end
+	return 0, 0
+end

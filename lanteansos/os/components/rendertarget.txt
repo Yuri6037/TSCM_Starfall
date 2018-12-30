@@ -1,0 +1,27 @@
+--@name RenderTargetComponent
+--@author Yuri6037
+
+local rt = {}
+function rt:Init(data)
+	self.RT = rendertarget.create(data[1], data[2])
+end
+function rt:Render(x, y)
+	if (OS.IsHUD() and self:HasFocus()) then
+		self.RT:draw(PosX + x, PosY + y, self.W, self.H)
+	else
+		self.RT:draw(x, y, self.W, self.H)
+	end
+end
+function rt:Free()
+	if (not(self.RT == nil)) then
+		self.RT:freeRT()
+	end
+end
+function rt:Redraw(func)
+	self.RT:drawToTexture(function()
+		render.clear(0, 0, 0)
+		func()
+	end)
+end
+
+DefineComponent("rendertarget", rt)

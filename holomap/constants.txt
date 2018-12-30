@@ -1,0 +1,51 @@
+--@name Holomap Constants
+--@author Yuri6037
+
+--0.05
+
+--[[
+--- hiigara ---
+pos : Vector(7140,8708,-6064)
+radius = 5015
+
+--- desert ---
+pos : Vector(10624,-10668,-9384)
+radius : 4122
+
+--- lava ---
+pos : Vector(-9776,0,-4672)
+radius : 3122
+
+--- shakurus ---
+pos : Vector(-7552,-7056,6832)
+radius : 5160
+
+--- moon ---
+pos : Vector(-4480,13792,9920)
+radius : 1550
+
+--- earth ---
+pos : Vector(0,7936,8064)
+radius : 4280
+]]--
+
+local function ToLocal(vec)
+	local res = ents.self():worldToLocal(vec)
+	res = Vector(math.abs(res.X), math.abs(res.Y), math.abs(res.Z))
+	return (res * 0.01)
+end
+
+Models = {
+	["Universe"] = {
+		{Name = "Lava", Model = "models/sb_forlorn/vimana.mdl", Scale = 0.001561, Pos = ToLocalSpace(Vector(-9776, 0, -4672), Universe.Max)},
+		{Name = "Desert", Model = "models/planets/chinook.mdl", Scale = 0.002061, Pos = ToLocalSpace(Vector(10624, -10668, -9384), Universe.Max)},
+		{Name = "Hiigara", Model = "models/hiigara/hiigara.mdl", Scale = 0.0025075, Pos = ToLocalSpace(Vector(7140, 8708, -6064), Universe.Max)}
+	},
+	["Milkyway"] = {
+		{Name = "Earth", Model = "models/kobol/kobol.mdl", Scale = 1, Pos = ToLocalSpace(Vector(0, 7936, 8064), Milkyway.Max)},
+		{Name = "Moon", Model = "models/zup/planets/moon_001.mdl", Scale = 1, Pos = ToLocalSpace(Vector(-4480, 13792, 9920), Milkyway.Max)}
+	},
+	["Pegasus"] = {
+		{Name = "Shakuras", Model = "models/sb_forlorn/bluemars.mdl", Scale = 0.01, Pos = ToLocal(Vector(-7552,-7056,6832))}
+	}
+}

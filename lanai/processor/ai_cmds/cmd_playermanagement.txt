@@ -1,0 +1,67 @@
+--@name PlayerManagementCommands
+--@author Yuri6037
+
+AIRegisterCommand("jail", function(cmd, ply)
+	if (not(IsValid(cmd[1]))) then
+		return Command.INVALID_ARGUMENT, "1 (player)"
+	end
+	if (cmd[1]:AIHasPerm("immutable")) then
+		return Command.INSUFFICIENT_PERMISSION
+	end
+	if (GetBeamPointFromName("jail") == nil) then
+		return Command.ERROR_CUSTOM, "no jail"
+	end
+	if (not(CheckEnergy())) then
+		return Command.ERROR_CUSTOM, "energy is too low"
+	end
+	if (JailPlayer(cmd[1])) then
+		return Command.PASSING
+	else
+		return Command.ERROR_GENERIC
+	end
+end, {"Jails a player.", "<command> <player>"}, {"player"}, {"jailplayer"})
+
+AIRegisterCommand("unjail", function(cmd, ply)
+	if (not(IsValid(cmd[1]))) then
+		return Command.INVALID_ARGUMENT, "1 (player)"
+	end
+	if (cmd[1]:AIHasPerm("immutable")) then
+		return Command.INSUFFICIENT_PERMISSION
+	end
+	if (GetBeamPointFromName("jail") == nil) then
+		return Command.ERROR_CUSTOM, "no jail"
+	end
+	if (not(CheckEnergy())) then
+	    return Command.ERROR_CUSTOM, "energy is too low"
+	end
+	if (UnjailPlayer(cmd[1])) then
+		return Command.PASSING
+	else
+		return Command.ERROR_GENERIC
+	end
+end, {"Unjails a player (Beam back to pad).", "<command> <player>"}, {"player"}, {"unjailplayer"})
+
+AIRegisterCommand("kick", function(cmd, ply)
+	if (not(IsValid(cmd[1]))) then
+		return Command.INVALID_ARGUMENT, "1 (player)"
+	end
+	if (cmd[1]:AIHasPerm("immutable")) then
+		return Command.INSUFFICIENT_PERMISSION
+	end
+	if (not(PlayersInsideShip[cmd[1]])) then
+		return Command.ERROR_CUSTOM, "player is not inside the ship !"
+	end
+	if (cmd[1]:AIGetRank() > 0) then
+		return Command.ERROR_CUSTOM, "player is allowed to be on the ship !"
+	end
+	BeamEntityToVector(cmd[1], Vector(-233, 115, 16144))
+	Ship.TP["Target1"] = cmd[1]
+	Ship.TP["TargetLocation"] = Vector(-233, 115, 16144)
+	Ship.TP["Beam to vector"] = 1
+	return Command.PASSING, "Kicked player " .. cmd[1]:name()
+end, {"Kicks a player from the ship.", "<command> <player>"}, {"player"}, {})
+
+AIRegisterCommand("kickall", function(cmd, ply)
+	KickAllPlayers()
+	return Command.PASSING, "Kicked all players in ship !"
+end, {"Kicks everyone that is inside the ship.", "<command>"}, {}, {})

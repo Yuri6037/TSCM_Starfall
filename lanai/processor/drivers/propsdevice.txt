@@ -1,0 +1,200 @@
+--@name PropsDeviceManager
+--@author Yuri6037
+
+CurAlert = 3
+
+local function ApplySubMaterial(prop, id, mat)
+	if (mat == nil) then return end
+	prop:setSubMaterial(id, mat.Base)
+	prop:setSubMaterialColor(id, mat.Modifier)
+end
+
+local CanToggleEvac = true
+local CanUpdateAlert = true
+function ToggleEvacuation()
+	if (not(CanUpdateAlert)) then return end
+	if (not(CanToggleEvac)) then return end
+
+	Evacuation = not(Evacuation)
+	if (not(Evacuation)) then
+		aiSay("Terminating evacuation process...")
+		CanToggleEvac = false
+
+		SendPacket("PROC", "START", "Terminating evacuation...")
+		bypass.Iterator("Evac_End", Ship.EvaProps, function(cur, v)
+			if (IsValid(v.Prop)) then
+				v.Prop:setSubMaterial(v.ID_LIGHT, "cmats/light")
+				v.Prop:setSubMaterial(v.ID_METAL, "cmats/base_metal_light")
+				v.Prop:setSubMaterialColor(v.ID_METAL, Color(255, 255, 255))
+				v.Prop:setSubMaterialColor(v.ID_LIGHT, Color(255, 255, 255))
+			end
+
+			SendPacket("PROC", "UPD", cur * 100 / #Ship.EvaProps)
+		end, function()
+			SetEnvSound(nil)
+			aiSay("Done !")
+			CanToggleEvac = true
+
+			SendPacket("PROC", "END")
+		end)
+
+		timer.remove("LanAI_EvacuateTimer")
+	else
+		aiSay("Initializing evacuation process...")
+		CanToggleEvac = false
+
+		SendPacket("PROC", "START", "Initializing evacuation...")
+		bypass.Iterator("Evac_Start", Ship.EvaProps, function(cur, v)
+			if (IsValid(v.Prop)) then
+				ApplySubMaterial(v.Prop, v.ID_LIGHT, Materials.Evac[1])
+				ApplySubMaterial(v.Prop, v.ID_METAL, Materials.Evac[2])
+			end
+
+			SendPacket("PROC", "UPD", cur * 100 / #Ship.EvaProps)
+		end, function()
+			SetEnvSound(Sounds.EVAC)
+			aiSay("Done !")
+			CanToggleEvac = true
+
+			SendPacket("PROC", "END")
+		end)
+
+		aiSay("Evacuation is engaged ; evacuate the ship now !")
+		timer.create("LanAI_EvacuateTimer", 10, 0, function()
+			if (not(EvacuationBeam == nil)) then
+				BeamToPoint(EvacuationBeam)
+			end
+			aiSay("Evacuation is engaged ; evacuate the ship now !")
+		end)
+	end
+
+	SendPacket("EVENT", "Evacuation", Evacuation)
+end
+
+function ToggleDestruction()
+	SelfDestruct = not(SelfDestruct)
+	if (SelfDestruct) then
+		aiSay("Autodestruction is engaged ; evacuate the ship now !")
+		local time = 60
+		timer.create("LanAI_DestroyTimer", 1, 61, function()
+			time = time - 1
+			if (time <= 0) then
+				Ship.Core["Self Destruct"] = 1
+			end
+			SendPacket("EVENT", "DestructionTimer", time)
+		end)
+	else
+		aiSay("Autodestruction has been stopped !")
+		timer.remove("LanAI_DestroyTimer")
+	end
+	SendPacket("EVENT", "Destruction", SelfDestruct)
+end
+
+function UpdateAlertStatus(id)
+	if (not(CanUpdateAlert)) then return end
+	if (not(CanToggleEvac)) then return end
+
+	SendPacket("PROC", "START", "Updating alert status...")
+	aiSay("Updating alert status...")
+	CanUpdateAlert = false
+	if (id == 0) then
+		bypass.Iterator("Alert_Update", Ship.EvaProps, function(cur, v)
+			if (IsValid(v.Prop)) then
+				ApplySubMaterial(v.Prop, v.ID_LIGHT, Materials.HighAlert[1])
+				ApplySubMaterial(v.Prop, v.ID_METAL, Materials.HighAlert[2])
+			end
+
+			SendPacket("PROC", "UPD", cur * 100 / #Ship.EvaProps)
+		end, function()
+			SetEnvSound(Sounds.HALERT)
+			aiSay("Done !")
+			CanUpdateAlert = true
+
+			SendPacket("PROC", "END")
+		end)
+	elseif (id == 1) then
+		bypass.Iterator("Alert_Update", Ship.EvaProps, function(cur, v)
+			if (IsValid(v.Prop)) then
+				ApplySubMaterial(v.Prop, v.ID_LIGHT, Materials.NormalAlert[1])
+				ApplySubMaterial(v.Prop, v.ID_METAL, Materials.NormalAlert[2])
+			end
+
+			SendPacket("PROC", "UPD", cur * 100 / #Ship.EvaProps)
+		end, function()
+			SetEnvSound(Sounds.NALERT)
+			aiSay("Done !")
+			CanUpdateAlert = true
+
+			SendPacket("PROC", "END")
+		end)
+	elseif (id == 2) then
+		bypass.Iterator("Alert_Update", Ship.EvaProps, function(cur, v)
+			if (IsValid(v.Prop)) then
+				ApplySubMaterial(v.Prop, v.ID_LIGHT, Materials.LowAlert[1])
+				ApplySubMaterial(v.Prop, v.ID_METAL, Materials.LowAlert[2])
+			end
+
+			SendPacket("PROC", "UPD", cur * 100 / #Ship.EvaProps)
+		end, function()
+			SetEnvSound(Sounds.ALERT)
+			aiSay("Done !")
+			CanUpdateAlert = true
+
+			SendPacket("PROC", "END")
+		end)
+	elseif (id == 3) then
+		bypass.Iterator("Alert_Update", Ship.EvaProps, function(cur, v)
+			if (IsValid(v.Prop)) then
+				v.Prop:setSubMaterial(v.ID_LIGHT, "cmats/light")
+				v.Prop:setSubMaterial(v.ID_METAL, "cmats/base_metal_light")
+				v.Prop:setSubMaterialColor(v.ID_METAL, Color(255, 255, 255))
+				v.Prop:setSubMaterialColor(v.ID_LIGHT, Color(255, 255, 255))
+			end
+
+			SendPacket("PROC", "UPD", cur * 100 / #Ship.EvaProps)
+		end, function()
+			SetEnvSound(nil)
+			aiSay("Done !")
+			CanUpdateAlert = true
+
+			SendPacket("PROC", "END")
+		end)
+	end
+
+    CurAlert = id
+	SendPacket("EVENT", "Alert", id)
+end
+
+Ship.EvaProps = {}
+RegisterDriver({"prop_physics"}, function(ent)
+	if (string.StartsWith(ent:model(), "models/cerus/modbridge/core/")) then
+		local idL = -255
+		local idM = -255
+		for k1, v1 in pairs(ent:getMaterials()) do
+			if (v1 == "cmats/light") then
+				idL = k1 - 1
+			elseif (v1 == "cmats/base_metal_light") then
+				idM = k1 - 1
+			end
+		end
+		table.insert(Ship.EvaProps, {Prop = ent, ID_METAL = idM, ID_LIGHT = idL, Emitter = sounds.create(ent, "alarm/sga_selfdestruct-alarm.wav")})
+		return true
+	end
+	return false
+end)
+
+OSAddFunction("Alert", UpdateAlertStatus)
+OSAddFunction("Evacuation", ToggleEvacuation)
+OSAddFunction("Destruction", function(var)
+	if (not(var == ADMIN_CODE) and not(var == OFFICER_CODE)) then
+		aiSay("Someone tried a bad admin code")
+		return
+	end
+	ToggleDestruction()
+end)
+
+HookScreenLoad(function(e)
+	SendEntityPacket("EVENT", e, "Alert", CurAlert)
+	SendEntityPacket("EVENT", e, "Destruction", SelfDestruct)
+	SendEntityPacket("EVENT", e, "Evacuation", Evacuation)
+end)

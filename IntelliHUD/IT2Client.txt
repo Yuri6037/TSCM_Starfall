@@ -1,0 +1,353 @@
+--@name IntelliHUD II Client
+--@author Yuri6037
+
+--Declares
+local Players = {}
+local Player = nil
+local pblkx, pblky = nil, nil
+local eblkx, eblky = nil, nil
+local mw = nil
+local pw, ph = nil, nil
+local ew, eh = nil, nil
+local ScrW, ScrH = 0, 0
+local Data = {
+	EnvData = {
+		Air = 0, --Normalized float
+		Oxygen = 0, --Float from 0 to 100 (percentage)
+		Hydrogen = 0, --Float from 0 to 100 (percentage)
+		Nitrogen = 0, --Float from 0 to 100 (percentage)
+		CO2 = 0, --Float from 0 to 100 (percentage)
+		Gravity = 0, --Normalized float
+		Name = "NONE", --String (Never nil)
+		Temperature = 0, --Degrees Kalvin (do Temperature - 273.15 to get degrees celcius)
+		Galaxy = "NONE"
+	},
+	VehData = {
+		Entity = nil, --ZPM Wirelink (NOT AVAILABLE CLIENT SIDE)
+		Name = "", --Vehicle Name
+		NameColor = Color(0, 0, 0), --Color to draw the vehicle name
+		Energy = 0, --ZPM Energy level
+		HorizonBase = nil --Horizon bar base entity
+	},
+	Stargate = {
+		Entity = nil,
+		Address = "",
+		TargetAddress = nil,
+		TargetClass = nil,
+		Signal = ""
+	}
+}
+--End
+
+hook("net", "IntelliHUD2Net", function()
+	local id = net.readUInt(4)
+	if (id == 0) then
+		Data.EnvData = net.readTable()
+		Data.EnvData.Air = Data.EnvData.Oxygen + Data.EnvData.Hydrogen + Data.EnvData.Nitrogen
+		Data.EnvData.Computed = {
+			AirProgress = Data.EnvData.Air * 236 / 100,
+			OxygenProgress = Data.EnvData.Oxygen * 236 / 100,
+			HydrogenProgress = Data.EnvData.Hydrogen * 236 / 100,
+			NitrogenProgress = Data.EnvData.Nitrogen * 236 / 100,
+			CO2Progress = Data.EnvData.CO2 * 236 / 100,
+			GravityProgress = Data.EnvData.Gravity * 236,
+			Temp = math.floor(Data.EnvData.Temperature - 273.15),
+			Air = math.round(Data.EnvData.Air, 1),
+			Oxygen = math.round(Data.EnvData.Oxygen, 1),
+			Hydrogen = math.round(Data.EnvData.Hydrogen, 1),
+			Nitrogen = math.round(Data.EnvData.Nitrogen, 1),
+			CO2 = math.round(Data.EnvData.CO2, 1),
+			Gravity = Data.EnvData.Gravity * 100
+		}
+	elseif (id == 1) then
+		Data.VehData = net.readTable()
+		Data.VehData.Computed = {
+			NameColor = COLOR(Data.VehData.NameColor.r, Data.VehData.NameColor.g, Data.VehData.NameColor.b),
+			EnergyProgress = Data.VehData.Energy * 492 / 100,
+			Energy = math.round(Data.VehData.Energy, 1)
+		}
+	elseif (id == 2) then
+		Data.Stargate = net.readTable()
+	end
+end)
+
+hook("hudlink", "IntelliHUD2Link", function(fuck)
+	ScrW, ScrH = render.getScreenRes()
+	StartNet(function()
+		net.writeUInt(0, 4)
+	end)
+	mw = nil
+	pw, ph = nil, nil
+	pblkx, pblky = 0, ScrH - 160
+	eblkx, eblky = ScrW - 512, ScrH - 160
+	Player = ents.player()
+end)
+
+hook("hudunlink", "IntelliHUD2Unlink", function(ply)
+	StartNet(function()
+		net.writeUInt(1, 4)
+	end)
+end)
+
+timer.create("IntelliHUD2ListPlayers", 2, 0, function()
+	if (ScrW == nil or ScrH == nil) then return end
+	Players = find.allPlayers(function(ply)
+		if (not(IsValid(ply)) or ply == ents.player()) then return false end
+		if ((Data.EnvData.Galaxy == "Universe" and PlayerInBox(ply, Universe.Min, Universe.Max))
+			or (Data.EnvData.Galaxy == "Pegasus" and PlayerInBox(ply, Pegasus.Min, Pegasus.Max))
+			or (Data.EnvData.Galaxy == "Milkyway" and PlayerInBox(ply, Milkyway.Min, Milkyway.Max))) then
+			local p = ply:pos()
+			p = render.toScreen(p)
+			if (p.visible and p.x >= 0 and p.x <= ScrW and p.y >= 0 and p.y <= ScrH) then
+				return true
+			end
+		end
+		return false
+	end)
+end)
+
+hook("playerbindpress", "IntelliHUD2PlayerBindPressed", function(ply, bind, pressed)
+	if (not(hud.isLinked())) then return end
+	if (IsValid(ply:activeWeapon()) and ply:activeWeapon():class() == "kinoremote" and bind == "+attack2") then
+		StartNet(function()
+			net.writeUInt(2, 4)
+		end)
+	end
+end)
+
+hook("hudshoulddraw", "IntelliHUD2CancelRender", function(name)
+	if (name == "CHudBattery") then return false end
+	if (name == "CHudHealth") then return false end
+	if (name == "CHudAmmo") then return false end
+	if (name == "CHudSecondaryAmmo") then return false end
+end)
+
+local MediumFont = GUI.Font("federation", 24, true)
+local SmallFont = GUI.Font("federation", 18, true)
+local LargeFont = GUI.Font("federation", 32, true)
+local sgu = GUI.Font("Stargate Address Glyphs U", 40, true)
+local sg1 = GUI.Font("Stargate Address Glyphs Sg1", 24, true)
+local sga = GUI.Font("Stargate Address Glyphs Atl", 18, true)
+
+hook("render", "IntelliHUD2Render", function()
+	--Declares
+	profiler.push("RENDER_DECLARES")
+	if (Data.EnvData.Computed == nil) then return end
+	if (mw == nil) then
+		mw = GUI.TextSize("IntelliHUD II (" .. math.floor(cpuAverage() * 100 / cpuMax()) .. "%)", LargeFont)
+		pw, ph = GUI.TextSize(Player:name(), MediumFont)
+		ew, eh = GUI.TextSize("Environment", MediumFont)
+	end
+	profiler.pop()
+	--End
+
+	local DrawHUD = false
+	if ((IsValid(Player:getActiveWeapon()) and Player:getActiveWeapon():class() == "kinoremote") or Player:inVehicle()) then
+		DrawHUD = true
+	end
+
+	--Static parts
+	profiler.push("STATICS_RENDER")
+	if (DrawHUD) then
+		GUI.InvGradiantRect(0, ScrH - 160, 512, 160, COLOR(0, 0, 0))
+		GUI.NormGradiantRect(0, ScrH - 160, 512, 160, COLOR(0, 0, 0))
+		GUI.NormGradiantRect(ScrW - 512, ScrH - 160, 512, 160, COLOR(0, 0, 0))
+		GUI.InvGradiantRect(ScrW - 512, ScrH - 160, 512, 160, COLOR(0, 0, 0))
+	end
+	if (DrawHUD) then
+		GUI.GradiantRect(512, ScrH - 32, ScrW - 1024, 32, COLOR(0, 0, 0))
+	else
+		GUI.GradiantRect(0, ScrH - 32, ScrW, 32, COLOR(0, 0, 0))
+	end
+	GUI.Text("IntelliHUD II (" .. math.floor(cpuAverage() * 100 / cpuMax()) .. "%)", ScrW / 2 - mw / 2, ScrH - 35, LargeFont, COLOR(255, 255, 255))
+	if (DrawHUD) then
+		GUI.Text(Player:name(), 256 - pw / 2, pblky, MediumFont, COLOR(255, 255, 255))
+		GUI.Text("Environment", ScrW - 256 - ew / 2, pblky, MediumFont, COLOR(255, 255, 255))
+		GUI.ColoredRect(pblkx + 10, pblky + 38, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(pblkx + 266, pblky + 38, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(eblkx + 10, eblky + 38, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(eblkx + 266, eblky + 38, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(eblkx + 10, eblky + 72, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(eblkx + 266, eblky + 72, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(eblkx + 10, eblky + 106, 236, 24, COLOR(0, 0, 0))
+		GUI.ColoredRect(eblkx + 266, eblky + 106, 236, 24, COLOR(0, 0, 0))
+	end
+	profiler.pop()
+	--End
+
+	--Player Health/armor (using progress bars)
+	profiler.push("PLAYER_DATA")
+	if (not(DrawHUD)) then return end
+	GUI.NormGradiantRect2(pblkx + 10, pblky + 38, Player:health() * 236 / GetPlayerMaxHealth(Player), 24, COLOR(255, 0, 0))
+	GUI.NormGradiantRect2(pblkx + 266, pblky + 38, Player:armor() * 236 / 100, 24, COLOR(0, 0, 255))
+	local w = GUI.TextSize("Health : " .. math.round(Player:health() * 100 / GetPlayerMaxHealth(Player), 1) .. "%", SmallFont)
+	GUI.Text("Health : " .. math.round(Player:health() * 100 / GetPlayerMaxHealth(Player), 1) .. "%", pblkx + 10 + 118 - w / 2, pblky + 42, SmallFont, COLOR(200, 200, 200))
+	w = GUI.TextSize("Armor : " .. Player:armor() .. "%", SmallFont)
+	GUI.Text("Armor : " .. Player:armor() .. "%", pblkx + 266 + 118 - w / 2, pblky + 42, SmallFont, COLOR(200, 200, 200))
+	for k, v in pairs(Players) do
+		if (IsValid(v)) then
+			local p = v:getPos()
+			p = p:ToScreen()
+			local perc = math.round(v:health() * 100 / GetPlayerMaxHealth(v), 1)
+			local w = GUI.TextSize(v:name() .. " " .. perc .. "%", SmallFont)
+			GUI.ColoredRect(p.x, p.y, w, 24, COLOR(0, 0, 0))
+			local w1 = v:health() * w / GetPlayerMaxHealth(v)
+			GUI.NormGradiantRect2(p.x, p.y, w1, 24, COLOR(255, 0, 0))
+			GUI.Text(v:name() .. " " .. perc .. "%", p.x, p.y + 4, SmallFont, COLOR(200, 200, 200))
+		end
+	end
+	profiler.pop()
+
+	--Environment
+	profiler.push("PLAYER_ENVIRONMENT")
+	w = GUI.TextSize(Data.EnvData.Name .. ", ", SmallFont)
+	GUI.Text(Data.EnvData.Name, pblkx + 10 + 118 - w / 2, pblky + 80, SmallFont, COLOR(200, 200, 200))
+	w = GUI.TextSize(Data.EnvData.Galaxy, SmallFont)
+	GUI.Text(Data.EnvData.Galaxy, pblkx + 266 + 118 - w / 2, pblky + 80, SmallFont, COLOR(200, 200, 200))
+	profiler.pop()
+
+	--Weapons/Vehicles
+	profiler.push("VEHICLE_DRAW")
+	if (Player:inVehicle()) then
+		if (not(Data.VehData.Computed == nil)) then
+			w = GUI.TextSize(Data.VehData.Name, SmallFont)
+			GUI.Text(Data.VehData.Name, ScrW / 2 - w / 2, 40, SmallFont, Data.VehData.Computed.NameColor)
+
+			GUI.ColoredRect(ScrW / 2 - 246, 10, 492, 24, COLOR(0, 0, 0))
+			GUI.NormGradiantRect2(ScrW / 2 - 246, 10, Data.VehData.Computed.EnergyProgress, 24, COLOR(255, 100, 0))
+
+			w = GUI.TextSize("Energy : " .. Data.VehData.Computed.Energy .. "%", SmallFont)
+			GUI.Text("Energy : " .. Data.VehData.Computed.Energy .. "%", ScrW / 2 - w / 2, 15, SmallFont, COLOR(200, 200, 200))
+		end
+
+		GUI.ColoredRect(ScrW / 2 - 16, ScrH / 2, 32, 2, COLOR(255, 255, 255))
+		GUI.ColoredRect(ScrW / 2, ScrH / 2 - 16, 2, 32, COLOR(255, 255, 255))
+	end
+	profiler.pop()
+	profiler.push("WEAPON_DRAW")
+	if (not(Player:inVehicle())) then
+		local weap = Player:activeWeapon()
+		if (IsValid(weap)) then
+			if (not(NameRewrites[weap:class()] == nil)) then
+				w = GUI.TextSize("Weapon : " .. NameRewrites[weap:class()], SmallFont)
+				GUI.Text("Weapon : " .. NameRewrites[weap:class()], pblkx + 256 - w / 2, pblky + 120, SmallFont, COLOR(200, 200, 200))
+			else
+				w = GUI.TextSize("Weapon : " .. weap:getPrintName(), SmallFont)
+				GUI.Text("Weapon : " .. weap:getPrintName(), pblkx + 256 - w / 2, pblky + 120, SmallFont, COLOR(200, 200, 200))
+			end
+			if (NORMWeapons[weap:class()]) then
+				local cl1 = weap:clip1()
+				local cl2 = weap:clip2()
+				if (not(cl1 == -1)) then
+					local cnt1 = Player:getAmmoCount(weap:getPrimaryAmmoType())
+					w = GUI.TextSize("Clip 1 : " .. cl1 .. " / " .. cnt1, SmallFont)
+					GUI.Text("Clip 1 : " .. cl1 .. " / " .. cnt1, pblkx + 10 + 118 - w / 2, pblky + 140, SmallFont, COLOR(200, 200, 200))
+				end
+				if (not(cl2 == -1)) then
+					local cnt2 = Player:getAmmoCount(weap:getSecondaryAmmoType())
+					w = GUI.TextSize("Clip 2 : " .. cl2 .. " / " .. cnt2, SmallFont)
+					GUI.Text("Clip 2 : " .. cl2 .. " / " .. cnt2, pblkx + 266 + 118 - w / 2, pblky + 140, SmallFont, COLOR(200, 200, 200))
+				end
+			elseif (AMMOWeapons[weap:class()]) then
+				w = GUI.TextSize("Ammo : " .. Player:getAmmoCount(weap:getPrimaryAmmoType()), SmallFont)
+				GUI.Text("Ammo : " .. Player:getAmmoCount(weap:getPrimaryAmmoType()), pblkx + 256 - w / 2, pblky + 140, SmallFont, COLOR(200, 200, 200))
+			end
+		end
+	end
+	profiler.pop()
+
+	profiler.push("STARGATE_DATA")
+	if (IsValid(Data.Stargate.Entity)) then
+		local e = Data.Stargate.Entity
+		local x = ScrW / 2 - 128
+		local y = ScrH / 2 - 128
+		GUI.InvGradiantRect(x, y, 256, 256, COLOR(0, 0, 0))
+		GUI.NormGradiantRect(x, y, 256, 256, COLOR(0, 0, 0))
+		local txt = "ERROR"
+		local fnt = SmallFont
+		if (e:class() == "stargate_sg1") then
+			txt = "SG1"
+			fnt = sg1
+		elseif (e:class() == "stargate_atlantis") then
+			txt = "Atlantis"
+			fnt = sga
+		elseif (e:class() == "stargate_universe") then
+			txt = "Universe"
+			fnt = sgu
+		end
+		w = GUI.TextSize("Type : " .. txt, SmallFont)
+		GUI.Text("Type : " .. txt, (x + 128) - (w / 2), y + 32, SmallFont, COLOR(255, 255, 255))
+		w = GUI.TextSize("-> Address <-", SmallFont)
+		GUI.Text("-> Address <-", (x + 128) - (w / 2), y + 70, SmallFont, COLOR(255, 255, 255))
+		w = GUI.TextSize("-> Outbound <-", SmallFont)
+		GUI.Text("-> Outbound <-", (x + 128) - (w / 2), y + 128, SmallFont, COLOR(255, 255, 255))
+		w = GUI.TextSize("-> Received Signal <-", SmallFont)
+		GUI.Text("-> Received Signal <-", (x + 128) - (w / 2), y + 186, SmallFont, COLOR(255, 255, 255))
+		w = GUI.TextSize(Data.Stargate.Address, fnt)
+		GUI.Text(Data.Stargate.Address, (x + 128) - (w / 2), y + 90, fnt, COLOR(0, 0, 255))
+		txt = "NONE"
+		fnt = SmallFont
+		if (not(Data.Stargate.TargetClass == nil)) then
+			txt = Data.Stargate.TargetAddress
+			if (Data.Stargate.TargetClass == "stargate_sg1") then
+				fnt = sg1
+			elseif (Data.Stargate.TargetClass == "stargate_atlantis") then
+				fnt = sga
+			elseif (Data.Stargate.TargetClass == "stargate_universe") then
+				fnt = sgu
+			end
+		end
+		w = GUI.TextSize(txt, fnt)
+		GUI.Text(txt, (x + 128) - (w / 2), y + 148, fnt, COLOR(255, 255, 0))
+		w = GUI.TextSize(Data.Stargate.Signal or "NONE", SmallFont)
+		GUI.Text(Data.Stargate.Signal or "NONE", (x + 128) - (w / 2), y + 206, SmallFont, COLOR(0, 255, 255))
+	end
+	profiler.pop()
+
+	--Environment data (using progress bars)
+	profiler.push("ENVIRONMENT_DATA")
+	if (Data.EnvData.Air < 50 and Data.EnvData.Air >= 30) then
+		GUI.NormGradiantRect2(eblkx + 10, eblky + 38, Data.EnvData.Computed.AirProgress, 24, COLOR(255, 128, 0))
+	elseif (Data.EnvData.Air < 30) then
+		GUI.NormGradiantRect2(eblkx + 10, eblky + 38, Data.EnvData.Computed.AirProgress, 24, COLOR(255, 0, 0))
+	else
+		GUI.NormGradiantRect2(eblkx + 10, eblky + 38, Data.EnvData.Computed.AirProgress, 24, COLOR(0, 128, 128))
+	end
+	GUI.NormGradiantRect2(eblkx + 266, eblky + 38, Data.EnvData.Computed.OxygenProgress, 24, COLOR(0, 128, 255))
+	local t = "Air : " .. Data.EnvData.Computed.Air .. "%"
+	w = GUI.TextSize(t, SmallFont)
+	GUI.Text(t, eblkx + 10 + 118 - w / 2, eblky + 42, SmallFont, COLOR(200, 200, 200))
+	t = "Oxygen : " .. Data.EnvData.Computed.Oxygen .. "%"
+	w = GUI.TextSize(t, SmallFont)
+	GUI.Text(t, eblkx + 266 + 118 - w / 2, eblky + 42, SmallFont, COLOR(200, 200, 200))
+
+	GUI.NormGradiantRect2(eblkx + 10, eblky + 72, Data.EnvData.Computed.HydrogenProgress, 24, COLOR(0, 128, 255))
+	GUI.NormGradiantRect2(eblkx + 266, eblky + 72, Data.EnvData.Computed.NitrogenProgress, 24, COLOR(0, 128, 255))
+	t = "Hydrogen : " .. Data.EnvData.Computed.Hydrogen .. "%"
+	w = GUI.TextSize(t, SmallFont)
+	GUI.Text(t, eblkx + 10 + 118 - w / 2, eblky + 76, SmallFont, COLOR(200, 200, 200))
+	t = "Nitrogen : " .. Data.EnvData.Computed.Nitrogen .. "%"
+	w = GUI.TextSize(t, SmallFont)
+	GUI.Text(t, eblkx + 266 + 118 - w / 2, eblky + 76, SmallFont, COLOR(200, 200, 200))
+
+	GUI.NormGradiantRect2(eblkx + 10, eblky + 106, Data.EnvData.Computed.CO2Progress, 24, COLOR(255, 128, 0))
+	GUI.NormGradiantRect2(eblkx + 266, eblky + 106, Data.EnvData.Computed.GravityProgress, 24, COLOR(0, 128, 0))
+	t = "CO2 : " .. Data.EnvData.Computed.CO2 .. "%"
+	w = GUI.TextSize(t, SmallFont)
+	GUI.Text(t, eblkx + 10 + 118 - w / 2, eblky + 110, SmallFont, COLOR(200, 200, 200))
+	t = "Gravity : " .. Data.EnvData.Computed.Gravity .. "%"
+	w = GUI.TextSize(t, SmallFont)
+	GUI.Text(t, eblkx + 266 + 118 - w / 2, eblky + 110, SmallFont, COLOR(200, 200, 200))
+
+	local tc = Data.EnvData.Computed.Temp
+	t = "Temp : " .. tc .. "°C"
+	w = GUI.TextSize(t, SmallFont)
+	if (tc > -100 and tc < 100) then
+		GUI.Text(t, eblkx + 256 - w / 2, eblky + 138, SmallFont, COLOR(200, 200, 200))
+	elseif (tc <= -100) then
+		GUI.Text(t, eblkx + 256 - w / 2, eblky + 138, SmallFont, COLOR(0, 100, 200))
+	elseif (tc >= 100) then
+		GUI.Text(t, eblkx + 256 - w / 2, eblky + 138, SmallFont, COLOR(200, 0, 0))
+	end
+	profiler.pop()
+end)

@@ -1,0 +1,113 @@
+--@name LoadProcess
+--@author Yuri6037
+
+GlobalCPU = 0
+
+local LoadedDrivers = {}
+--Registers a driver, args : classes all the different classes that the object can take ;
+--callback function to call when entity is found, entity is passed as parameter.
+function RegisterDriver(classes, callback)
+	for k, v in pairs(classes) do
+		if (LoadedDrivers[v] == nil) then
+			LoadedDrivers[v] = {}
+		end
+		table.insert(LoadedDrivers[v], callback)
+	end
+end
+
+util.CreateHook("PostLoad")
+util.CreateHook("UpdateLoop")
+util.CreateHook("ScreenLoad")
+util.CreateHook("LoadEntity")
+
+local function RunUpdateLoop()
+	util.RunHook("UpdateLoop")
+end
+
+--Load drivers
+for k, v in pairs(ProcessorFiles.Drivers) do
+	util.Log("Drivers", LOG_DEBUG, "Loading driver '", v, "'...")
+	require("lanai/processor/drivers/" .. v .. "device.txt")
+end
+
+bypass.Iterator("LanAI_LoadProcess", SHIP_PARTS, function(cur, v)
+	if (IsValid(v)) then
+		if (not(LoadedDrivers[v:class()] == nil)) then
+			for k1, v1 in pairs(LoadedDrivers[v:class()]) do
+				if (v1(v)) then break end
+			end
+		end
+		util.RunHook("LoadEntity", v)
+	end
+	SendPacket("LOAD", "UPD", cur * 100 / #SHIP_PARTS)
+end, function()
+	if (Ship.LS == nil and Ship.Core == nil and Ship.Shield == nil and Ship.Node == nil) then
+		aiSay("There is no ship to manage, you need to put at least Stargazer Cores, a shield, a resource node and a Ship Core !")
+		ents.self():setSubMaterial(0, "phoenix_storms/pack2/redlight")
+		return
+	end
+	util.Log("Systems", LOG_DEBUG, "Ship.Core = ", Ship.Core)
+	util.Log("Systems", LOG_DEBUG, "Ship.Shield = ", Ship.Shield)
+	util.Log("Systems", LOG_DEBUG, "Ship.LS = ", Ship.LS)
+	util.Log("Systems", LOG_DEBUG, "Ship.Node = ", Ship.Node)
+	if (not(Ship.Core == nil)) then
+		if (Ship.Shield == nil or Ship.LS == nil or Ship.Node == nil) then
+			aiSay("This ship does not meet the basic requirements, check log for more.")
+			ents.self():setSubMaterial(0, "phoenix_storms/pack2/redlight")
+			return
+		end
+	end
+	for k, v in pairs(ProcessorFiles.Systems) do
+		util.Log("Systems", LOG_DEBUG, "Loading system '", v, "'...")
+		require("lanai/processor/systems/" .. v .. ".txt")
+	end
+
+	Loading = false
+
+	SendPacket("LOAD", "END")
+
+	ents.self():setSubMaterial(0, "models/XQM/LightLinesRed_tool")
+
+	local CooldownThink = false
+	local Ticks = 0
+	local CrashNumber = 0
+	local Ran = false
+	timer.create("LanAICore_AntiCrash", 2, 0, function()
+		if (CrashNumber >= 3 and not(ran)) then
+			util.Log("AntiCrash", LOG_ERR, "LanAI saved the processor 5 times from a CPU crash")
+			util.Log("AntiCrash", LOG_ERR, "Something realy bad is happening, and the system will shut down now to prevent damage on any databases")
+			timer.create("LanAI_ShutDownSystem", 10, 1, function()
+				error("Too many CPU save tries, shutting down...")
+			end)
+			ran = true
+			return
+		end
+		if (CooldownThink) then
+			if (cpuAverage() < 3) then
+				Ticks = Ticks + 1
+				if (Ticks >= 10) then
+					CooldownThink = false
+					hook("think", "LanAI_MainUpdateLoop", RunUpdateLoop)
+					Ticks  = 0
+				end
+			end
+		else
+			local p = cpuAverage() * 100 / cpuMax()
+			local p1 = opsUsed() * 100 / opsMax()
+			SendPacket("RUNTIME_INFO", p, p1, CrashNumber)
+			GlobalCPU = p
+			if (p >= 70) then
+				CooldownThink = true
+				hook.remove("think", "LanAI_MainUpdateLoop")
+				CrashNumber = CrashNumber + 1
+				util.Log("AntiCrash", LOG_WARN, "Recovered from CPU crash")
+			end
+		end
+	end)
+
+	hook("think", "LanAI_MainUpdateLoop", RunUpdateLoop)
+
+	aiSay("Done loading ! Welcome to " .. ShipName .. ", type !ai help for help !")
+
+	util.RunHook("PostLoad")
+end)

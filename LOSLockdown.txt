@@ -1,0 +1,47 @@
+--@name Lanteans OS AppCard (Lockdown)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "lockdown"
+AppCode = [[
+OS.DefineMessage("LOCKDOWN_START", function()
+	if (OS.GetTaskCount("lockdown") == 0) then
+		OS.StartApp("lockdown")
+	end
+end)
+OS.DefineMessage("LOCKDOWN_END", function()
+	OS.TaskKill("lockdown")
+end)
+local app = {}
+function app:Init()
+	self:DisableDecorations()
+	self:SetPos(0, 0)
+	self:SetSize(ScrW, ScrH)
+	self:SetBackground(COLOR(0, 0, 0))
+	OS.Message("LOCKDOWN_START", {})
+end
+function app:DrawTitleBar()
+end
+function app:Render()
+end
+function app:Touched(x, y)
+	OS.Message("LOCKDOWN_END")
+end
+OS.DefineApp("lockdown", app)
+OS.AddAppMenuItem("lockdown", "Lockdown", "Tools")
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

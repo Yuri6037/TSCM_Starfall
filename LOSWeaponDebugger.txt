@@ -1,0 +1,58 @@
+--@name Lanteans OS AppCard (WeaponDebugger)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "weapondebug"
+AppCode = [[
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+	self:SetTitle("Weapon Debugger")
+	self:SetSize(256, 166)
+	self:SetPos(LOCATION_CENTER)
+
+	self.P = self:AddComponent("progress", 10, 32, COLOR(255, 255, 0), "Progress")
+	self.P:SetSize(AUTO, 32)
+	self.S = self:AddComponent("progress", 10, 64, COLOR(255, 0, 0), "Shield lost")
+	self.S:SetSize(AUTO, 32)
+	self.H = self:AddComponent("progress", 10, 96, COLOR(0, 0, 255), "Hull lost")
+	self.H:SetSize(AUTO, 32)
+	self.A = self:AddComponent("progress", 10, 128, COLOR(0, 255, 255), "Armor lost")
+	self.A:SetSize(AUTO, 32)
+
+	self:AddPullDownMenu("    Extension    ")
+	self:AddPullDownMenuItem("StartSampling", function()
+		OS.Dialog("code", "Please enter the amount of samples to read :", function(app)
+			local code = tonumber(app:GetCodeStr())
+			AIRunFunc("DBGStartSampling", code)
+			app:Exit()
+		end)
+	end)
+	self:AddPullDownMenuItem("StopSampling", function()
+		AIRunFunc("DBGStopSampling")
+	end)
+end
+function app:OnDataReceived(data)
+	self.P:SetValue(math.round(data["CurSample"] / data["NumSamples"], 3))
+	self.S:SetValue(math.round(data["PShieldLost"], 3))
+	self.H:SetValue(math.round(data["PHullLost"], 3))
+	self.A:SetValue(math.round(data["PArmorLost"], 3))
+end
+OS.DefineApp("weapondebug", app)
+OS.AddAppMenuItem("weapondebug", "Weapon Debugger", "LanAI")
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

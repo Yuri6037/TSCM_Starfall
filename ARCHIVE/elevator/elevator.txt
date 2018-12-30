@@ -1,0 +1,77 @@
+--@name ElevatorSystem
+--@author Yuri6037
+--@sharedscreen
+
+--The client file
+--@requirecl elevator/client/elevator_client.txt
+
+--@include elevator/elevator_engine.txt
+
+if (not(SERVER)) then return end
+
+require("elevator/elevator_engine.txt")
+
+wire.createInputs({"Reboot"}, {"Normal"})
+
+--local FloorNumber = 0
+--local Elevator = nil
+local CurFloor = 0
+
+--Initializes the script
+function initElevator()
+	--[[for k, v in pairs(ents.self():getConstraints()) do
+		if (v:class() == "gmod_wire_value") then
+			local wire = v:getWirelink()
+			if (wire["1"] == "ElevatorSystem") then
+				FloorNumber = wire["2"]
+			end
+		elseif (v:class() == "sbep_elev_system") then
+			Elevator = v:getWirelink()
+		end
+	end
+
+	local tbl = {}
+	local tbl1 = {}
+	for i = 1, FloorNumber do
+		table.insert(tbl, "CallBut " .. i)
+		table.insert(tbl1, "normal")
+	end
+	wire.createInputs(tbl, tbl1)
+
+	--[[hook("think", "ElevatorSystem_ButtonsCallback", function()
+		for i = 1, FloorNumber do
+			local str = "CallBut " .. i
+			if (wire.ports[str] == 1) then
+				CurFloor = i
+				Elevator["Floor " .. CurFloor] = 1
+				net.start(ents.self(), "ElevatorSystem_Receive")
+				net.writeString("FLOOR_GET")
+				net.writeInt(CurFloor, 4, true)
+				net.broadcast()
+			end
+		end
+	end)]]--
+
+	net.start(ents.self(), "ElevatorSystem_Receive")
+	net.writeString("SEND_NUM")
+	net.writeInt(MaxFloors, 4, true)
+	net.broadcast()
+end
+
+
+
+
+hook("net", "ElevatorSystem", function(len)
+	local cmd = net.readString()
+	if (cmd == "GET_NUM") then
+		initElevator()
+	elseif (cmd == "FLOOR_SEND") then
+		CurFloor = net.readInt(4, true)
+		--Elevator["Floor " .. CurFloor] = 1
+		MoveToFloor(CurFloor)
+		net.start(ents.self(), "ElevatorSystem_Receive")
+		net.writeString("FLOOR_GET")
+		net.writeInt(CurFloor, 4, true)
+		net.broadcast()
+	end
+end)

@@ -1,0 +1,188 @@
+--@name NET_HOOKS_SV
+--@author Yuri6037
+
+function IsPlayerInFaction(ply)
+	local f = faction.getFaction(ply)
+	local f1 = faction.getFaction(ents.owner())
+	return f == f1
+end
+
+local LastAlert = nil
+
+function Log(msg)
+	StartNet(function()
+		net.writeString("LG")
+		net.writeString(msg)
+	end)
+end
+
+hook("net", "LanAI_SV", function(len, ply)
+	local command = net.readString()
+	if (command == "ScreenReload") then
+		StartBroadcastingPlans(ply)
+
+		if (GettingConstraints) then
+			StartNet(function()
+				net.writeString("PRELOAD.START")
+			end, ply)
+			return
+		end
+		if (Loading) then
+			StartNet(function()
+				net.writeString("LOAD.START")
+			end, ply)
+			return
+		end
+
+		if (SelfDestruct) then
+			StartNet(function()
+				net.writeString("D")
+			end, ply)
+		elseif (ScreenLocked) then
+			StartNet(function()
+				net.writeString("L")
+			end, ply)
+		else
+			StartNet(function()
+				net.writeString("U")
+			end, ply)
+
+			--Cutsom actions for warping gui (custom warps update)
+			if (CurGUI == 5) then
+				StartNet(function()
+					net.writeString("GW")
+					net.writeTable(WarpList)
+				end, ply)
+			else
+			--End
+				StartNet(function()
+					net.writeString("G")
+					net.writeInt(CurGUI, 4, true)
+				end, ply)
+			end
+
+			if (not(LastAlert == nil)) then
+				StartNet(function()
+					net.writeString("A")
+					net.writeInt(LastAlert, 4, true)
+				end, ply)
+			end
+
+			StartNet(function()
+				net.writeString("SI.A")
+				net.writeTable(SubInfos)
+			end, ply)
+
+			if (not(ShipPlans == nil)) then
+				StartBroadcastingPlans(ply)
+			end
+
+			SendPacket("RELOAD", "CL")
+		end
+	elseif (command == "Unlock") then
+		SendPacket("LOCKDOWN", ply, "Unlock")
+
+		Log("Screen unlock")
+	end
+	if (ScreenLocked) then
+		return
+	end
+	if (command == "GuiChange") then
+		GuiChangeSound:setVolume(1)
+		GuiChangeSound:play()
+
+		timer.create("Ship_AI_III_SSCG", 1, 1, function()
+			GuiChangeSound:stop()
+		end)
+
+		CurGUI = net.readInt(4, true)
+
+		StartNet(function()
+			net.writeString("G")
+			net.writeInt(CurGUI, 4, true)
+		end)
+
+		SendPacket("CHGUI", CurGUI)
+
+		Log("GUI Change -> " .. CurGUI)
+	elseif (command == "WindowChange") then
+		local w = net.readInt(4, true)
+		StartNet(function()
+			net.writeString("W")
+			net.writeInt(w, 4, true)
+		end)
+		if (APPS[w]) then
+			CurAppRequiresKeyboard = true
+		end
+
+		Log("Window Change -> " .. w)
+	elseif (command == "WindowKill") then
+		local w = net.readInt(4, true)
+		StartNet(function()
+			net.writeString("WK")
+			net.writeInt(w, 4, true)
+		end)
+		CurAppRequiresKeyboard = false
+
+		Log("Window Kill -> " .. w)
+	elseif (command == "WindowRavive") then
+		local w = net.readInt(4, true)
+		StartNet(function()
+			net.writeString("WR")
+			net.writeInt(w, 4, true)
+		end)
+
+		Log("Window Ravive -> " .. w)
+	elseif (command == "WindowReduce") then
+		local w = net.readInt(4, true)
+		StartNet(function()
+			net.writeString("WD")
+			net.writeInt(w, 4, true)
+		end)
+
+		Log("Window Reduce -> " .. w)
+	elseif (command == "ToggleShields") then
+		SendPacket("FUNC_TOGGLE", ply, "Shields")
+		Log("Toggle shields")
+	elseif (command == "ToggleLife") then
+		SendPacket("FUNC_TOGGLE", ply, "Life")
+		Log("Toggle life support")
+	elseif (command == "ToggleGazgen") then
+		SendPacket("FUNC_TOGGLE", ply, "Gaz")
+		Log("Toggle gaz gen")
+	elseif (command == "ToggleEnergygen") then
+		SendPacket("FUNC_TOGGLE", ply, "Energy")
+		Log("Toggle energy gen")
+	elseif (command == "warp") then
+		local n = net.readString()
+		SendPacket("WARP", ply, n)
+		Log("Warp -> " .. n)
+	elseif (command == "warpBack") then
+		SendPacket("WARP", ply, "back")
+		Log("Warp back")
+	elseif (command == "ToggleEva") then
+		SendPacket("OFFICER_ACT", ply, "EVAC")
+		Log("Toggle evacuation")
+	elseif (command == "ToggleCloak") then
+		SendPacket("FUNC_TOGGLE", ply, "Cloak")
+		Log("Toggle cloak")
+	elseif (command == "Lock") then
+		SendPacket("LOCKDOWN", ply, "Lock")
+		Log("Screen lock")
+	elseif (command == "Alert") then
+		local id = net.readInt(4, true)
+		SendPacket("ALERT", ply, id)
+		LastAlert = id
+		Log("Alert level : " .. id)
+	elseif (command == "DestroyToggle") then
+		SendPacket("OFFICER_ACT", ply, "DESTRUCT")
+		Log("Toggle self-destruction")
+	elseif (command == "MFunc") then
+		local id = net.readString()
+		local var = net.readType(net.readUInt(8))
+		SendPacket("EXT_FUNC", ply, id, var)
+		Log("TripleScreenProtocol : Packet id " .. id .. " sent.")
+	elseif (command == "SW_AUTO_MODE") then
+		SendPacket("AUTOMODE")
+	end
+end)

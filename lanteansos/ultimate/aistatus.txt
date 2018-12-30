@@ -1,0 +1,106 @@
+--@name AIStatusApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {
+		{
+			Color = COLOR(0, 133, 255),
+			Vertices = GUI.PregenCircle(16, 16, 8)
+		},
+		{
+			Color = COLOR(0, 255, 0),
+			Vertices = {
+				VERTEX(16, 16),
+				VERTEX(25, 16),
+				VERTEX(32, 32)
+			}
+		}
+	},
+	[16] = {
+		{
+			Color = COLOR(0, 133, 255),
+			Vertices = GUI.PregenCircle(8, 8, 4)
+		},
+		{
+			Color = COLOR(0, 255, 0),
+			Vertices = {
+				VERTEX(8, 8),
+				VERTEX(13, 8),
+				VERTEX(16, 16)
+			}
+		}
+	}
+}
+
+local app = {}
+function app:Init()
+    self:SetTitle("AI Status")
+    self:SetSize(200, 128)
+    self:SetIcon32(ico[32])
+	self:SetIcon16(ico[16])
+	self:SetPos(LOCATION_BOTTOMRIGHT)
+	self:SetUpdates()
+
+    self.AIC = self:AddComponent("progress", 10, 28, COLOR(0, 255, 255), "LanAI CPU")
+    self.AIC:SetSize(AUTO, 20)
+    self.AIO = self:AddComponent("progress", 10, 52, COLOR(0, 255, 255), "")
+    self.AIO:SetSize(AUTO, 20)
+
+    --Menu
+    self:AddPullDownMenu("Information")
+    self:AddPullDownMenuItem("About", function()
+    	OS.Dialog("msg", "Lanteans OS", nil, {
+    		"Lanteans AI V." .. VERSION_AI,
+    		"Libs V." .. VERSION_LIBS
+    	})
+    end)
+    self:AddPullDownMenu("Alert Level")
+    self:AddPullDownMenuItem("Clear", function()
+		AIRunFunc("Alert", 3)
+    end)
+    self:AddPullDownMenuItem("Low", function()
+		AIRunFunc("Alert", 2)
+    end)
+    self:AddPullDownMenuItem("Normal", function()
+		AIRunFunc("Alert", 1)
+    end)
+    self:AddPullDownMenuItem("High", function()
+        AIRunFunc("Alert", 0)
+    end)
+    self:AddPullDownMenu("LanAI OfficerTools")
+    self:AddPullDownMenuItem("Lockdown", function()
+		AIRunFunc("Lockdown")
+    end)
+    self:AddPullDownMenuItem("Evacuation", function()
+		AIRunFunc("Evacuation")
+    end)
+    self:AddPullDownMenuItem("Autodestruction", function()
+    	OS.Dialog("code", "Please enter LanAI admin code :", function(code)
+			AIRunFunc("Destruction", code)
+    	end)
+    end)
+    --End
+
+    self.Overheats = 0
+end
+function app:Update(t)
+    if (not(Parametters["RI"] == nil)) then
+        self.AIC:SetValue(math.round(Parametters["RI"].CPUUsage / 100, 2))
+        self.Overheats = Parametters["RI"].CrashNumber
+    end
+    if (not(Parametters["PNAME"] == nil)) then
+    	self.AIO.Text = Parametters["PNAME"]:sub(0, 10)
+    	self.AIO:SetValue(Parametters["PVAL"] / 100)
+    end
+end
+function app:PostRender()
+    GUI.Text("Overheats : " .. self.Overheats, 10, 76, SmallFont, COLOR(255, 0, 0))
+    if (not(Parametters["Info"] == nil)) then
+        GUI.Text(Parametters["Info"], 10, 96, SmallFont, COLOR(255, 0, 0))
+    elseif (not(Parametters["Alert"] == nil)) then
+        GUI.Text("Alert Level : " .. Parametters["Alert"], 10, 96, SmallFont, COLOR(255, 0, 0))
+    end
+end
+
+OS.DefineApp("aistatus", app)
+OS.AddAppMenuItem("aistatus", "AI Status", "LanAI", ico[16])

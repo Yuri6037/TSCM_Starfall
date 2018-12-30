@@ -1,0 +1,150 @@
+--@name Lanteans OS Keyboard Driver
+--@author Yuri6037
+
+if (SERVER and not(ents.self():class() == "starfall_hud")) then
+	PushDriver("Keyboard", "Wirelink")
+	local KBNeeded = {}
+	local KBs = 0
+	net.RegPacket(249, "KB_SUPPORT", function()
+		local hdl = net.readUInt(8)
+		KBNeeded[hdl] = not(KBNeeded[hdl])
+		if (KBNeeded[hdl]) then
+			KBs = KBs + 1
+		else
+			KBs = KBs - 1
+		end
+	end, nil, true)
+	net.RegPacket(248, "KB_DATA", nil, function(args)
+		net.writeInt(args[1], 8, true)
+	end, false)
+	if (not(wire.ports["Keyboard"] == nil)) then
+		wire.ports["Keyboard"]:addOutputCallback("LanteansOS_KBDriver", function(wire, out, val)
+			if (KBs > 0 and out == "Memory" and val > 0) then
+				net.Broadcast("KB_DATA", val)
+			end
+		end)
+	end
+	PopDriver()
+elseif (CLIENT) then
+	if (OS.IsHUD()) then
+		function KernelKeyPress(code)
+			if (OS.ValidHandle(CurWindowHdl)) then
+				local app = OS.GetApp(CurWindowHdl)
+				if (app.HasKeyboard) then
+					if (code == input.KEY_CAPSLOCK) then
+						caps = not(caps)
+						app:KeyTyped(code, nil)
+					elseif (code == input.KEY_SPACE) then
+						app:KeyTyped(code, " ")
+					else
+						local char = input.getKeyName(code)
+						if (caps or input.isKeyDown(input.KEY_LSHIFT) or input.isKeyDown(input.KEY_RSHIFT)) then
+							char = string.upper(char)
+						end
+						app:KeyTyped(code, char)
+					end
+				end
+			end
+		end
+		KEY_ENTER = input.KEY_ENTER
+		KEY_BACKSPACE = input.KEY_BACKSPACE
+		KEY_LEFT = input.KEY_LEFT
+		KEY_RIGHT = input.KEY_RIGHT
+		KEY_UP = input.KEY_UP
+		KEY_DOWN = input.KEY_DOWN
+		KEY_TAB = input.KEY_TAB
+		KEY_LOCKSHIFT = input.KEY_CAPSLOCK
+		KEY_LSHIFT = input.KEY_LSHIFT
+		KEY_RSHIFT = input.KEY_RSHIFT
+		KEY_LCONTROL = input.KEY_LCONTROL
+		KEY_RCONTROL = input.KEY_RCONTROL
+		KEY_F1 = input.KEY_F1
+		KEY_F2 = input.KEY_F2
+		KEY_F3 = input.KEY_F3
+		KEY_F4 = input.KEY_F4
+		KEY_F5 = input.KEY_F5
+		KEY_F6 = input.KEY_F6
+		KEY_F7 = input.KEY_F7
+		KEY_F8 = input.KEY_F8
+		KEY_F9 = input.KEY_F9
+		KEY_F11 = input.KEY_F11
+		KEY_START = input.KEY_HOME
+		KEY_END = input.KEY_END
+		KEY_DELETE = input.KEY_DELETE
+	else
+		KEY_ENTER = 13
+		KEY_BACKSPACE = 127
+		KEY_LEFT = 19
+		KEY_RIGHT = 20
+		KEY_UP = 17
+		KEY_DOWN = 18
+		KEY_TAB = 9
+		KEY_LOCKSHIFT = 144
+		KEY_LSHIFT = 154
+		KEY_RSHIFT = 155
+		KEY_LCONTROL = 158
+		KEY_RCONTROL = 159
+		KEY_F1 = 163
+		KEY_F2 = 164
+		KEY_F3 = 165
+		KEY_F4 = 166
+		KEY_F5 = 167
+		KEY_F6 = 168
+		KEY_F7 = 169
+		KEY_F8 = 170
+		KEY_F9 = 171
+		KEY_F11 = 173
+		KEY_START = 149
+		KEY_END = 150
+		KEY_DELETE = 148
+	end
+	function SpecialKey(key)
+		return	key == KEY_ENTER or key == KEY_BACKSPACE
+				or key == KEY_LEFT or key == KEY_RIGHT
+				or key == KEY_UP or key == KEY_DOWN
+				or key == KEY_TAB or key == KEY_LOCKSHIFT
+				or key == KEY_LSHIFT or key == KEY_RSHIFT
+				or key == KEY_LCONTROL or key == KEY_RCONTROL
+				or (key >= KEY_F1 and key <= 174) or key == KEY_START
+				or key == KEY_END or key == KEY_DELETE
+	end
+	if (not(OS.IsHUD())) then
+		net.RegPacket(249, "KB_SUPPORT", nil, function(args)
+			net.writeUInt(8, args[1])
+		end, true)
+		net.RegPacket(248, "KB_DATA", function()
+			local key = net.readInt(8, true)
+			local char = string.char(key)
+			for k, v in pairs(Windows) do
+				if (v.HasKeyboard) then
+					v:KeyTyped(key, char)
+				end
+			end
+		end, nil, false)
+	end
+	function WINAPI:KeyTyped(key, char)
+		if (not(self:HasFocus())) then return end
+		for k, v in pairs(self.Components) do
+			if (not(v.OnKeyTyped == nil)) then v:OnKeyTyped(key, char) end
+		end
+		if (not(self.OnKeyTyped == nil)) then self:OnKeyTyped(key, char) end
+	end
+	function WINAPI:AddKeyboard()
+		if (not(self.ComponentsNeedKeyboard) and self.OnKeyTyped == nil) then
+			error("OnKeyTyped not implemented !")
+			return
+		end
+		self.HasKeyboard = true
+		if (not(OS.IsHUD())) then
+			net.SendPacket("KB_SUPPORT", self.Handle)
+		end
+	end
+	local OldExit = WINAPI.Close
+	function WINAPI:Close()
+		OldExit(self)
+		self.HasKeyboard = false
+		if (not(OS.IsHUD())) then
+			net.SendPacket("KB_SUPPORT", self.Handle)
+		end
+	end
+end

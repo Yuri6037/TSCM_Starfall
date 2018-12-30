@@ -1,0 +1,101 @@
+--@name AdvancedKino
+--@author Yuri6037
+
+if (not(holograms.canSpawn())) then return end
+
+wire.createInputs({"User", "CamControler"}, {"Entity", "Wirelink"})
+
+local p = ents.self():obbCenterW() + Vector(0, 0, 20)
+KinoHolo = holograms.create(p, Angle(0, 0, 0), "models/holograms/hq_icosphere.mdl", 1)
+KinoHolo:setColor(0, 128, 255)
+
+CurUser = nil
+
+CamControler = nil
+
+hook("think", "AdvancedKino_Update", function()
+
+	KinoHolo:spriteTrail(Color(0, 0, 255, 255), 32, 16, 24, "cable/redlaser")
+
+	if (IsValid(wire.ports["User"])) then
+		local veh = wire.ports["User"]
+		if (IsValid(veh:driver()) and not(veh:driver() == CurUser)) then
+			CurUser = veh:driver()
+		elseif (not(IsValid(veh:driver())) and IsValid(CurUser)) then
+			CurUser = nil
+		end
+	end
+
+	if (not(wire.ports["CamControler"] == CamControler)) then
+		CamControler = wire.ports["CamControler"]
+		CamControler["Parent"] = KinoHolo
+	end
+
+	if (IsValid(CurUser) and IsValid(KinoHolo) and not(CamControler == nil)) then
+
+		CamControler["Position"] = KinoHolo:obbCenterW()
+
+		local angs = CurUser:eyeAngles()
+		angs.pitch = -angs.pitch
+		KinoHolo:setAngles(angs)
+
+		if (CurUser:keyDown(input.IN_FORWARD)) then
+			local forwardVec = KinoHolo:forward() * -500
+			if (CurUser:keyDown(input.IN_SPEED)) then
+				forwardVec = forwardVec * 4
+			end
+			KinoHolo:setVel(forwardVec)
+		elseif (CurUser:keyDown(input.IN_BACK)) then
+			local forwardVec = KinoHolo:forward() * 500
+			KinoHolo:setVel(forwardVec)
+		else
+			KinoHolo:setVel(Vector(0, 0, 0))
+		end
+	end
+end)
+
+local function VectorInBox(vec, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = vec.x
+	local cY = vec.y
+	local cZ = vec.z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+local curGate = nil
+timer.create("MalpControler_GateHandler", 1, 0, function()
+	if (IsValid(curGate)) then
+		local p = curGate:localToWorld(curGate:obbMins())
+		local p1 = curGate:localToWorld(curGate:obbMaxs())
+		if (not(VectorInBox(KinoHolo:obbCenterW(), p, p1))) then
+			curGate = nil
+		end
+	end
+	for k, v in pairs(stargate.getAllStargates(function(ent) return stargate.open(ent) end)) do
+		local p = v:localToWorld(v:obbMins())
+		local p1 = v:localToWorld(v:obbMaxs())
+		if (VectorInBox(KinoHolo:obbCenterW(), p, p1) and not(curGate == v)) then
+			curGate = v
+			OnGateTravel(v, stargate.target(v))
+		end
+	end
+end)
+
+function OnGateTravel(from, dest)
+	KinoHolo:setPos(dest:getPos())
+end

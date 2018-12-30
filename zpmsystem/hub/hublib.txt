@@ -1,0 +1,195 @@
+--@name ZPMHUBLib
+--@author Yuri6037
+
+local Self = ents.self()
+local ZPMMdl = nil
+local LinkedZPMs = {}
+local ZPMTbl = nil
+local ZPMNbr = 0
+local MaxZPMs = 0
+local Engaged = false
+
+wire.createInputs({"VALUE"}, {"Normal"})
+wire.createOutputs({"P"}, {"Normal"})
+
+wire.ports["P"] = 0
+
+hubs = {}
+function hubs.GetLinkedZPMs()
+	return LinkedZPMs
+end
+function hubs.Define(tbl)
+	timer.create("Test", 1, 1, function()
+		Self:setModel(tbl.Model)
+	end)
+	if (not(tbl.OnSpawned == nil)) then
+		tbl.OnSpawned(Self)
+	end
+	ZPMMdl = tbl.ZPMModel
+	MaxZPMs = tbl.ZPMCount
+	ZPMTbl = tbl
+
+	if (ZPMMdl == nil) then error("NULL Compatible ZPM Model !") end
+end
+
+local function VectorInBox(vec, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = vec.x
+	local cY = vec.y
+	local cZ = vec.z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+local CurVal = 0
+local function CheckValue()
+	if (ZPMNbr <= 0) then return end
+	if (not(wire.ports["VALUE"] == nil) and not(CurVal == wire.ports["VALUE"])) then
+		CurVal = wire.ports["VALUE"]
+		for k, v in pairs(LinkedZPMs) do
+			if (not(v.WireLink == nil)) then
+				v.WireLink["VALUE"] = CurVal / ZPMNbr
+			end
+		end
+	end
+end
+local function GetEntBox()
+	local min, max = Self:obbMins(), Self:obbMaxs()
+	min, max = Self:getRotatedAABB(min, max)
+	return min + Self:pos(), max + Self:pos()
+end
+local function CheckZPM(v)
+	if (not(IsValid(v)) or not(LinkedZPMs[v] == nil) or ZPMNbr >= MaxZPMs) then return end
+	local pos, ang = ZPMTbl.GetZPMStart(Self, v)
+	LinkedZPMs[v] = {WireLink = nil}
+	v:setPos(pos)
+	v:setAng(ang)
+	v:getPhysicsObject():enableMotion(false)
+	ZPMNbr = ZPMNbr + 1
+end
+local CurN = 0
+local m1, m2 = GetEntBox()
+local ZPMs = find.inBox(m1, m2, function(ent) return ent:model() == ZPMMdl and ent:class() == "starfall_processor" and ent:owner() == ents.owner() end)
+timer.create("ZPMHUBLib", 1, 0, function()
+	CheckValue()
+	if (Engaged) then return end
+	for k, v in pairs(LinkedZPMs) do
+		local m1, m2 = GetEntBox()
+		if (not(IsValid(k)) or not(VectorInBox(k:pos(), m1, m2))) then
+			LinkedZPMs[k] = nil
+			ZPMNbr = ZPMNbr - 1
+			ZPMs = {}
+			return
+		end
+	end
+	if (ZPMNbr >= MaxZPMs) then return end
+	CurN = CurN + 1
+	CheckZPM(ZPMs[CurN])
+	if (CurN >= #ZPMs) then
+		CurN = 0
+		local m1, m2 = GetEntBox()
+		ZPMs = find.inBox(m1, m2, function(ent) return ent:model() == ZPMMdl and ent:class() == "starfall_processor" and ent:owner() == ents.owner() end)
+	end
+end)
+
+local function Lerp(a, b, alpha)
+	return (a * (1.0 - alpha)) + (b * alpha)
+end
+local function LerpVector(a, b, alpha)
+	return Vector(Lerp(a.X, b.X, alpha), Lerp(a.Y, b.Y, alpha), Lerp(a.Z, b.Z, alpha))
+end
+local function LerpAngle(a, b, alpha)
+	return Angle(Lerp(a.X, b.X, alpha), Lerp(a.Y, b.Y, alpha), Lerp(a.Z, b.Z, alpha))
+end
+
+local ZPMChk = 0
+local CurEVal = 0
+local function ConnectZPM(v)
+	v:getWirelink():addOutputCallback("ZPMHUBLib", function(motherfucker, out, val)
+		CurEVal = CurEVal + val
+		ZPMChk = ZPMChk + 1
+		if (ZPMChk >= ZPMNbr) then
+			wire.ports["P"] = CurEVal / ZPMNbr
+			CurEVal = 0
+			ZPMChk = 0
+		end
+	end)
+	v:getWirelink()["VALUE"] = CurVal / ZPMNbr
+end
+local function DisconnectZPM(v)
+	v:getWirelink():removeOutputCallback("ZPMHUBLib")
+	wire.ports["P"] = 0
+	v:getWirelink()["VALUE"] = 0
+end
+
+hook("keyrelease", "ZPMHUBLib", function(ply, key)
+	if (ZPMNbr > 0 and key == input.IN_USE and not(timer.exists("ZPMHUBLib_Animate")) and ply:pos():DistToSqr(Self:obbCenterW()) < 30000 and ply:eyeTrace().Entity == Self) then
+		if (not(Engaged)) then
+			for k, v in pairs(LinkedZPMs) do
+				local endp, enda = ZPMTbl.GetZPMEnd(Self, k)
+				v.EndPos = endp
+				v.EndAng = enda
+			end
+			timer.create("ZPMHUBLib_Animate", 0.1, 0, function()
+				for k, v in pairs(LinkedZPMs) do
+					k:setPos(LerpVector(k:pos(), v.EndPos, 0.1))
+					k:setAng(v.EndAng)
+					if (k:pos():DistToSqr(v.EndPos) <= 1) then
+						for k1, v1 in pairs(LinkedZPMs) do
+							k1:setPos(v1.EndPos)
+							k1:setAng(v1.EndAng)
+							k1:setParent(Self)
+							v1.WireLink = k1:getWirelink()
+							v1.WireLink["CON"] = 1
+							ConnectZPM(k1)
+							if (not(ZPMTbl.OnActivated == nil)) then ZPMTbl.OnActivated(Self) end
+						end
+						timer.remove("ZPMHUBLib_Animate")
+						break
+					end
+				end
+			end)
+			Engaged = true
+		else
+			for k, v in pairs(LinkedZPMs) do
+				local endp, enda = ZPMTbl.GetZPMStart(Self, k)
+				v.EndPos = endp
+				v.EndAng = enda
+				v.WireLink["CON"] = 0
+				DisconnectZPM(k)
+				k:setParent(nil)
+			end
+			timer.create("ZPMHUBLib_Animate", 0.1, 0, function()
+				for k, v in pairs(LinkedZPMs) do
+					k:setPos(LerpVector(k:pos(), v.EndPos, 0.1))
+					k:setAng(v.EndAng)
+					if (k:pos():DistToSqr(v.EndPos) <= 1) then
+						for k1, v1 in pairs(LinkedZPMs) do
+							k1:setPos(v1.EndPos)
+							k1:setAng(v1.EndAng)
+							v1.WireLink = nil
+							if (not(ZPMTbl.OnDeactivated == nil)) then ZPMTbl.OnDeactivated(Self) end
+						end
+						Engaged = false
+						timer.remove("ZPMHUBLib_Animate")
+					end
+				end
+			end)
+		end
+	end
+end)

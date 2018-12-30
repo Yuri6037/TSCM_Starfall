@@ -1,0 +1,117 @@
+--@name StatusGui
+--@author Yuri6037
+
+function RenderStatusGUI(x, y)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render shields status
+	gl.glText("Shields are : ", x + 10, y + 10)
+	local str = ""
+	if (Net.Shields == 1) then
+		str = "ONLINE"
+		gl.glBindColor(0, 255, 0)
+	else
+		str = "OFFLINE"
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glText(str, x + 180, y + 10)
+
+	--Render LifeSupport status
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Life Support is : ", x + 10, y + 50)
+	local str = ""
+	if (Net.LifeSupport == 1) then
+		str = "ONLINE"
+		gl.glBindColor(0, 255, 0)
+	else
+		str = "OFFLINE"
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glText(str, x + 220, y + 50)
+
+	 --Render Cloack status
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Cloak is : ", x + 10, y + 90)
+	local str = ""
+	if (Net.Cloak == 1) then
+		str = "ONLINE"
+		gl.glBindColor(0, 255, 0)
+	else
+		str = "OFFLINE"
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glText(str, x + 145, y + 90)
+
+	--Render buttons
+	--The ShieldToggle
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(x + 550, y + 10, 256, 32)) then
+		gl.glBindColor(0, 0, 200)
+	end
+	if (Screen:KeyUse()) then
+		gl.glBindColor(0, 32, 255)
+	end
+	gl.glRect(x + 550, y + 10, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Toggle Shields", x + 585, y + 10)
+	--The LifeSupportToggle
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(x + 550, y + 50, 256, 32)) then
+		gl.glBindColor(0, 0, 200)
+	end
+	if (Screen:KeyUse()) then
+		gl.glBindColor(0, 32, 255)
+	end
+	gl.glRect(x + 550, y + 50, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Toggle LifeSupport", x + 560, y + 50)
+	--The CloakToggle
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(x + 550, y + 90, 256, 32)) then
+		gl.glBindColor(0, 0, 200)
+	end
+	if (Screen:KeyUse()) then
+		gl.glBindColor(0, 32, 255)
+	end
+	gl.glRect(x + 550, y + 90, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Toggle Cloak", x + 595, y + 90)
+
+	--Atmospheric check
+	gl.glBindColor(0, 0, 0)
+	gl.glUnfilledRect(x + 20, y + 140, 954, 128, 8)
+	gl.glBindColor(255, 255, 255)
+	if (not(Net.POxygen == nil) and not(Net.PNitrogen == nil) and not(Net.PHydrogen == nil) and not(Net.PCO2 == nil) and not(Net.PGravity == nil) and not(Net.PTemperature == nil)) then
+		gl.glText("Env Oxygen : " .. Net.POxygen .. "%", x + 40, y + 150)
+		gl.glText("Env Nitrogen : " .. Net.PNitrogen .. "%", x + 40, y + 180)
+		gl.glText("Env Hydrogen : " .. Net.PHydrogen .. "%", x + 40, y + 210)
+		gl.glText("Env CO2 : " .. Net.PCO2 .. "%", x + 400, y + 150)
+		gl.glText("Env Gravity : " .. Net.PGravity .. "%", x + 400, y + 180)
+		gl.glText("Env Temperature : " .. Net.PTemperature .. "°C", x + 400, y + 210)
+
+		if (Net.PGravity >= 70 and Net.POxygen >= 16 and Net.PTemperature >=0 and Net.PTemperature <= 40) then
+			gl.glBindColor(0, 255, 0)
+			gl.glText("Life Supported", x + 700, y + 150)
+		else
+			gl.glBindColor(255, 0, 0)
+			gl.glText("Life Unsupported", x + 700, y + 150)
+		end
+	end
+end
+
+function CheckStatusInputs(x, y)
+	if (Screen:IsMouseInRect(x + 550, y + 10, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleShields")
+		end)
+	elseif (Screen:IsMouseInRect(x + 550, y + 50, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleLife")
+		end)
+	elseif (Screen:IsMouseInRect(x + 550, y + 90, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleCloak")
+		end)
+	end
+end

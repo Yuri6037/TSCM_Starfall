@@ -1,0 +1,86 @@
+--@name SG_Screen_Utility
+--@author Yuri6037
+
+function isString(str)
+	return type(str) == "string"
+end
+
+function table.HasValue(tbl, var)
+	for k, v in pairs(tbl) do
+		if (v .. "#" == var) then return true end
+	end
+	return false
+end
+
+function pirateStargateAddressList(list)
+	local piratedList = {}
+	for k, v in pairs(list) do
+		local sb = {Danger = false, Address = nil, Name = nil}
+		local st = string.explode(v, " ", nil)
+		if (st[1] == "1") then
+			sb.Danger = true
+			sb.Address = st[2]
+			table.remove(st, 1)
+			table.remove(st, 1)
+			sb.Name = table.concat(st, " ")
+		else
+			sb.Address = st[1]
+			table.remove(st, 1)
+			sb.Name = table.concat(st, " ")
+		end
+		if (sb.Danger) then
+			table.insert(SG_ADDRESS_LIST_DANGER, sb.Address)
+		end
+		table.insert(piratedList, sb)
+	end
+
+	return piratedList
+end
+
+function isStrTblEqual(tbl, tbl1)
+	if (not(#tbl == #tbl1)) then return false end
+	for k, v in pairs(tbl) do
+		local s = tbl1[k]
+		if (not(v == s)) then return false end
+	end
+	return true
+end
+
+function sgSay(msg)
+	chat.botSay("AI", Color(0, 255, 255), "[Stargate] -> ", Color(0, 133, 255), msg)
+end
+
+function TryAuthentifyPlayer(str)
+	local tsg = stargate.target(Stargate:entity())
+	if (Stargate == nil or tsg == nil) then
+		print("Something really bad is happening Starfall is corrupting memory !")
+		return
+	end
+	local num = tonumber(str)
+	if (num == nil and not(tsg:owner() == nil)) then
+		sgSay("Player " .. tsg:owner():name() .. " has tried to hack me !")
+		chat.tell(tsg:owner(), Color(0, 255, 255), "[Stargate] -> ", Color(0, 133, 255), "I have been programmed to stop you from hacking me !")
+		return
+	elseif (num == nil) then
+		return
+	end
+
+	local ent = find.byIndex(num)
+	if (IsValid(ent) and ent:isPlayer()) then
+		if (IsValid(tsg) and tsg:obbCenterW():Distance(ent:getPos()) < 200) then
+			if (faction.getFaction(ent) == faction.getFaction(ents.self():owner())) then
+				sgSay("Player " .. ent:name() .. " has been authentified !")
+				chat.tell(ent, Color(0, 255, 0), "You're allowed to enter the Stargate !")
+				Iris["Activate"] = 0
+			else
+				chat.tell(ent, Color(255, 0, 0), "You're not allowed to enter the Stargate !")
+			end
+		else
+			sgSay("Player " .. tsg:owner():name() .. " has tried to hack me !")
+			chat.tell(tsg:owner(), Color(0, 255, 255), "[Stargate] -> ", Color(0, 133, 255), "I have been programmed to stop you from hacking me !")
+		end
+	else
+		sgSay("Player " .. tsg:owner():name() .. " has tried to hack me !")
+		chat.tell(tsg:owner(), Color(0, 255, 255), "[Stargate] -> ", Color(0, 133, 255), "I have been programmed to stop you from hacking me !")
+	end
+end

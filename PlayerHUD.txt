@@ -1,0 +1,56 @@
+--@name PlayerHUD
+
+local ScrW, ScrH = render.getScreenRes()
+local Player = ents.player()
+local Centre = Vector(0, 0, 0)
+local AimVec = Player:aimVector()
+local BaseMat = Material("color")
+
+local Players = {}
+timer.create("PlayerHUDListPlayers", 2, 0, function()
+	if (ScrW == nil or ScrH == nil) then return end
+	Players = find.allPlayers(function(ply)
+		if (not(IsValid(ply)) or ply == ents.player()) then return false end
+		local p = ply:pos()
+		p = render.toScreen(p)
+		if (p.visible and p.x >= 0 and p.x <= ScrW and p.y >= 0 and p.y <= ScrH) then
+			return true
+		end
+		return false
+	end)
+end)
+
+function GetPlayerMaxHealth(ply)
+	if (ply:health() > ply:maxHealth()) then return ply:health() end
+	return ply:maxHealth()
+end
+
+function DrawHUDProgress(val, x, y, color)
+	render.start3D(Vector(0, 0, 0), Player:ang(), 60, x, y, 256, 256)
+		render.suppressEngineLighting()
+		render.drawSphere(AimVec * 12, 4, 16, 16, Color(0, 0, 0, 200))
+		render.drawSphere(AimVec * 12, val * 4, 16, 16, color)
+	render.end3D()
+end
+
+hook("hudshoulddraw", "PlayerHUDCancelRender", function(name)
+	if (name == "CHudBattery") then return false end
+	if (name == "CHudHealth") then return false end
+end)
+
+hook("render", "DrawStuff", function()
+	AimVec = Player:aimVector()
+
+	render.setMaterial(BaseMat)
+	DrawHUDProgress(Player:armor() / 100, 200, ScrH - 256, Color(0, 0, 255, 200))
+	DrawHUDProgress(Player:health() / GetPlayerMaxHealth(Player), 0, ScrH - 256, Color(255, 0, 0, 200))
+	render.start3D()
+		render.suppressEngineLighting()
+		for k, v in pairs(Players) do
+			if (not(v == Player)) then
+				render.drawSphere(v:pos(), 16, 16, 16, Color(0, 0, 0, 200))
+				render.drawSphere(v:pos(), v:health() * 16 / GetPlayerMaxHealth(v), 16, 16, Color(255, 0, 0, 200))
+			end
+		end
+	render.end3D()
+end)

@@ -1,0 +1,149 @@
+--@name StargateTravelHandlerLib
+--@author Yuri6037
+
+local travelIntegrated = false
+local travelListener = nil
+local travelList = nil
+local curGate = nil
+
+local BaseEnt = ents.self()
+
+local function VectorInBox(vec, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = vec.x
+	local cY = vec.y
+	local cZ = vec.z
+
+	if ((cX >= x and cX <= x1) or (cX <= x and cX >= x1)) then
+		if ((cY >= y and cY <= y1) or (cY <= y and cY >= y1)) then
+			if ((cZ >= z and cZ <= z1) or (cZ <= z and cZ >= z1)) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+local function OnGateTravel(travFail, from, to)
+	if (to == nil or from == nil or not(IsValid(from)) or not(IsValid(to))) then return end
+	if (IsValid(stargate.iris(to))) then
+		local iris = stargate.iris(to)
+		if (stargate.irisActive(iris)) then
+			travFail("IRIS", to)
+			return
+		end
+	end
+	if (stargate.IsLocationSpawn(to)) then travFail("SPAWN", to) return end
+	if (stargate.locationJammed(to)) then travFail("JAMMED", to) return end
+
+	curGate = to
+	if (not(travelListener == nil)) then
+		local b = travelListener(from, to)
+		if (not(b)) then --This is intended to let the utility to auto teleport from a newly defined travelList, if so just return true
+			return
+		end
+	end
+	local Base = travelList[1]
+	local BasePhys = Base:getPhysicsObject()
+	BasePhys:enableMotion(false)
+	local posList = {}
+	local angList = {}
+	for k, v in pairs(travelList) do
+		if (not(k == 1)) then
+			local phys = v:getPhysicsObject()
+			phys:enableMotion(false)
+			posList[v] = Base:worldToLocal(v:getPos())
+			angList[v] = Base:worldToLocalAngles(v:getAngles())
+		end
+	end
+	Base:setPos(to:obbCenterW())
+	Base:setAngles(to:getAngles())
+	for k, v in pairs(travelList) do
+		if (not(k == 1)) then
+			v:setPos(Base:localToWorld(posList[v]))
+			v:setAngles(Base:localToWorldAngles(angList[v]))
+		end
+	end
+	timer.create("EnableMotionBack", 1, 1, function()
+		local p = Base:getPhysicsObject()
+		p:enableMotion(true)
+		for k, v in pairs(travelList) do
+			if (not(k == 1)) then
+				local phys = v:getPhysicsObject()
+				phys:enableMotion(true)
+			end
+		end
+	end)
+end
+
+local failFunc = nil
+local function CheckGate(v)
+	if (not(IsValid(v))) then return end
+	local mins = Vector(-123.947708, -140.250000, -140.250015)
+	local maxs = Vector(123.947708, 140.250000, 140.250000)
+
+	local p = v:localToWorld(mins)
+	local p1 = v:localToWorld(maxs)
+	if (VectorInBox(BaseEnt:obbCenterW(), p, p1) and not(curGate == v)) then
+		curGate = v
+		OnGateTravel(failFunc, v, stargate.target(v))
+	end
+end
+
+function stargate.IntegrateTravel(failfnc)
+	failFunc = failfnc
+	travelIntegrated = true
+
+	local CurN = 0
+	local SGs = stargate.getAllStargates(function(ent) return stargate.open(ent) end)
+	timer.create("GateHandler", 1, 0, function()
+		if (IsValid(curGate)) then
+			local mins = Vector(-123.947708, -140.250000, -140.250015)
+			local maxs = Vector(123.947708, 140.250000, 140.250000)
+
+			local p = curGate:localToWorld(mins)
+			local p1 = curGate:localToWorld(maxs)
+			if (not(VectorInBox(BaseEnt:obbCenterW(), p, p1)) and not(VectorInBox(BaseEnt:getPos(), p, p1))) then
+				curGate = nil
+			end
+		end
+
+		CurN = CurN + 1
+		CheckGate(SGs[CurN])
+		if (CurN >= #SGs) then
+			CurN = 0
+			SGs = stargate.getAllStargates(function(ent) return stargate.open(ent) end)
+		end
+	end)
+end
+
+--Used for custom travel functions (when the list of entity is intended to change over time)
+--The function callback takes in parameters : from (gate the entity is passing as entity), to (the target gate as entity)
+function stargate.SetTravelListener(func)
+	travelListener = func
+	travelList = nil
+end
+
+--Used for quick travelling, when entities that should be teleported doesn't change
+function stargate.SetEntityTravelList(lst)
+	travelList = lst
+end
+
+function stargate.SetGateTravelCheckEntity(ent)
+	BaseEnt = ent
+end
+
+function stargate.IsLocationSpawn(ent)
+	if (not(IsValid(ent))) then return end
+	local SpawnMax = Vector(896, 479, 16224)
+	local SpawnMin = Vector(-474, -485, 15941)
+	return VectorInBox(ent:obbCenterW(), SpawnMin, SpawnMax)
+end

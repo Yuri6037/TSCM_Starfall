@@ -1,0 +1,43 @@
+--@name Lanteans OS Card Reader
+--@author Yuri6037
+--@autoupdate
+--@class processor
+--@model models/sprops/misc/tubes/size_3/tube_36x6.mdl
+
+Entity = ents.self()
+
+--Initialization
+Entity:setAng(Angle(0, 0, 90))
+Entity:setMaterial("models/XQM/LightLinesRed_tool")
+wire.createOutputs({"Header", "Data"}, {"String", "String"})
+wire.createInputs({"Ranger", "Unlock"}, {"Entity", "Normal"})
+Ports = wire.ports
+Linked = nil
+Ports["Data"] = ""
+Ports["Header"] = ""
+--End
+
+function IsAppCard(ent)
+	return ent:class() == "starfall_processor" and ent:model() == "models/props_junk/sawblade001a.mdl" and not(ent:getWirelink() == nil) and not(ent:getWirelink():outputs() == nil) and #ent:getWirelink():outputs() >= 2
+end
+
+hook("input", "AppCard_Reader", function(inn, out)
+	if (inn == "Ranger") then
+		if (IsValid(out) and IsAppCard(out)) then
+			Linked = out
+			Linked:getPhysicsObject():enableMotion(false)
+			local w = Linked:getWirelink()
+			local str = w[w:outputs()[1]]
+			local str1 = w[w:outputs()[2]]
+			if (type(str) == "string" and type(str1) == "string") then
+				Ports["Header"] = str
+				Ports["Data"] = str1
+			end
+		end
+	elseif (inn == "Unlock" and IsValid(Linked) and out == 1) then
+		Linked:getPhysicsObject():enableMotion(true)
+		Linked = nil
+		Ports["Data"] = ""
+		Ports["Header"] = ""
+	end
+end)

@@ -1,0 +1,64 @@
+--@name StargateInfoApp (SERVER)
+--@author Yuri6037
+
+local WhiteList = {
+	["stargate_atlantis"] = "Stargate SGA",
+	["stargate_universe"] = "Stargate SGU",
+	["stargate_tollan"] = "Stargate Tollan",
+	["stargate_sg1"] = "Stargate SG1"
+}
+
+local UsePlys = {}
+local PlysCurEnt = {}
+
+hook("keypress", "LanteansHUD_SGInfo", function(ply, key)
+	if (UsePlys[ply] and key == input.IN_WALK and IsValid(ply:activeWeapon()) and ply:activeWeapon():class() == "kinoremote" and IsValid(ply:eyeTrace().Entity) and WhiteList[ply:eyeTrace().Entity:class()]) then
+		PlysCurEnt[ply] = ply:eyeTrace().Entity
+	end
+end)
+
+hook("keyrelease", "LanteansHUD_SGInfo", function(ply, key)
+	if (UsePlys[ply] and key == input.IN_WALK) then
+		PlysCurEnt[ply] = nil
+	end
+end)
+
+local app = {
+	OnActivated = function(ply)
+		UsePlys[ply] = true
+	end,
+	OnDeactivated = function(ply)
+		UsePlys[ply] = nil
+	end,
+	Update = function(ply)
+		if (IsValid(PlysCurEnt[ply])) then
+			CheckVar("SGType", WhiteList[PlysCurEnt[ply]:class()])
+			CheckVar("SGName", stargate.name(PlysCurEnt[ply]))
+			if (IsValid(PlysCurEnt[ply]:owner())) then
+				CheckVar("SGOwner", PlysCurEnt[ply]:owner():name())
+			else
+				CheckVar("SGOwner", "NULL")
+			end
+			CheckVar("SGAddr", stargate.address(PlysCurEnt[ply]))
+			CheckVar("SGIn", stargate.inbound(PlysCurEnt[ply]))
+			if (IsValid(stargate.target(PlysCurEnt[ply]))) then
+				local target = stargate.target(PlysCurEnt[ply])
+				CheckVar("SGTargetA", stargate.address(target))
+				CheckVar("SGTargetN", stargate.name(target))
+				if (IsValid(stargate.iris(target))) then
+					CheckVar("SGIris", stargate.irisActive(stargate.iris(target)))
+				else
+					CheckVar("SGIris", false)
+				end
+			else
+				CheckVar("SGTargetA", "None")
+				CheckVar("SGTargetN", "None")
+				CheckVar("SGIris", false)
+			end
+		else
+			CheckVar("SGType", nil)
+		end
+	end
+}
+
+HUD.DefineApp("StargateInfo", app, true)

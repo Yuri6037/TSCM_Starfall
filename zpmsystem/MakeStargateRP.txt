@@ -1,0 +1,118 @@
+--@name MakeStargateRP
+--@author Yuri6037
+
+wire.createInputs({"Stargate", "Iris", "ZPM"}, {"Entity", "Entity", "Wirelink"})
+wire.createOutputs({"ZPMValue"}, {"Normal"})
+
+local Stargate = nil
+local Iris = nil
+local ZPM = nil
+local Ports = wire.ports
+
+Ports["ZPMValue"] = 0
+
+local function GetGateNeededEnergy()
+	local gate = stargate.target(Stargate)
+	if (not(IsValid(gate))) then
+		print("A large error occured in starfall : stargate.target is disfunctional !")
+		return (9999)
+	end
+	local dist = math.floor(Stargate:pos():Distance(gate:pos()) / 100)
+	return (dist)
+end
+
+local CurVal = 0
+local function CheckZPM(energyamount)
+	if (ZPM == nil) then return false end
+	if (CurVal + energyamount <= 0) then
+		CurVal = 0
+		Ports["ZPMValue"] = 0
+	else
+		CurVal = CurVal + energyamount
+		Ports["ZPMValue"] = CurVal
+	end
+	if (ZPM["P"] <= 0) then return false end
+	return true
+end
+
+local NeededSGEnergy = 0
+local function HandleGateConnect()
+	Stargate:getWirelink():addOutputCallback("MakeStargateRP", function(w, out, val)
+		if (not(IsValid(Stargate)) or not(Stargate:getWirelink() == w)) then w:removeOutputCallback("MakeStargateRP") return end
+		if (out == "Active" and val == 1 and not(stargate.inbound(Stargate))) then
+			NeededSGEnergy = GetGateNeededEnergy()
+			if (not(CheckZPM(NeededSGEnergy))) then
+				stargate.close(Stargate)
+				if (not(timer.exists("MakeStargateRP_HackNox"))) then
+					timer.create("MakeStargateRP_HackNox", 1, 0, function()
+						stargate.close(Stargate)
+						if (not(stargate.open(Stargate))) then
+							timer.remove("MakeStargateRP_HackNox")
+						end
+					end)
+				end
+			end
+		elseif (out == "Active" and val == 0) then
+			CheckZPM(-NeededSGEnergy)
+			NeededSGEnergy = 0
+		end
+	end)
+end
+local function HandleIrisConnect()
+	Iris:getWirelink():addOutputCallback("MakeStargateRP", function(w, out, val)
+		if (Iris == nil or not(Iris:getWirelink() == w)) then w:removeOutputCallback("MakeStargateRP") return end
+		if (out == "Activated" and val == 1) then
+			if (not(CheckZPM(50))) then
+				timer.create("MakeStargateRP", 0.1, 0, function()
+					print("Iris refused to deactivate, retrying...")
+					w["Activate"] = 0
+					if (w["Activated"] == 0) then timer.remove("MakeStargateRP") end
+				end)
+			end
+		elseif (out == "Activated" and val == 0) then
+			CheckZPM(-50)
+		end
+	end)
+end
+local function HandleZPMConnect()
+	ZPM:addOutputCallback("MakeStargateRP", function(w, out, val)
+		if (not(ZPM == w)) then w:removeOutputCallback("MakeStargateRP") return end
+		if (val <= 0) then
+			if (IsValid(Stargate)) then
+				stargate.close(Stargate)
+				CheckZPM(-NeededSGEnergy)
+				NeededSGEnergy = 0
+			end
+			if (IsValid(Iris) and stargate.irisActive(Iris)) then
+				Iris:getWirelink()["Activate"] = 0
+				CheckZPM(-50)
+			end
+		end
+	end)
+end
+
+hook("input", "MakeStargateRP", function(inp, val)
+	if (inp == "Stargate") then
+		Stargate = val
+		if (IsValid(val)) then HandleGateConnect() end
+	elseif (inp == "Iris") then
+		Iris = val
+		if (IsValid(val)) then HandleIrisConnect() end
+	elseif (inp == "ZPM") then
+		ZPM = val
+		if (not(ZPM == nil)) then HandleZPMConnect() end
+	end
+end)
+
+if (IsValid(Ports["Stargate"])) then
+	Stargate = Ports["Stargate"]
+	HandleGateConnect()
+end
+if (IsValid(Ports["Iris"])) then
+	Iris = Ports["Iris"]
+	HandleIrisConnect()
+end
+if (not(Ports["ZPM"] == nil)) then
+	ZPM = Ports["ZPM"]
+	HandleZPMConnect()
+end

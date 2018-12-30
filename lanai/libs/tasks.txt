@@ -1,0 +1,76 @@
+--@name TasksLibrary
+--@author Yuri6037
+
+local Tasks = {}
+local ErrClbk = nil
+local HaltDelay = 0
+local KillFlag = false
+
+task =  {}
+
+--Sets error callback to use (error message is passed as parameter)
+function task.SetErrorCallback(fnc)
+	ErrClbk = fnc
+end
+
+--delay is in seconds
+function task.HaltAll(delay)
+	HaltDelay = delay
+end
+
+function task.EndAll()
+	KillFlag = true
+end
+
+--interval is in seconds
+function task.Start(fnc, id, interval)
+	Tasks[id] = {Func = fnc, InFunc = function(self)
+		while (true) do
+			if (KillFlag or Tasks[id].KillFlag) then
+				break
+			end
+			xpcall(Tasks[id].Func, function(err)
+				Tasks[id].CrashMsg = err
+			end)
+			if (KillFlag or Tasks[id].KillFlag) then
+				break
+			end
+			if (HaltDelay > 0) then
+				coroutine.wait(HaltDelay)
+			else
+				coroutine.wait(Tasks[id].Interval)
+			end
+		end
+		Tasks[id] = nil
+	end, Interval = interval, Handle = nil}
+	Tasks[id].Handle = coroutine.create(Tasks[id].InFunc)
+	coroutine.resume(Tasks[id].Handle)
+end
+
+--kill is a flag whenever to force kill
+function task.End(id, kill)
+	if (Tasks[id] == nil) then
+		return
+	end
+	if (kill) then
+		coroutine.stop(Tasks[id].Handle)
+		Tasks[id] = nil
+	else
+		Tasks[id].KillFlag = true
+	end
+end
+
+function task.PrintStatus(id)
+	print(coroutine.status(Tasks[id].Handle))
+end
+
+timer.create("TasksLibrary", 0.1, 0, function()
+	for k, v in pairs(Tasks) do
+		if (not(v.CrashMsg == nil)) then
+			ErrClbk(k, v.CrashMsg)
+			Tasks[k] = nil
+		else
+			coroutine.resume(v.Handle)
+		end
+	end
+end)

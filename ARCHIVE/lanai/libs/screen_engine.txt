@@ -1,0 +1,694 @@
+--@name ScreenEngine
+--@author Yuri6037
+--@include lanai/libs/screen/gl_lib.txt
+
+--Welcome back hack ! Seriously please put C at the end, with C for example this recursive for loop intended to force duplicate a table wouldn't be nessessary !
+function table.Copy(orig)
+	local orig_type = type(orig)
+	local copy
+	if orig_type == 'table' then
+		copy = {}
+		for orig_key, orig_value in next, orig, nil do
+			copy[table.Copy(orig_key)] = table.Copy(orig_value)
+		end
+		setmetatable(copy, table.Copy(getmetatable(orig)))
+	else -- number, string, boolean, etc
+		copy = orig
+	end
+	return copy
+end
+
+--Also add some explanations :
+--Screens must contain at least 4 methods and 2 variables :
+----> Method : OnExit()
+----> Method : OnShow()
+----> Method : OnTouched(mouseX, mouseY)
+----> Method : OnRender()
+----> Method : Animate(CurTime)
+----> Variable : Name (Name of the screen used as index)
+
+--Controls
+--@include lanai/libs/screen/screen_controls/button.txt
+--@include lanai/libs/screen/screen_controls/listbox.txt
+
+require("lanai/libs/screen/gl_lib.txt")
+
+--Enable GL_BLEND so alpha is handled
+gl.glEnable(GL_BLEND)
+
+Screen = {}
+Screen.StandardFont = gl.glGenFonts("Arial Black", true, 32)
+Screen.TitleFont = gl.glGenFonts("federation", true, 100)
+Screen.Current = nil
+Screen.Screens = {}
+Screen.LastTouch = {Time = 0, PosX = 0, PosY = 0}
+--Windowing system vars
+Screen.WindowSystemOnline = false
+Screen.Windows = {}
+Screen.WindowList = {}
+Screen.ActiveWindow = -1
+Screen.CBs = {OnMove = nil, OnCloseBut = nil, OnReduceBut = nil, OnRaviveBut = nil}
+Screen.ReduceButsPos = {X = 512, Y = 448}
+Screen.ReducedWindowsNum = 0
+--End
+
+--Local windowing system variables
+local isMouseInWindow = false
+local mouseInWindow = -1
+--End
+
+--Begin modif
+function Screen:Register(tbl)
+	tbl.AddControl = AddControl
+	tbl.ClearControls = ClearControls
+	table.insert(Screen.Screens, tbl)
+end
+function Screen:GetEngineVersion()
+	return "Next"
+end
+--End
+
+--Windowing system
+function Screen:ShowWindow(name)
+	if (not(Screen.WindowSystemOnline)) then error("Windowing system is offline set handlers first !") return end
+	local tbl = Screen.WindowList[name]
+	if (tbl == nil) then return end
+	local id = #Screen.Windows + 1
+	Screen.Windows[id] = table.Copy(tbl)
+	Screen.Windows[id].Reduced = false
+	Screen.Windows[id].X = 0
+	Screen.Windows[id].Y = 0
+
+	--Meta functions
+	Screen.Windows[id].Close = function(fuckyoulua)
+		if (not(Screen.WindowSystemOnline)) then error("Windowing system is offline set handlers first !") return end
+		if (id == nil) then
+			if (Screen.ActiveWindow == -1) then return end
+			Screen.ActiveWindow = #Screen.Windows
+			Screen.Windows[id].OnClosed()
+			Screen.Windows[id] = nil
+		end
+		if (Screen.Windows[id] == nil) then return end
+		if (Screen.ActiveWindow == id) then
+			Screen.ActiveWindow = #Screen.Windows
+		end
+		Screen.Windows[id].OnClosed()
+		Screen.Windows[id] = nil
+	end
+	Screen.Windows[id].Move = function(fuckyoulua, newX, newY)
+		if (not(Screen.WindowSystemOnline)) then error("Windowing system is offline set handlers first !") return end
+		Screen.Windows[id].X = newX
+		Screen.Windows[id].Y = newY
+	end
+	Screen.Windows[id].GetMousePos = function(fuckyoulua)
+		local pos = {x = -1, y = -1}
+		if (isMouseInWindow and mouseInWindow == id) then
+			local real = Screen:GetMousePos()
+			local w = Screen.Windows[id]
+			pos.x = real.x - w.X
+			pos.y = real.y - w.Y
+		end
+		return pos
+	end
+	Screen.Windows[id].Reduce = function(fuckyoulua, b)
+		if (not(Screen.WindowSystemOnline)) then error("Windowing system is offline set handlers first !") return end
+		if (b) then
+			if (not(Screen.Windows[id].Reduced)) then
+				Screen.Windows[id].Reduced = true
+				Screen.ReducedWindowsNum = Screen.ReducedWindowsNum + 1
+			end
+		else
+			if (Screen.Windows[id].Reduced) then
+				Screen.Windows[id].Reduced = false
+				Screen.ReducedWindowsNum = Screen.ReducedWindowsNum - 1
+			end
+		end
+	end
+	--End
+
+	Screen.ActiveWindow = id
+	Screen.Windows[id].OnOpened()
+	return id
+end
+function Screen:RegisterWindow(name, title, width, height, openFunc, closeFunc, renderFunc, touchFunc)
+	--if (not(Screen.WindowSystemOnline)) then error("Windowing system is offline set handlers first !") return end
+	Screen.WindowList[name] = {
+		Title = title,
+		Name = name,
+		OnRender = renderFunc,
+		OnTouched = touchFunc,
+		OnOpened = openFunc,
+		OnClosed = closeFunc,
+		Width = width,
+		Height = height
+	}
+end
+function Screen:SetWindowHandlers(reduceFunc, closeFunc, moveFunc, reviveFunc)
+	if (Screen.WindowSystemOnline) then return end
+
+	Screen.CBs.OnReduceBut = reduceFunc
+	Screen.CBs.OnRaviveBut = reviveFunc
+	Screen.CBs.OnCloseBut = closeFunc
+	Screen.CBs.OnMove = moveFunc
+end
+function Screen:SetWindowReduceBarPos(x, y)
+	if (Screen.WindowSystemOnline) then return end
+
+	Screen.ReduceButsPos = {X = x, Y = y}
+end
+function Screen:IntegrateWindowSupport()
+	if (Screen.CBs.OnReduceBut == nil) then error("Reduce handler is null !") return end
+	if (Screen.CBs.OnRaviveBut == nil) then error("Revive handler is null !") return end
+	if (Screen.CBs.OnCloseBut == nil) then error("Close handler is null !") return end
+	if (Screen.CBs.OnMove == nil) then error("Move handler is null !") return end
+
+	Screen.WindowSystemOnline = true
+end
+--End
+--Message box system
+local CurMessage = nil
+MessageType = {INFO = 0, WARNING = 1, ERROR = 2}
+Screen:RegisterWindow("MB", "Message", 256, 128, function()
+	--Open
+	if (CurMessage == nil) then self:Close() end
+end, function()
+	--Close
+	CurMessage = nil
+end, function()
+	--Render
+	local s = CurMessage.Text
+	local t = CurMessage.Type
+	if (t == 0) then
+		gl.glBindColor(255, 255, 255)
+	elseif (t == 1) then
+		gl.glBindColor(255, 255, 0)
+	elseif (t == 2) then
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRect(0, 0, 256, 128)
+	gl.glBindColor(0, 0, 0)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText(s, 0, 0)
+
+	if (Screen:IsMouseInRect(96, 64, 64, 32)) then
+		gl.glBindColor(90, 90, 90)
+	else
+		gl.glBindColor(133, 133, 133)
+	end
+	gl.glRect(96, 64, 64, 32)
+
+	gl.glBindColor(0, 0, 0)
+	gl.glText("OK", 96, 64)
+end, function()
+	--Touch
+	if (Screen:IsMouseInRect(96, 64, 64, 32)) then
+		self:Close()
+		Screen.CBs.OnCloseBut(Screen.ActiveWindow, self)
+	end
+end)
+function Screen:MessageBox(text, type)
+	CurMessage = {Text = text, Type = type}
+	Screen:ShowWindow("MB")
+end
+--End
+
+function Screen:Display(name)
+	if (not(Screen.Current == nil)) then
+		Screen.Current:OnExit()
+	end
+	Screen.Current = nil
+	if (not(name == nil)) then
+		for k, v in pairs(Screen.Screens) do
+			if (v.Name == name) then
+				Screen.Current = table.Copy(v)
+				break
+			end
+		end
+	end
+	Screen.Current:OnShow()
+end
+
+hook("render", "ScreenRenderer", function()
+	if (not(Screen.Current == nil)) then
+		render.clear()
+		gl.glBindColor(255, 255, 255)
+
+		Screen.Current:Animate(time.frameTime())
+		Screen.Current:OnRender()
+	end
+
+	local pos = Screen:GetMousePos()
+
+	local renderedReducedWindows = 0
+	local butsWidth = Screen.ReducedWindowsNum * 64
+	local curWin = -1
+	for k, v in pairs(Screen.Windows) do
+		if (v.Reduced) then
+			--This window is reduced, don't render it, but instead render a button to revive it
+			local pos = Screen:GetMousePos()
+			local butX = (Screen.ReduceButsPos.X - butsWidth / 2) + renderedReducedWindows * 64
+			local butY = Screen.ReduceButsPos.Y
+			if (pos.x >= butX and pos.x <= (butX + 64) and pos.y >= butY and pos.y <= (butY + 32)) then
+				curWin = k
+
+				v.CanRavive = true
+				if (Screen:KeyUse()) then
+					gl.glBindColor(0, 255, 255, 180)
+				else
+					gl.glBindColor(255, 255, 255, 180)
+				end
+			else
+				gl.glBindColor(255, 255, 255, 180)
+				v.CanRavive = false
+			end
+
+			gl.glRoundedRect(butX, butY, 64, 32, 8)
+			gl.glBindColor(0, 0, 0)
+			local txtW = gl.glTextWidth(v.Name)
+			gl.glText(v.Name, butX + txtW / 2, butY)
+			renderedReducedWindows = renderedReducedWindows + 1
+		else
+			if (pos.x >= v.X and pos.x <= (v.X + v.Width)) then
+				if (pos.y >= v.Y and pos.y <= (v.Y + v.Height)) then
+					--Mouse is inside window
+					curWin = k
+				end
+			end
+
+			--The window is normal, render it
+			gl.glBindColor(255, 255, 255, 180)
+			gl.glRoundedRect(v.X, v.Y, v.Width, v.Height, 8)
+			if (k == Screen.ActiveWindow) then
+				gl.glBindColor(0, 128, 200, 180)
+			else
+				gl.glBindColor(0, 0, 0, 180)
+			end
+			gl.glRoundedRect(v.X, v.Y, v.Width, 32, 8)
+			gl.glBindColor(0, 0, 0)
+			gl.glBindFont(Screen.StandardFont)
+			gl.glText(v.Title, v.X + 10, v.Y + 5)
+
+			if (k == Screen.ActiveWindow) then
+				if (pos.x >= (v.X + v.Width) - 37 and pos.x <= (v.X + v.Width) - 5) then
+					if (pos.y >= (v.Y + 5) and pos.y <= (v.Y + 22)) then
+						--Mouse inside Red button
+						gl.glBindColor(255, 128, 0)
+					else
+						gl.glBindColor(255, 0, 0)
+					end
+				else
+					gl.glBindColor(255, 0, 0)
+				end
+				gl.glRect((v.X + v.Width) - 37, v.Y + 5, 32, 22)
+				if (pos.x >= (v.X + v.Width) - 69 and pos.x <= (v.X + v.Width) - 37) then
+					if (pos.y >= (v.Y + 5) and pos.y <= (v.Y + 22)) then
+						--Mouse inside Red button
+						gl.glBindColor(0, 128, 255)
+					else
+						gl.glBindColor(0, 0, 255)
+					end
+				else
+					gl.glBindColor(0, 0, 255)
+				end
+				gl.glRect((v.X + v.Width) - 69, v.Y + 5, 32, 22)
+				if (pos.x >= v.X and pos.x <= (v.X + v.Width)) then
+					if (pos.y >= v.Y and pos.y <= (v.Y + 32)) then
+						--Mouse inside status bar
+						if (Screen:KeyUse()) then
+							--Move window with cursor
+							if (v.RelX == nil) then
+								local relX = pos.x - v.X
+								local relY = pos.y - v.Y
+								v.RelX = relX
+								v.RelY = relY
+							end
+							v.X = pos.x - v.RelX
+							v.Y = pos.y - v.RelY
+							Screen.CBs.OnMove(k, v)
+						elseif (not(v.RelX == nil)) then
+							v.RelX = nil
+							v.RelY = nil
+						end
+					end
+				end
+			end
+
+			gl.glPushMatrix()
+				gl.glEnable(GL_SCISSOR)
+				gl.glTranslate(v.X + 5, v.Y + 37)
+				gl.glScissor(v.Width - 10, v.Height)
+				v.OnRender(v.X + 5, v.Y + 37)
+				gl.glDisable(GL_SCISSOR)
+			gl.glPopMatrix()
+		end
+	end
+
+	Screen.LastTouch.PosX = -1
+	Screen.LastTouch.PosY = -1
+
+	if (curWin > -1) then
+		isMouseInWindow = true
+		mouseInWindow = curWin
+	else
+		isMouseInWindow = false
+		mouseInWindow = -1
+	end
+end)
+hook("playerbindpress", "ScreenUsed", function(ply, bind, pressed)
+	if (bind == "+use") then
+		if (isMouseInWindow) then
+			local v = Screen.Windows[mouseInWindow]
+
+			if (v.Reduced and v.CanRavive) then
+				v:Reduce(false)
+				Screen.CBs.OnRaviveBut(mouseInWindow, v)
+				v.CanRavive = false
+			elseif (not(v.Reduced)) then
+				local pos = Screen:GetMousePos()
+				if (pos.x >= v.X and pos.x <= (v.X + v.Width) and pos.y >= v.Y and pos.y <= (v.Y + v.Height)) then
+					if (not(mouseInWindow == Screen.ActiveWindow)) then
+						Screen.ActiveWindow = mouseInWindow
+					elseif (mouseInWindow == Screen.ActiveWindow) then
+						if (pos.x >= (v.X + v.Width) - 37 and pos.x <= (v.X + v.Width) - 5) then
+							if (pos.y >= (v.Y + 5) and pos.y <= (v.Y + 22)) then
+								--Mouse inside red button
+								v:Close()
+								Screen.CBs.OnCloseBut(mouseInWindow, v)
+
+								isMouseInWindow = false
+								mouseInWindow = -1
+								return
+							end
+						end
+						if (pos.x >= (v.X + v.Width) - 69 and pos.x <= (v.X + v.Width) - 37) then
+							if (pos.y >= (v.Y + 5) and pos.y <= (v.Y + 22)) then
+								--Mouse is inside blue button
+								v:Reduce(true)
+								Screen.CBs.OnReduceBut(mouseInWindow, v)
+
+								isMouseInWindow = false
+								mouseInWindow = -1
+								return
+							end
+						end
+					end
+					if (mouseInWindow == Screen.ActiveWindow) then
+						v.OnTouched()
+					end
+				end
+			end
+		end
+
+		if (not(Screen.Current == nil)) then
+			local pos = Screen:GetMousePos()
+			if (pos.x == -1 and pos.y == -1) then return end
+			Screen.Current:OnTouched(pos.x, pos.y)
+			Screen.LastTouch = {Time = time.realTime(), PosX = pos.x, PosY = pos.y}
+		end
+	end
+end)
+
+function Screen:IsMouseInRect(x, y, w, h)
+	if (isMouseInWindow) then return false end
+	local pos = Screen:GetMousePos()
+	if (pos.x >= x and pos.x <= (x + w)) then
+		if (pos.y >= y and pos.y <= (y + h)) then
+			return true
+		end
+	end
+	return false
+end
+
+function Screen:GetMousePos()
+	local tbl = ents.player():eyeTrace()
+	if (IsValid(tbl.Entity) and not(tbl.Entity == ents.self())) then
+		return {x = -1, y = -1}
+	end
+	local x, y = render.cursorPos(ents.player())
+	local pos = {}
+	pos.x = x
+	pos.y = y
+	if (x == nil) then
+		pos.x = -1
+	end
+	if (y == nil) then
+		pos.y = -1
+	end
+
+	return pos
+end
+
+function Screen:KeyUse()
+	return ents.player():keyDown(input.IN_USE)
+end
+
+--Control Library
+UI = {}
+local curSkin = {}
+local skins = {}
+function UI.SetSkin(id)
+	curSkin = skins[id]
+	if (curSkin == nil) then
+		curSkin = skins[0]
+	end
+end
+function UI.AddSkin(id, tbl)
+--[[
+Table tbl structure :
+{
+	Font = Screen.StandardFont,
+	TextColor = {Basic = Color(0, 0, 0), Hover = Color(0, 0, 0), Clicked = Color(0, 0, 0)},
+	BackgroundColor = {Basic = Color(133, 133, 133, 255), Hover = Color(150, 150, 150, 255), Clicked = Color(90, 90, 90, 255)},
+	RoundedBorders = true
+}
+]]--
+	skins[id] = tbl
+end
+UI.AddSkin(0, {
+	Font = Screen.StandardFont,
+	TextColor = {Basic = Color(0, 0, 0), Hover = Color(0, 0, 0), Clicked = Color(0, 0, 0)},
+	BackgroundColor = {Basic = Color(133, 133, 133, 255), Hover = Color(150, 150, 150, 255), Clicked = Color(90, 90, 90, 255)},
+	RoundedBorders = true
+})
+UI.SetSkin(0)
+local butsW = {}
+local butsH = {}
+local butTextsW = {}
+local butTextsH = {}
+--@Returns : boolean is clicked
+function UI.Button(text, x, y, w, h)
+	local normal = curSkin.BackgroundColor.Basic
+	local hover = curSkin.BackgroundColor.Hover
+	local clicked = curSkin.BackgroundColor.Clicked
+	local textNormal = curSkin.TextColor.Basic
+	local textHover = curSkin.TextColor.Hover
+	local textClicked = curSkin.TextColor.Clicked
+	local textFont = curSkin.Font
+
+	if (Screen:IsMouseInRect(x, y, w, h)) then
+		if (Screen:KeyUse()) then
+			gl.glBindColor(clicked.r, clicked.g, clicked.b)
+		else
+			gl.glBindColor(hover.r, hover.g, hover.b)
+		end
+	else
+		gl.glBindColor(normal.r, normal.g, normal.b)
+	end
+	if (curSkin.RoundedBorders) then
+		gl.glRoundedRect(x, y, w, h, 8)
+	else
+		gl.glRect(x, y, w, h)
+	end
+	if (Screen:IsMouseInRect(x, y, w, h)) then
+		if (Screen:KeyUse()) then
+			gl.glBindColor(textClicked.r, textClicked.g, textClicked.b)
+		else
+			gl.glBindColor(textHover.r, textHover.g, textHover.b)
+		end
+	else
+		gl.glBindColor(textNormal.r, textNormal.g, textNormal.b)
+	end
+	gl.glBindFont(textFont)
+	gl.glText(text, x + w / 2 - gl.glTextWidth(text) / 2, y + h / 2 - gl.glTextHeight(text) / 2)
+
+	if (Screen.LastTouch.PosX >= x and Screen.LastTouch.PosX <= (x + w)) then
+		if (Screen.LastTouch.PosY >= y and Screen.LastTouch.PosY <= (y + h)) then
+			return true
+		end
+	end
+	return false
+end
+local renderedData = {}
+local listData = {}
+local scrollNumber = {}
+local selectedElement = {}
+local function updateConsole(id, max)
+	renderedData[id] = {}
+	local done = (max - 1) + 1
+	local parser = scrollNumber[id]
+	while done > -1 do
+		table.insert(renderedData[id], listData[id][parser])
+		parser = parser + 1
+		done = done - 1
+	end
+end
+local function scrollUp(id, max)
+	if (#listData[id] <= max) then
+		return
+	end
+	if (scrollNumber[id] == (#listData[id] - max)) then
+		return
+	end
+	scrollNumber[id] = scrollNumber[id] + 1
+	updateConsole(id, max)
+end
+local function scrollDown(id, max)
+	if (#listData[id] <= max) then
+		return
+	end
+	if (scrollNumber[id] == 1) then
+		return
+	end
+	scrollNumber[id] = scrollNumber[id] - 1
+	updateConsole(id, max)
+end
+--@Returns : selected string element, index
+function UI.ListBox(id, x, y, w, h, data, maxLines)
+	local normal = curSkin.BackgroundColor.Basic
+	local hover = curSkin.BackgroundColor.Hover
+	local clicked = curSkin.BackgroundColor.Clicked
+	local textNormal = curSkin.TextColor.Basic
+	local textFont = curSkin.Font
+
+	if (not(listData[id] == data)) then
+		listData[id] = data
+		renderedData[id] = {}
+		scrollNumber[id] = 1
+		selectedElement[id] = nil
+		updateConsole(id, maxLines)
+	end
+
+	gl.glBindColor(normal.r, normal.g, normal.b, normal.a)
+	if (curSkin.RoundedBorders) then
+		gl.glRoundedRect(x, y, w, h, 8)
+	else
+		gl.glRect(x, y, w, h)
+	end
+
+	local j = 5
+	for k, v in pairs(renderedData[id]) do
+		local current = v
+		gl.glBindColor(textNormal.r, textNormal.g, textNormal.b)
+		gl.glBindFont(textFont)
+		gl.glText(current, x + 5, (y + j))
+
+		if (not(selectedElement[id] == nil) and selectedElement[id] == k + scrollNumber[id] - 1) then
+			gl.glBindColor(clicked.r, clicked.g, clicked.b)
+			gl.glUnfilledRect(x, (y + j), w - 32, 32, 4)
+		end
+
+		if (Screen:IsMouseInRect(x, y + j, w - 32, 32)) then
+			if (Screen:KeyUse()) then
+				selectedElement[id] = k + scrollNumber[id] - 1
+			end
+			gl.glBindColor(hover.r, hover.g, hover.b)
+			gl.glUnfilledRect(x, (y + j), w - 32, 32, 4)
+		end
+		j = j + 32
+	end
+
+	local x1 = x + w - 32
+	local y1 = y
+	local x2 = x + w - 32
+	local y2 = y + h - 32
+
+	--ScrollUp
+	gl.glBindColor(textNormal.r, textNormal.g, textNormal.b)
+	if (Screen:IsMouseInRect(x1, y1, 32, 32)) then
+		gl.glBindColor(hover.r, hover.g, hover.b)
+	end
+	gl.glRoundedRect(x1, y1, 32, 32, 16)
+	--ScrollDown
+	gl.glBindColor(textNormal.r, textNormal.g, textNormal.b)
+	if (Screen:IsMouseInRect(x2, y2, 32, 32)) then
+		gl.glBindColor(hover.r, hover.g, hover.b)
+	end
+	gl.glRoundedRect(x2, y2, 32, 32, 16)
+
+	if (Screen.LastTouch.PosX >= x1 and Screen.LastTouch.PosX <= x1 + 32 and Screen.LastTouch.PosY >= y1 and Screen.LastTouch.PosY <= y1 + 32) then
+		scrollDown(id, maxLines)
+	elseif (Screen.LastTouch.PosX >= x2 and Screen.LastTouch.PosX <= x2 + 32 and Screen.LastTouch.PosY >= y2 and Screen.LastTouch.PosY <= y2 + 32) then
+		scrollUp(id, maxLines)
+	end
+
+	return listData[id][selectedElement[id]], selectedElement[id]
+end
+--@Returns : selected string element, index
+function UI.ComboBox(x, y, w, data)
+end
+--@Returns : typed string
+function UI.TextBox(x, y, w, h)
+end
+--@Returns : number element
+local nums = {}
+function UI.NumberSelect(id, x, y, min, max, amount, suffix, numChange)
+	if (nums[id] == nil) then nums[id] = 0 end
+	if (not(numChange == nil) and not(nums[id] == numChange)) then nums[id] = numChange end
+
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(x, y, 128, 32)
+	if (UI.Button("+", x + 128, y, 16, 16)) then
+		if (nums[id] < max) then
+			nums[id] = nums[id] + amount
+		end
+	end
+	if (UI.Button("-", x + 128, y + 16, 16, 16)) then
+		if (nums[id] > min) then
+			nums[id] = nums[id] - amount
+		end
+	end
+	gl.glBindColor(0, 0, 0)
+	gl.glText(tostring(nums[id]) .. suffix, x, y)
+	return nums[id]
+end
+local codes = {}
+--@returns the code as string when clicked Val button
+function UI.Keypad(id, shivers, x, y)
+	if (codes[id] == nil) then codes[id] = "" end
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(x, y, 384, 32)
+	gl.glBindColor(0, 0, 0)
+	gl.glText(codes[id], x, y)
+	y = y + 32
+	local j = 0
+	local k = 0
+	for i = 1, 9 do
+		if (UI.Button(tostring(i), x + j * 128, y + k * 64, 128, 64)) then
+			if (string.len(codes[id]) < shivers) then
+				codes[id] = codes[id] .. tostring(i)
+			end
+		end
+		j = j + 1
+		if (j == 3) then
+			j = 0
+			k = k + 1
+		end
+	end
+	if (UI.Button("Val", x + j * 128, y + k * 64, 128, 64)) then
+		if (string.len(codes[id]) < shivers) then
+			codes[id] = "Wrong code length !"
+		end
+		return codes[id]
+	end
+	j = j + 1
+	if (UI.Button("0", x + j * 128, y + k * 64, 128, 64)) then
+		if (string.len(codes[id]) < shivers) then
+			codes[id] = codes[id] .. "0"
+		end
+	end
+	j = j + 1
+	if (UI.Button("Ret", x + j * 128, y + k * 64, 128, 64)) then
+		codes[id] = ""
+	end
+	return nil
+end

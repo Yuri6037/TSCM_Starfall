@@ -1,0 +1,180 @@
+--@name ShipAI_V2 HUD
+--@author Yuri6037
+--@shared
+--@include ship_ai_v2/lib/gl_lib.txt
+--@include ship_ai_v2/ai2_lib.txt
+
+--WARNING : This file works ONLY on Starfall HUD !
+
+if (SERVER) then
+	require("ship_ai_v2/ai2_lib.txt")
+
+	local Angles = nil
+	local Gyropod
+	local ForceSend = false
+	local ShipCore = nil
+	local ShipShield = nil
+	local ShipData = {}
+	local ShieldData = {}
+	local ForceSend1 = false
+	local ForceSendShield = false
+
+	--[[for k, v in pairs(ents.self():getConstraints()) do
+		if (v:class() == "ship_core") then
+			ShipCore = v:getWirelink()
+			ShipShield = v:getShield():getWirelink()
+		elseif (v:class() == "gyropod_advanced") then
+			Gyropod = v:getWirelink()
+		end
+	end]]--
+	AI2Lib:SetLoadCallback(function()
+		ShipCore = AI2Lib:GetShipCore()
+		ShipShield = AI2Lib:GetShipShield()
+	end)
+
+	hook("think", "ShipHUD_Updater", function()
+		if (not(Gyropod == nil) and not(Gyropod["Angles"] == Angles) and not(Gyropod["Angles"] == nil)) then
+			Angles = Gyropod["Angles"]
+			ForceSend = true
+		end
+
+		if (not(Gyropod == nil) and ForceSend) then
+			net.start(ents.self(), false)
+			net.writeString("M")
+			net.writeAngle(Angles)
+			net.broadcast()
+		end
+
+
+		if (not(ShipCore == nil)) then
+			ForceSend1 = true
+			if (not(ShipCore["Max Health"] == ShipData.MaxHealth)) then
+				ShipData.MaxHealth = ShipCore["Max Health"]
+				ForceSend = true
+			end
+			if (not(ShipCore["Health"] == ShipData.Health)) then
+				ShipData.Health = ShipCore["Health"]
+				ForceSend = true
+			end
+			if (not(ShipCore["Plating"] == ShipData.Plating)) then
+				ShipData.Plating = ShipCore["Plating"]
+				ForceSend = true
+			end
+
+			if (not(ShipShield == nil)) then
+				ForceSendShield = true
+				if (not(ShipShield["Active"] == ShieldData.Active)) then
+					ShieldData.Active = ShipShield["Active"]
+					ForceSendShield = true
+				end
+				if (not(ShipShield["Total Charge"] == ShieldData.Charge)) then
+					ShieldData.Charge = ShipShield["Total Charge"]
+					ForceSendShield = true
+				end
+				if (not(ShipShield["Max Charge"] == ShieldData.MaxCharge)) then
+					ShieldData.MaxCharge = ShipShield["Max Charge"]
+					ForceSendShield = true
+				end
+			end
+
+			if (ForceSend1) then
+				net.start(ents.self(), false)
+				net.writeString("C")
+				net.writeTable(ShipData)
+				net.broadcast()
+				ForceSend1 = false
+			end
+			if (ForceSendShield) then
+				net.start(ents.self(), false)
+				net.writeString("S")
+				net.writeTable(ShieldData)
+				net.broadcast()
+				ForceSendShield = false
+			end
+		end
+	end)
+end
+if (CLIENT) then
+	StandardFont = render.createFont("Arial Black", 32, 900, false, false, true, false, false)
+
+	require("ship_ai_v2/lib/gl_lib.txt")
+
+	local ShipAngles = nil
+
+	hook("render", "ShipHUD", function()
+		local W, H = render.getScreenRes()
+
+		if (not(ShipAngles == nil)) then
+			gl.glBindColor(0, 255, 0)
+			gl.glRect(W / 2 - 256, H / 2, 512, 24)
+
+			local YCoord = H / 2 + (ShipAngles.pitch * 4)
+			gl.glBindColor(255, 0, 0)
+			gl.glRect(W / 2 - 256, YCoord, 512, 8)
+		end
+
+		local data = ShipData
+		local x = W / 2 - 256
+		local y = H - 256
+		gl.glBindColor(0, 255, 255, 64)
+		gl.glRect(x, y, 512, 150)
+		gl.glBindColor(0, 0, 0, 255)
+		gl.glBindFont(StandardFont)
+		gl.glText("Ship Status", x + 10, y + 10)
+		--Ship health
+		gl.glBindColor(0, 0, 0, 128)
+		gl.glRect(x + 10, y + 64, 492, 32)
+		local var = data.Health * 472 / data.MaxHealth
+		local var1 = data.Health * 100 / data.MaxHealth
+		gl.glBindColor(255, 0, 0, 128)
+		gl.glRect(x + 20, y + 64 + 10, var, 12)
+		gl.glBindColor(255, 255, 255)
+		gl.glText("HULL : " .. var1 .. "%", x + 10, y + 64)
+		--Ship plating
+		gl.glBindColor(0, 0, 0, 128)
+		gl.glRect(x + 10, y + 100, 492, 32)
+		local var = data.Plating * 472 / 100
+		local var1 = data.Plating
+		gl.glBindColor(255, 0, 0, 128)
+		gl.glRect(x + 20, y + 100 + 10, var, 12)
+		gl.glBindColor(255, 255, 255)
+		gl.glText("PLATING : " .. var1 .. "%", x + 10, y + 100)
+
+		for k, v in pairs(find.allPlayers()) do
+			if (IsValid(v)) then
+				local scr = v:getPos():ToScreen()
+				local dist = v:getPos():Distance(ents.player():getPos())
+				if (not(dist > 5000)) then
+					if (dist <= 2500 and not(dist <= 1250)) then
+						gl.glBindColor(255, 255, 0)
+					elseif (dist <= 1250) then
+						gl.glBindColor(255, 0, 0)
+					else
+						gl.glBindColor(0, 255, 0)
+					end
+					gl.glRect(scr.x, scr.y, 16, 16)
+					gl.glBindColor(255, 255, 255)
+					gl.glText(v:name(), scr.x + 24, scr.y)
+
+					gl.glRect(scr.x, scr.y + 40, 256, 16)
+					gl.glBindColor(0, 255, 0)
+					local w = v:health() * 256 / 100
+					gl.glRect(scr.x, scr.y + 40, w, 16)
+					gl.glBindColor(255, 255, 255)
+					gl.glText("Health : " .. v:health() .. " %", scr.x, scr.y + 60)
+				end
+			end
+		end
+	end)
+
+	hook("net", "ShipHUD_Receiver", function(len)
+		local cmd = net.readString()
+		if (cmd == "M") then
+			ShipAngles = net.readAngle()
+		elseif (cmd == "C") then
+			ShipData = net.readTable()
+		elseif (cmd == "S") then
+			ShieldData = net.readTable()
+		end
+	end)
+end

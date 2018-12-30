@@ -1,0 +1,125 @@
+--@name ScreenEngine
+--@author Yuri6037
+--@include ship_ai_v2/lib/gl_lib.txt
+
+--Controls
+--@include ship_ai_v2/lib/screen_controls/button.txt
+--@include ship_ai_v2/lib/screen_controls/listbox.txt
+
+require("ship_ai_v2/lib/gl_lib.txt")
+
+Screen = {}
+Screen.StandardFont = render.createFont("Trebuchet", 32, 900, false, false, true, false, false)
+Screen.TitleFont = render.createFont("federation", 100, 900, false, false, true, false, false)
+Screen.Current = nil
+Screen.CurrentComps = {}
+Screen.CompList = {}
+Screen.Screens = {}
+function Screen:Register(tbl)
+	table.insert(Screen.Screens, tbl)
+end
+
+function Screen:Display(name)
+	if (not(Screen.Current == nil)) then
+		Screen.Current:OnExit()
+	end
+	Screen.CurrentComps = {}
+	Screen.Current = nil
+	if (not(name == nil)) then
+		for k, v in pairs(Screen.Screens) do
+			if (v.Name == name) then
+				Screen.Current = v
+				break
+			end
+		end
+	end
+	Screen.Current:OnShow()
+end
+
+function Screen:RegisterControl(tbl)
+	table.insert(Screen.CompList, tbl)
+end
+
+function Screen:AddControl(name, x, y, w, h, custom)
+	for k, v in pairs(Screen.CompList) do
+		if (v.Name == name) then
+			local sub = {
+				Control = v,
+				controlX = x,
+				controlY = y,
+				controlWidth = w,
+				controlHeight = h,
+				Custom = custom
+			}
+			table.insert(Screen.CurrentComps, sub)
+			sub.Control:OnInsert(x, y, w, h, sub.Custom)
+			break
+		end
+	end
+end
+
+hook("render", "ScreenRenderer", function()
+	if (not(Screen.Current == nil)) then
+		render.clear()
+		Screen.Current:OnRender()
+		for k, v in pairs(Screen.CurrentComps) do
+			v.Control:OnRender(v.controlX, v.controlY, v.controlWidth, v.controlHeight, v.Custom)
+		end
+	end
+end)
+hook("playerbindpress", "ScreenUsed", function(ply, bind, pressed)
+	if (bind == "+use") then
+		if (not(Screen.Current == nil)) then
+			local pos = Screen:GetMousePos()
+			Screen.Current:OnTouched(pos.x, pos.y)
+			for k, v in pairs(Screen.CurrentComps) do
+				if (pos.x >= v.controlX and pos.x <= (v.controlX + v.controlWidth)) then
+					if (pos.y >= v.controlY and pos.y <= (v.controlY + v.controlHeight)) then
+						v.Control:OnTouched(pos.x, pos.y, v.Custom)
+					end
+				end
+			end
+		end
+	end
+end)
+
+function Screen:IsMouseInRect(x, y, w, h)
+	local pos = Screen:GetMousePos()
+	if (pos.x >= x and pos.x <= (x + w)) then
+		if (pos.y >= y and pos.y <= (y + h)) then
+			return true
+		end
+	end
+	return false
+end
+
+function Screen:GetMousePos()
+	local tbl = ents.player():eyeTrace()
+	if (IsValid(tbl.Entity) and not(tbl.Entity == ents.self())) then
+		return {x = -1, y = -1}
+	end
+	local x, y = render.cursorPos(ents.player())
+	local pos = {}
+	pos.x = x
+	pos.y = y
+	if (x == nil) then
+		pos.x = -1
+	end
+	if (y == nil) then
+		pos.y = -1
+	end
+	return pos
+end
+
+function Screen:KeyUse()
+	return ents.player():keyDown(input.IN_USE)
+end
+
+--local plyTbl = getmetatable(ents.player())
+--function plyTbl:keyUse()
+--	return input.isKeyDown(IN_USE)
+--end
+
+--Controls
+require("ship_ai_v2/lib/screen_controls/button.txt")
+require("ship_ai_v2/lib/screen_controls/listbox.txt")

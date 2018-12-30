@@ -1,0 +1,125 @@
+--@name InternalCommands
+--@author Yuri6037
+
+AIRegisterCommand("shipstatus", function(args, ply)
+	local c = Ship.Core
+	local nd = Ship.Node
+	local ls = Ship.LS
+	local se = Ship.Sensor
+	local geng = Ship.GazGen
+	local gene = Ship.EnergyGen
+
+	local s = Ship.Shield
+	local w = Ship.Warp
+	local p = Ship.Probe
+	local tp = Ship.TP
+	local cl = Ship.Cloak
+	if (nd == nil or c == nil or ls == nil or geng == nil or gene == nil or se == nil or s == nil) then
+		aiSay("ATTENTION : This ship isn't able to fly correctly !!")
+		if (nd == nil) then
+			aiSay("This ship has no Resource Node !")
+		elseif (c == nil) then
+			aiSay("This ship has no Ship Core !")
+		elseif (ls == nil) then
+			aiSay("This ship has no LifeSupport Core !")
+		elseif (geng == nil) then
+			aiSay("This ship has no Gaz Generator !")
+		elseif (gene == nil) then
+			aiSay("This ship has no Energy Generator !")
+		elseif (se == nil) then
+			aiSay("This ship has no Sensor Array !")
+		elseif (s == nil) then
+			aiSay("This ship has no Shields !")
+		end
+		return Command.PASSING
+	end
+	aiSay("This ship passes the basic requirements...")
+	if (not(s == nil) and not(w == nil) and not(p == nil) and not(tp == nil) and not(cl == nil)) then
+		aiSay("This ship has all the equipment managed by LanAI.")
+	else
+		if (s == nil) then
+			aiSay("There is no Starship Shield on this ship.")
+		elseif (w == nil) then
+			aiSay("There is no warp device on this ship.")
+		elseif (p == nil) then
+			aiSay("There is no Atmospheric Probe on this ship.")
+		elseif (tp == nil) then
+			aiSay("There is no Transporter Pad on this ship.")
+		elseif (cl == nil) then
+			aiSay("There is no Cloaking Device on this ship.")
+		end
+	end
+	aiSay("There are " .. #Ship.Weaps.ANGLE .. " advanced cannons.")
+	aiSay("There are " .. #Ship.Weaps.TSCM .. " normal cannons.")
+	aiSay("There are " .. #Ship.Weaps.STAR .. " small cannons.")
+	aiSay("There are " .. #Ship.EvaProps .. " interior parts.")
+	return Command.PASSING
+end, {"Checks any problems in the current ship.", "<command>"}, {}, {"shipstats", "shipinfo"})
+
+AIRegisterCommand("dbgshipbox", function()
+	ToggleDebugBoundingBox()
+end, {"Toggles the ship bounding box for debugging.", "<command>"}, {}, {})
+
+local SecuredRun = true
+
+function ForceShutdown()
+	if (SecuredRun) then
+		error("Forced LanAI Next permanent shutdown rejected !")
+	else
+		error("Forced LanAI Next permanent shutdown engaged !")
+	end
+end
+
+AIRegisterCommand("run", function(args, ply)
+	if (string.find(args[1], "while") or string.find(args[1], "for")) then
+		return Command.ERROR_CUSTOM, "loops aren't allowed"
+	end
+    if (args[1] == "secureon") then
+        SecuredRun = true
+        return Command.PASSING
+    elseif (args[1] == "secureoff") then
+        SecuredRun = false
+        return Command.PASSING
+    end
+
+	local fnc = compileString(args[1])
+	if (not(type(fnc) == "function")) then
+        if (fnc == nil) then
+            return Command.ERROR_CUSTOM, "unexpected error in Lua"
+        else
+            return Command.ERROR_CUSTOM, fnc
+        end
+	end
+	local oldfind = find
+	local oldprops = props
+	local oldholo = holograms
+	find = nil
+	props = nil
+	holograms = nil
+	if (SecuredRun) then
+		local b, e = pcall(fnc)
+		if (not(b)) then
+			find = oldfind
+			props = oldprops
+			holograms = oldholo
+            return Command.ERROR_CUSTOM, e
+        end
+    else
+        fnc()
+    end
+    find = oldfind
+    props = oldprops
+    holograms = oldholo
+	return Command.PASSING
+end, {"Runs lua code directly on the processor !", "<command> <string>"}, {"string"}, {"compile"})
+
+AIRegisterCommand("selfdestruct", function(args, ply)
+    Ship.Core["Self Destruct"] = 1
+    ents.self():remove()
+    return Command.PASSING
+end, {"Instantly self destructs the ship !", "<command>"}, {}, {})
+
+AIRegisterCommand("help", function(args, ply)
+    aiSay("[HELP]", ply)
+    return Command.PASSING
+end, {"Help", "<command>"}, {}, {})

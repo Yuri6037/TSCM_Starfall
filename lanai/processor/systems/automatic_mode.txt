@@ -1,0 +1,138 @@
+--@name AutomaticMode
+--@author Yuri6037
+
+local IsInAutoMode = false
+
+local baseWarps = {
+	"hiigara",
+	"shakuras",
+	"spaceStation",
+	"hell",
+	"desert",
+	"build",
+	"earth"
+}
+local function RandomTimedWarp(time)
+	StartTimerCountdown(time, function()
+		local id = math.random(1, #Points.WarpList + #baseWarps)
+		local wName = nil
+		if (id > #Points.WarpList) then
+			wName = baseWarps[id]
+		else
+			wName = Points.WarpList[id]
+		end
+		WarpToDefinedDirection(wName)
+		timer.create("LanAI_AutoWarp", 10, 1, function()
+			local time = math.random(20, 120)
+			RandomTimedWarp(time)
+		end)
+	end)
+end
+
+function EngageAutomaticMode()
+	IsInAutoMode = true
+	SendPacket("EVENT", "AutomaticMode", true)
+
+	local time = math.random(20, 120)
+	RandomTimedWarp(time)
+end
+
+function ExitAutomaticMode()
+	timer.remove("LanAI_AutoWarp")
+	EndTimerCountdown()
+
+	IsInAutoMode = false
+	SendPacket("EVENT", "AutomaticMode", false)
+end
+
+function CheckAutoMode()
+	return IsInAutoMode
+end
+
+local function CheckCanPrepareShip()
+	local pe = Ship.Node["Energy"] * 100 / Ship.Node["Max Energy"]
+	local pw = Ship.Node["Water"] * 100 / Ship.Node["Max Water"]
+	local po = Ship.Node["Oxygen"] * 100 / Ship.Node["Max Oxygen"]
+
+	return pe >= 5 and pw <= 10 and po <= 10
+end
+
+local function CalculateBestLakePos()
+    local us = Ship.Core:entity():getPos()
+    local bestPos = nil
+    local bestPosName = nil
+    for k, v in pairs(WaterLakes) do
+        if (bestPos == nil) then
+            bestPos = v
+            bestPosName = k
+        else
+            local curDist = us:Distance(bestPos)
+            local dist = us:Distance(v)
+            if ((dist < curDist) and not(stargate.locationJammed(v))) then
+                bestPos = v
+                bestPosName = k
+            end
+        end
+    end
+    return bestPos, bestPosName
+end
+
+function TryPrepareProbe(ent)
+	WaterProbeEntity = ent
+	if (not(timer.exists("LanAI_CheckProbe"))) then
+		timer.create("LanAI_CheckProbe", 1, 0, function()
+			local c = WaterProbeEntity:getColor()
+			if (c.a == 255) then
+				local pos, name = CalculateBestLakePos()
+				aiSay("Teleporting water probe to '" .. name .. "'.")
+				WaterProbeEntity:getPhysicsObject():enableMotion(false)
+				WaterProbeEntity:setPos(pos)
+				local lvl = WaterProbeEntity:waterLevel()
+				if (lvl >= 2) then
+					timer.remove("LanAI_CheckProbe")
+					hook.remove("onentitycreated", "LanAI_AutoPrepare")
+					StartShipAutoPrepare(WaterProbeEntity)
+				end
+			end
+		end)
+	end
+end
+
+local WaterProbeEntity = nil
+local function ListenProbeCreation(ent)
+	if (IsValid(ent) and ent:owner() == ents.owner() and ent:class() == "stargazer_water_core_collector") then
+		TryPrepareProbe(ent)
+	end
+end
+
+function StartShipAutoLoad()
+	if (not(Ship.Water == nil)) then
+		hook("onentitycreated", "LanAI_AutoPrepare", ListenProbeCreation)
+		timer.create("LanAI_AutoPrepare", 1, 1, function()
+			Ship.Water["Spawn Collector"] = 1
+		end)
+	end
+end
+
+OSAddFunction("AutoMode", function(var)
+	if (not(var == ADMIN_CODE)) then
+		aiSay("Someone tried a bad admin code")
+		return
+	end
+	if (CheckAutoMode()) then
+		ExitAutomaticMode()
+		aiSay("Terminated automatic mode !")
+	else
+		EngageAutomaticMode()
+		aiSay("Started automatic mode !")
+	end
+end)
+
+OSAddFunction("AutoProbe", function(var)
+	aiSay("The water collector may spawn automatically...")
+	StartShipAutoLoad()
+end)
+
+HookScreenLoad(function(e)
+	SendEntityPacket("EVENT", e, "AutomaticMode", IsInAutoMode)
+end)

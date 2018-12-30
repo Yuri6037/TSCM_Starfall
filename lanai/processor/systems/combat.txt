@@ -1,0 +1,257 @@
+--@name CombatManager
+--@author Yuri6037
+
+ECombatSafetyProtocol = {
+	FLEE_PROTOCOL = 0,
+	NORMAL_PROTOCOL = 0,
+	DEATH_PROTOCOL = 1,
+	DISABLED = 2
+}
+
+local DisableSafetyProtocols = false
+local CombatSafety = true
+function SetCombatSafetyProtocol(flag)
+	if (flag == ECombatSafetyProtocol.DEATH_PROTOCOL) then
+		CombatSafety = false
+		DisableSafetyProtocols = false
+	elseif (flag == ECombatSafetyProtocol.FLEE_PROTOCOL) then
+		CombatSafety = true
+		DisableSafetyProtocols = false
+	else
+		DisableSafetyProtocols = true
+	end
+	CombatSafety = flag
+end
+
+aiRegisterAction("Fire", function(ply)
+	StartBeams()
+	StartTSCM()
+	StartAngles()
+end)
+
+Shuttles = {
+	"st_shuttle_type11",
+	"st_shuttle_type6",
+	"st_shuttle_type9",
+	"puddle_jumper",
+	"sg_vehicle_gate_glider",
+	"sg_vehicle_shuttle",
+	"sg_vehicle_glider",
+	"sg_vehicle_f302",
+	"sg_vehicle_teltac"
+}
+
+SGWeapons = {
+	"energy_beam2"
+}
+
+function IsShuttle(ent)
+	for k, v in pairs(Shuttles) do
+		if (v == ent:class()) then
+			return true
+		end
+	end
+	return false
+end
+function IsSGWeapon(ent)
+	for k, v in pairs(SGWeapons) do
+		if (v == ent:class()) then
+			return true
+		end
+	end
+	return false
+end
+
+function GetShootingObject(attacker, inflictor)
+	local c = inflictor:class()
+	if (string.StartsWith(c, "weapon_")) then
+		--The attacker is forcely a player
+		return "Player", attacker, attacker:name()
+	else
+		local tr = util.TraceLine(Ship.Core:entity():getPos(), attacker:getPos(), SHIP_PARTS)
+		if (IsValid(tr.Entity) and IsShuttle(tr.Entity)) then
+			--The attacker is forcely a shuttle
+			return "Shuttle", attacker, attacker:name()
+		else
+			--Then the attacker is maybe a ship_core
+			if (IsSGWeapon(attacker)) then
+				--The attacker can be a player, a single stargate weapon or even a ship !
+				return "SG", attacker:owner(), attacker:owner():name()
+			else
+				--Apparently at this point the attacker can be NULL... So nothing would attack but we received damage from void...
+				if (not(IsValid(attacker))) then
+					return "Ship", GetPlayerShipCore(attacker), ""
+				end
+				--No definatly the player must be a ship !
+				return "Ship", GetPlayerShipCore(attacker), attacker:name()
+			end
+		end
+	end
+end
+
+function CheckAndAutoTarget(type, toTarget)
+	if (not(IsFiring())) then
+		if (type == 0) then
+			if (AddTarget(TargetType.PLAYER, toTarget)) then
+				aiSetAction("Fire")
+			end
+		elseif (type == 1) then
+			if (AddTarget(TargetType.ENTITY, toTarget)) then
+				aiSetAction("Fire")
+			end
+		end
+	end
+end
+
+function GetPlayerShipCore(ply)
+	for k, v in pairs(find.byClass("ship_core")) do
+		if (v:owner() == ply) then
+			return v, v:getPos():Distance(Ship.Core:entity():getPos())
+		end
+	end
+	return nil, nil
+end
+
+local function ShipAnalysis(TargetCore)
+	if (IsShuttle(TargetCore)) then
+		return false, "invalid target"
+	end
+
+	--Ok Let's start a process
+	local t = find.byClass("ship_turret_base", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+	local t1 = find.byClass("ship_laser", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+	local t2 = find.byClass("pulse_phaser_emitter", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+	local t3 = find.byClass("beam_emitter", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+
+	local ta1 = find.byClass("ship_cannon", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+	local ta2 = find.byClass("keeper_emitter", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+	local ta3 = find.byClass("cruise_missile_launcher", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+
+	local tb1 = find.byClass("ori_beam_cannon", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+	local tb2 = find.byClass("asgard_beam", function(e) return e:isConstrained() and e:owner() == TargetCore:owner() and IsValid(e:getCore()) and e:getCore() == TargetCore end)
+
+	local AngWeaps = #ta1 + #ta2 + #ta3
+	local TSCMWeaps = #t + #t1 + #t2 + #t3
+	local SGWeaps = #tb1 + #tb2
+
+	local Pts = #Ship.Weaps.ANGLE * 2 + #Ship.Weaps.TSCM * 1.5 + #Ship.Weaps.STAR * 0.5
+	if (Pts < 0) then Pts = 0 end
+
+	local EnemyPts = AngWeaps * 2 + TSCMWeaps * 1.5 + SGWeaps / 0.5
+	if (EnemyPts < 0) then EnemyPts = 0 end
+
+	local KillP = EnemyPts * 100 / Pts
+
+	return true, {ANGWeapsNum = AngWeaps, TSCMWeapsNum = TSCMWeaps, SGWeapsNum = SGWeaps, KillPercent = math.floor(KillP), SurvivePercent = 100 - math.floor(KillP)}
+end
+function EngageShipAnalysis(TargetCore)
+	local b, t = ShipAnalysis(TargetCore)
+	if (not(b)) then
+		aiSay("Ship analysis failed with error '" .. t .. "'")
+		return
+	end
+	aiSay("The ship has " .. t.ANGWeapsNum .. " damagers, " .. t.TSCMWeapsNum .. " cannons and " .. t.SGWeapsNum .. " beams (" .. t.ANGWeapsNum + t.TSCMWeapsNum + t.SGWeapsNum .. " total weapons).")
+	aiSay("The ship has " .. t.KillPercent .. "% to kill us, and we have " .. t.SurvivePercent .. "% chance to survive to the attack.")
+end
+
+--Automatically alligns our ship with target's ship core rotation
+--Automatically warps our ship to face the target's ship core
+function AutoFaceTarget(TargetCore)
+	if (TargetCore == nil) then return end
+	local targetPos = TargetCore:getPos()
+	local corePos = Ship.Core:entity():getPos()
+	local direction = (targetPos - corePos):Normalize()
+
+	local warpAngle = direction:Angle() - Ship.Warp:entity():ang()
+	local warpPos = targetPos
+
+	local iterations = 0
+	while (#find.inSphere(warpPos, 1) > 0) do
+		if (iterations > 255) then break end
+		warpPos = warpPos + Vector(200, 200, 200)
+		iterations = iterations + 1
+	end
+
+	util.Log("Systems", LOG_DEBUG, "Target angle : ", warpAngle)
+	util.Log("Systems", LOG_DEBUG, "Target pos : ", warpPos)
+	return warpPos, warpAngle
+end
+
+task.Start(function()
+	local max = Ship.Shield["Max Charge"] / 6
+	local pleft = Ship.Shield["Left"] / max
+	local pright = Ship.Shield["Right"] / max
+	local pfront = Ship.Shield["Front"] / max
+	local pback = Ship.Shield["Back"] / max
+	local ptop = Ship.Shield["Up"] / max
+	local pbottom = Ship.Shield["Down"] / max
+	if (pleft <= 0.25) then
+		StartShieldDivertPower(EShieldDivertPower.LEFT)
+	elseif (pright <= 0.25) then
+		StartShieldDivertPower(EShieldDivertPower.RIGHT)
+	elseif (pfront <= 0.25) then
+		StartShieldDivertPower(EShieldDivertPower.FRONT)
+	elseif (pback <= 0.25) then
+		StartShieldDivertPower(EShieldDivertPower.BACK)
+	elseif (ptop <= 0.25) then
+		StartShieldDivertPower(EShieldDivertPower.TOP)
+	elseif (pbottom <= 0.25) then
+		StartShieldDivertPower(EShieldDivertPower.BOTTOM)
+	else
+		EndShieldDivertPower()
+	end
+end, "LanAI_ShieldAutoDivert", 1)
+
+hook("EntityTakeDamage", "LanAI_CombatSystems", function(ent, inflictor, attacker, amount)
+	if (IsValid(attacker) and SHIP_PARTS_BOOL[ent]) then
+		if (CheckEnergy() and not(Ship.Shield == nil) and Ship.Shield["Active"] == 0) then
+			Ship.Shield["Activate"] = 1
+			aiSay("The shields have been activated to prevent damage !")
+		end
+
+		if (Target.Entity == nil and Target.Player == nil and not(IsFiring())) then
+			local t, toTarget, attackerName = GetShootingObject(attacker, inflictor)
+
+			if (not(Target.Entity == toTarget) and not(Target.Player == toTarget)) then
+				if (t == "Player") then
+					aiSay("The player " .. attackerName .. " started to attack with a hand weapon.")
+					CheckAndAutoTarget(0, toTarget)
+				elseif (t == "Shuttle") then
+					aiSay("The player " .. attackerName .. " started to attack with a shuttle.")
+					CheckAndAutoTarget(0, toTarget)
+				elseif (t == "Ship") then
+					aiSay("The player " .. attackerName .. " started to attack with his ship.")
+					CheckAndAutoTarget(1, toTarget)
+				elseif (t == "SG") then
+					aiSay("The player " .. attackerName .. " started to attack with SG Weapons.")
+					CheckAndAutoTarget(0, toTarget)
+				else
+					aiSay("An unknown attacker type has been detected : " .. attacker:class() .. " using " .. inflictor:class() .. " !")
+				end
+			end
+		end
+
+		local percent = Ship.Core["Health"] * 100 / Ship.Core["Max Health"]
+		if (percent < 90 and percent >= 65 and not(CurAlert == 2)) then
+			UpdateAlertStatus(2)
+		elseif (percent < 65 and percent >= 50 and not(CurAlert == 1)) then
+			UpdateAlertStatus(1)
+		elseif (percent < 50 and percent >= 40 and not(CurAlert == 0)) then
+			UpdateAlertStatus(0)
+		elseif (percent < 40 and percent >= 30) then
+			if (not(Evacuation)) then
+				ToggleEvacuation()
+			end
+		elseif (percent < 30 and not(DisableSafetyProtocols)) then
+			if (CombatSafety) then
+				aiSay("This ship is heavely damaged. Engaging random warp intended to save us.")
+				local warps = {"hiigara", "shakuras", "spaceStation", "hell", "desert", "build", "earth"}
+				WarpToDefinedDirection(warps[math.random(1, 7)])
+			else
+				aiSay("Combat safety protocol has been set to DEATH_PROTOCOL please evacuate NOW !")
+				Ship.Core["Self Destruct"] = 1
+				ents.self():remove()
+			end
+		end
+    end
+end)

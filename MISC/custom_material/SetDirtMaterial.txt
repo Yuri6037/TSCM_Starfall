@@ -1,0 +1,20 @@
+--@name SetDirtMaterial
+--@author Yuri6037
+
+ForceMat = "Iziraider/artifacts/quantum_mirror"
+
+function GetGroundProp()
+    local tr = trace.trace(ents.self():getPos(), ents.self():getPos() + ents.self():up() * -200, {ents.self()}, trace.MASK_SOLID)
+    print(tr.Entity)
+    if (IsValid(tr.Entity)) then
+        return tr.Entity
+    end
+    return nil
+end
+
+if (not(GetGroundProp() == nil)) then
+    local e = GetGroundProp()
+    e:setMaterial(ForceMat)
+    e:setColor(173, 145, 120)
+end
+ents.self():remove()

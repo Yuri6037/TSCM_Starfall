@@ -1,0 +1,87 @@
+--@name ResourcesGui
+--@author Yuri6037
+
+function RenderResourcesGUI(x, y)
+	gl.glBindColor(0, 0, 0, 200)
+
+	gl.glRect(x + 20, y + 20, 612, 32)
+
+	gl.glRect(x + 20, y + 60, 612, 32)
+
+	gl.glRect(x + 20, y + 100, 612, 32)
+
+	gl.glRect(x + 20, y + 140, 612, 32)
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Energy : ", x + 652, y + 20)
+	gl.glText("Deuterium : ", x + 652, y + 60)
+	gl.glText("Oxygen : ", x + 652, y + 100)
+	gl.glText("Water : ", x + 652, y + 140)
+
+	gl.glBindColor(0, 0, 255)
+	if (not(Net.Energy == nil)) then
+		local num = Net.Energy * 612 / 100
+		gl.glBindColor(255, 255, 0, 64)
+		gl.glRect(x + 20, y + 20, num, 32)
+
+		gl.glBindColor(255, 255, 0, 255)
+		gl.glText(Net.Energy .. "%", x + 850, y + 20)
+	end
+	if (not(Net.Deuter == nil)) then
+		local num = Net.Deuter * 612 / 100
+		gl.glBindColor(255, 0, 0, 64)
+		gl.glRect(x + 20, y + 60, num, 32)
+
+		gl.glBindColor(255, 0, 0, 255)
+		gl.glText(Net.Deuter .. "%", x + 850, y + 60)
+	end
+	if (not(Net.Oxygen == nil)) then
+		local num = Net.Oxygen * 612 / 100
+		gl.glBindColor(0, 128, 255, 64)
+		gl.glRect(x + 20, y + 100, num, 32)
+
+		gl.glBindColor(0, 128, 255, 255)
+		gl.glText(Net.Oxygen .. "%", x + 850, y + 100)
+	end
+	if (not(Net.Water == nil)) then
+		local num = Net.Water * 612 / 100
+		gl.glBindColor(0, 255, 0, 64)
+		gl.glRect(x + 20, y + 140, num, 32)
+
+		gl.glBindColor(0, 255, 0, 255)
+		gl.glText(Net.Water .. "%", x + 850, y + 140)
+	end
+
+	--Buttons
+	--Refinement button
+	if (Net.GazGen == 0 or Net.GazGen == nil) then
+	   gl.glBindColor(0, 0, 255)
+	else
+		gl.glBindColor(0, 128, 255)
+	end
+	gl.glRect(x + 100, y + 200, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Refinement", x + 150, y + 200)
+	--Energy button
+	if (Net.EnergyGen == 0 or Net.EnergyGen == nil) then
+	   gl.glBindColor(0, 0, 255)
+	else
+		gl.glBindColor(0, 128, 255)
+	end
+	gl.glRect(x + 640, y + 200, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Energy", x + 720, y + 200)
+end
+
+function CheckResourcesInputs(x, y)
+	if (Screen:IsMouseInRect(x + 100, y + 200, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleGazgen")
+		end)
+	elseif (Screen:IsMouseInRect(x + 640, y + 200, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleEnergygen")
+		end)
+	end
+end

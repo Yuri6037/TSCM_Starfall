@@ -1,0 +1,13 @@
+--@name ResourceAppUpdater
+--@author Yuri6037
+
+DefineOSApp("resource", function()
+    CheckVar("Energy", Ship.Node["Energy"])
+    CheckVar("MaxEnergy", Ship.Node["Max Energy"])
+    CheckVar("Oxygen", Ship.Node["Oxygen"])
+    CheckVar("MaxOxygen", Ship.Node["Max Oxygen"])
+    CheckVar("Water", Ship.Node["Water"])
+    CheckVar("MaxWater", Ship.Node["Max Water"])
+    CheckVar("Deuterium", Ship.Node["Deuterium"])
+    CheckVar("MaxDeuterium", Ship.Node["Max Deuterium"])
+end)

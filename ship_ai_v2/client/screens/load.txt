@@ -1,0 +1,73 @@
+--@name LoadScreen
+--@author Yuri6037
+
+local loadScreen = {}
+loadScreen.Name = "Load"
+local G = 255
+local INC = false
+function loadScreen:OnRender()
+	gl.glBindColor(0, G, 255)
+	gl.glRect(0, 0, 1024, 512)
+
+	local str = LoadingStr
+	local tbl = string.explode(str, "/")
+	local maxN = tonumber(tbl[2])
+	local curN = tonumber(tbl[1])
+	if (curN == nil or maxN == nil) then
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(Screen.TitleFont)
+		local w = gl.glTextWidth("INFINITE %")
+		gl.glText("INFINITE %", 512 - w / 2, 256 - 64)
+
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(Screen.StandardFont)
+		local w1 = gl.glTextWidth("ShipAI II initializing - System V." .. VERSION_AI)
+		gl.glText("ShipAI II initializing... - System V." .. VERSION_AI, 512 - w1 / 2, 20)
+		local w2 = gl.glTextWidth("Private AI desined for PacificTravellers")
+		gl.glText("Private AI desined for PacificTravellers", 512 - w2 / 2, 512 - 54)
+		return
+	end
+
+	gl.glBindColor(0, 0, 0, 200)
+	gl.glRect(20, 256 - 80, 1024 - 40, 128)
+	local w = curN * (1024 - 40) / maxN
+	gl.glBindColor(0, 255, 255, 200)
+	gl.glRect(20, 256 - 80, w, 128)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.TitleFont)
+	local percent = math.floor(curN * 100 / maxN)
+	local w = gl.glTextWidth(percent .. " %")
+	gl.glText(percent .. " %", 512 - w / 2, 256 - 64)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	local w1 = gl.glTextWidth("ShipAI II initializing - System V." .. VERSION_AI)
+	gl.glText("ShipAI II initializing... - System V." .. VERSION_AI, 512 - w1 / 2, 20)
+	local w2 = gl.glTextWidth("Private AI desined for PacificTravellers")
+	gl.glText("Private AI desined for PacificTravellers", 512 - w2 / 2, 512 - 54)
+end
+function loadScreen:OnShow()
+	timer.create("AI_II_LoadScreen_UPD_Timer", 0.00000001, 0, function()
+		if (G <= 0) then
+			INC = true
+			G = 0
+		elseif (G >= 255) then
+			G = 255
+			INC = false
+		end
+
+		if (INC) then
+			G = G + 1
+		else
+			G = G - 1
+		end
+	end)
+end
+function loadScreen:OnExit()
+	timer.remove("AI_II_LoadScreen_UPD_Timer")
+end
+function loadScreen:OnTouched()
+end
+
+Screen:Register(loadScreen)

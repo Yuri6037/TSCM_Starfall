@@ -1,0 +1,27 @@
+--@name AutodestructScreen
+--@author Yuri6037
+
+local destructScreen = {}
+destructScreen.Name = "Autodestruct"
+function destructScreen:OnRender()
+	gl.glBindColor(255, 0, 0)
+	gl.glRect(0, 0, 1024, 512)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("Destroy in " .. SelfDestructDispTimer .. "(s)")
+	gl.glText("Destroy in " .. SelfDestructDispTimer .. "(s)", 512 - w / 2, 256 - 64)
+end
+function destructScreen:OnShow()
+end
+function destructScreen:Animate(cur)
+end
+function destructScreen:OnExit()
+end
+function destructScreen:OnTouched()
+	if (not(Screen:IsMouseInRect(0, 0, 1024, 512))) then return end
+	StartNet(function()
+		net.writeString("DestroyToggle")
+	end)
+end
+
+Screen:Register(destructScreen)

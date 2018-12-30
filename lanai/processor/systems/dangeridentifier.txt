@@ -1,0 +1,33 @@
+--@name DangerIdentifier
+--@author Yuri6037
+
+DangerBoxes = {
+	--Desert spikes in secret access
+	{Name = "Death Spikes", Min = Vector(9471, -13103, -10224), Max = Vector(9232, -12880, -10447)},
+
+	--Lava lakes
+	{Name = "Lava Lake", Min = Vector(-9013, -64, -4403), Max = Vector(-10313, 541, -4680)},
+	{Name = "Lava Lake", Min = Vector(-8317, -756, -4534), Max = Vector(-8001, -1086, -4800)},
+
+	--Desert fires (left column)
+	{Name = "Fire", Min = Vector(11015, -12472, -9199), Max = Vector(10999, -12488, -9139)},
+	{Name = "Fire", Min = Vector(11015, -12728, -9199), Max = Vector(10999, -12746, -9139)},
+	{Name = "Fire", Min = Vector(11015, -12984, -9199), Max = Vector(10999, -13004, -9139)},
+	{Name = "Fire", Min = Vector(11015, -13240, -9199), Max = Vector(10999, -13258, -9139)},
+
+	--Desert fires (right column)
+	{Name = "Fire", Min = Vector(10488, -12472, -9199), Max = Vector(10506, -12488, -9139)},
+	{Name = "Fire", Min = Vector(10488, -12743, -9199), Max = Vector(10506, -12727, -9139)},
+	{Name = "Fire", Min = Vector(10488, -12999, -9199), Max = Vector(10506, -12985, -9139)},
+	{Name = "Fire", Min = Vector(10488, -13255, -9199), Max = Vector(10506, -13241, -9139)}
+}
+
+function IsDangerLocation(vec)
+	print(vec)
+	for k, v in pairs(DangerBoxes) do
+		if (VectorInBox(vec, v.Min, v.Max)) then
+			return v.Name
+		end
+	end
+	return nil
+end

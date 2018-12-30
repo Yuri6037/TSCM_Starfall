@@ -1,0 +1,58 @@
+--@name LanAIFilesLib
+--@author Yuri6037
+
+aifiles = {}
+
+function aifiles.LineIterator(name, func)
+	if (aifiles.Exists(name)) then
+		local f = io.open("lanai." .. name .. ".txt", "r")
+		for v in f:lines() do
+			func(v)
+		end
+		f:close()
+	end
+end
+
+function aifiles.LineWrite(name, data)
+	local f = io.open("lanai." .. name .. ".txt", "r")
+	local str = ""
+	if (not(f == nil)) then
+		for v in f:lines() do
+			str = str .. v .. "\n"
+		end
+		f:close()
+	end
+
+	f = io.open("lanai." .. name .. ".txt", "w")
+	if (type(data) == "string") then
+		str = str .. data .. "\n"
+	elseif (type(data) == "table") then
+		for k, v in pairs(data) do
+			str = str .. v .. "\n"
+		end
+	end
+	f:write(str)
+	f:close()
+end
+
+function aifiles.Delete(name)
+	files.delete("lanai." .. name .. ".txt")
+end
+
+function aifiles.Exists(name)
+	return files.exists("lanai." .. name .. ".txt")
+end
+
+function aifiles.Overwrite(name, newData)
+	local f = io.open("lanai." .. name .. ".txt", "w")
+	if (type(newData) == "string") then
+		f:write(newData)
+	elseif (type(newData) == "table") then
+		local str = ""
+		for k, v in pairs(newData) do
+			str = str .. v .. "\n"
+		end
+		f:write(str)
+	end
+	f:close()
+end

@@ -1,0 +1,60 @@
+--@name Monitor2_StatusGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.Render(x, y)
+	gl.glBindColor(0, 0, 0)
+
+	local str = "Offline."
+	if (Net.Shields == 1) then
+		str = "Online."
+	end
+	gl.glText("Shields are " .. str, 20, 50)
+
+	local str = "Offline."
+	if (Net.Cloak == 1) then
+		str = "Online."
+	end
+	gl.glText("Cloak is " .. str, 20, 100)
+
+	local str = "Offline."
+	if (Net.LifeSupport == 1) then
+		str = "Online."
+	end
+	gl.glText("Life support is " .. str, 20, 150)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Anti NoClip is : ", 20, 300)
+	local str = ""
+	if (Net.NoclipDisabled) then
+		gl.glBindColor(0, 255, 0)
+		str = "Enabled."
+	else
+		gl.glBindColor(255, 0, 0)
+		str = "Disabled."
+	end
+	gl.glText(str, 220, 300)
+
+
+	if (Screen:IsMouseInRect(128, y + 360, 256, 32)) then
+		if (Screen:KeyUse()) then
+			gl.glBindColor(0, 255, 255)
+		else
+			gl.glBindColor(0, 128, 255)
+		end
+	else
+		gl.glBindColor(0, 0, 255)
+	end
+	gl.glRoundedRect(128, 360, 256, 32, 8)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Switch Anti Noclip", 140, 360)
+end
+
+function gui.CheckInputs(x, y)
+	if (Screen:IsMouseInRect(128, y + 360, 256, 32)) then --Switch anti noclip system
+		SendTripleScreenPacket(-1, "MONITOR_FUNC", "NoClip")
+	end
+end
+
+RegisterSecondaryGUI(1, gui)

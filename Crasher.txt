@@ -1,0 +1,52 @@
+--@name Crasher
+--@author Yuri6037
+
+--@highres
+
+hook("render", "render", function()
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+	render.setColor(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+	render.drawCircle(math.random(0, 1024), math.random(0, 1024), math.random(0, 1024), math.random(0, 1024))
+
+end)

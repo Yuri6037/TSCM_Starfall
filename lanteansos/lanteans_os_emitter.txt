@@ -1,0 +1,24 @@
+--@name Lanteans OS UltimateEdition (Emitter)
+--@author Yuri6037
+--@class emitter
+--@autoupdate
+--@widescreen
+--@sharedscreen
+
+Edition = "ultimate"
+--@includedir lanteansos/ultimate/
+
+--The lib to calculate mouse pos
+--@requirecl UTIL/EmitterCursorPos.txt
+
+--Eventualy run initializer for dynamic includes
+--@require lanteansos/lanteans_os.txt
+
+if (CLIENT) then
+	function ReloadDesktopEnvironment()
+		render.clear(0, 0, 0, 0)
+		GUI.RoundedRect(5, 5, ScrW - 10, 27, COLOR(255, 255, 255, 200))
+		GUI.RoundedRect(ScrW / 2 - 256, ScrH - 50, 512, 40, COLOR(255, 255, 255, 200))
+		GUI.Text("A", (ScrW / 2 - 256) + 5, ScrH - 46, StandardFont, COLOR(0, 0, 0))
+	end
+end

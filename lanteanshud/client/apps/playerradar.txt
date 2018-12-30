@@ -1,0 +1,47 @@
+--@name PlayerRadarApp
+--@author Yuri6037
+
+local function CalcPlyHealth(ply)
+	if (ply:health() > ply:maxHealth()) then
+		return 1
+	else
+		return ply:health() / ply:maxHealth()
+	end
+end
+
+local Plys = {}
+
+local function FindPlayers()
+	local min = Vector(0, 0, 0)
+	local max = Vector(0, 0, 0)
+	if (PlayerInBox(LocalPlayer, Pegasus.Min, Pegasus.Max)) then
+		min = Pegasus.Min
+		max = Pegasus.Max
+	elseif (PlayerInBox(LocalPlayer, Universe.Min, Universe.Max)) then
+		min = Universe.Min
+		max = Universe.Max
+	elseif (PlayerInBox(LocalPlayer, Milkyway.Min, Milkyway.Max)) then
+		min = Milkyway.Min
+		max = Milkyway.Max
+	end
+	Plys = find.allPlayers(function(ply)
+		return IsValid(ply) and not(LocalPlayer == ply) and PlayerInBox(ply, min, max)
+	end)
+end
+timer.create("LanteansHUD_FindPlayersInRadius", 5, 0, FindPlayers)
+
+local app = {
+	OverrideList = {},
+	Render = function()
+		for k, v in pairs(Plys) do
+			if (IsValid(v)) then
+				local p = v:getPos():ToScreen()
+				if (p.x >= 0 and p.x <= ScrW and p.y >= 0 and p.y <= ScrH) then
+					GUI.Text(v:name() .. " (" .. CalcPlyHealth(v) * 100 .. "%)", p.x, p.y, SmallFont, COLOR(255, 0, 0))
+				end
+			end
+		end
+	end
+}
+
+HUD.DefineApp("PlayerRadar", app)

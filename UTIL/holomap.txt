@@ -1,0 +1,123 @@
+--@name Holomap
+--@author Cuddles
+--@class emitter
+--@shared
+--@autoupdate
+--This code is shared
+function StartNet(func, ply)
+    if (net.start(ents.self(), false)) then
+        func()
+    else
+        return
+    end
+
+    if (CLIENT) then
+        net.sendToServer()
+    elseif (IsValid(ply)) then
+        net.send(ply)
+    else
+        net.broadcast()
+    end
+end
+
+Array = {}
+--End
+
+if (SERVER) then
+    function drawMap()
+        local Emitter = ents.self()
+        local Pos = Emitter:getPhysicsObject():getPos()
+        local Holo = holograms.create(Pos + Vector(0,0,55), Angle(0,0,0), "models/sb_forlorn/vimana_sky.mdl", 0.017)
+        Holo:setParent(Emitter)
+        Holo:setColor(64, 224, 208, 50)
+        local Holo = holograms.create(Pos + Vector(0,0,55), Emitter:eyeAngles(), "models/slyfo/sword.mdl", 0.01)
+        Holo:setParent(Emitter)
+        Holo:setColor(0,255,0,5)
+    end
+    function holoT(Tar)
+        local Emitter = ents.self()
+        local Target = Tar:getPhysicsObject()
+        local Pos = Emitter:getPhysicsObject():getPos() - (Emitter:getPhysicsObject():getPos()-Target:getPos())/200
+        local Holo = holograms.create(Pos + Vector(0,0,55), Tar:eyeAngles(), "models/slyfo/sword.mdl", 0.01)
+        Holo:setParent(Emitter)
+        Holo:setColor(255,0,0,5)
+        return Holo
+    end
+    function findTargets()
+        Array = {}
+        Targets = {}
+        Targets = find.byClass("ship_core")
+        for I=1, #Targets do
+            Array[I] = holoT(Targets[I])
+        end
+    end
+    function updatePos()
+        Check = find.byClass("ship_core")
+        if(#Targets == #Check) then
+            for I=1, #Array do
+                local Emitter = ents.self()
+                local Pos = Emitter:getPhysicsObject():getPos() - (Emitter:getPhysicsObject():getPos()-Targets[I]:getPos())/500
+                Array[I]:setPos(Pos + Emitter:up()*55)
+                Array[I]:setAng(Targets[I]:eyeAngles())
+            end
+        else
+            holograms.removeAll()
+            drawMap()
+            findTargets()
+            local ownerArray = {}
+            for k, v in pairs(Targets) do
+                ownerArray[k] = v:owner():name()
+            end
+            StartNet(function()
+                net.writeTable(Array)
+                net.writeTable(ownerArray)
+            end)
+        end
+    end
+
+    drawMap()
+    findTargets()
+    timer.create("update", 0.3, 0, updatePos)
+
+    local ownerArray = {}
+    for k, v in pairs(Targets) do
+        ownerArray[k] = v:owner():name()
+    end
+    hook("net", "receive", function(len, ply)
+        StartNet(function()
+            net.writeTable(Array)
+            net.writeTable(ownerArray)
+        end)
+    end)
+else
+    Owners = {}
+    --We don't need a remove packet as client can also detect if entity is not valid
+    hook("net", "receive", function(len, ply)
+        Array = net.readTable()
+        Owners = net.readTable()
+    end)
+    hook("render", "3d2drenderer", function()
+        for k, v in pairs(Array) do
+            if (not(IsValid(v))) then
+                Array[k] = nil
+            else --Yeah I know no continue statement that sucks, but Lua is by definition inferior to C !
+                local Base = ents.self()
+                local pos = v:getPos()
+                local ang = Base:ang():RotateAroundAxis(Base:forward(),90)
+                render.start3D2D(pos, ang, 0.12) --Position, angles, scale
+                    render.setColor(255,0,0)
+                    render.drawText("Default",0,0,"Owner: " .. Owners[k],render.TEXT_ALIGN_CENTER)
+                render.end3D2D()
+                local pos = v:getPos() - Base:up()*1.25
+                render.start3D2D(pos, ang, 0.12) --Position, angles, scale
+                    render.setColor(255,0,0)
+                    render.drawText("Default",0,0,"Distance: " .. math.round(3.81*pos:Distance(Base:getPos() + Base:up()*55), 2) .. "m",render.TEXT_ALIGN_CENTER)
+                render.end3D2D()
+            end
+        end
+    end)
+
+    --Starfall actualy reboots the client side after server side initializes
+    StartNet(function()
+    end)
+end

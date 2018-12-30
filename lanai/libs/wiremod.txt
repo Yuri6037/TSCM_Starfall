@@ -1,0 +1,219 @@
+--@name WiremodLibrary
+--@author Yuri6037
+
+--NOTICE : Requires LanAI string library
+
+--Variables declaration
+local WireInputs = {}
+local WireOutputs = {}
+local InputsChanged = false
+local OutputsChanged = false
+
+local InputCallback = nil
+local HookedEnts = {}
+--End
+
+wiremod = {}
+
+wiremod.Types = {
+	NUMBER = 0,
+	BOOLEAN = 1,
+	BINARY = 2,
+	STRING = 3,
+	VECTOR = 4,
+	ANGLE = 5,
+	WIRELINK = 6,
+	ENTITY = 7
+}
+
+--Adds an input to this starfall chip
+--Args : "type" the input type listed in wiremod.Types, "name" the input name
+function wiremod.AddInput(type, name)
+	WireInputs[name] = type
+	InputsChanged = true
+	wiremod.ResetWire()
+end
+
+--Adds an output to this starfall chip
+--Args : "type" the output type listed in wiremod.Types, "name" the output name
+function wiremod.AddOutput(type, name)
+	WireOutputs[name] = type
+	OutputsChanged = true
+	wiremod.ResetWire()
+end
+
+--Removes an output from this starfall chip
+--Args : "name" the output name
+function wiremod.RemoveOutput(name)
+	WireOutputs[name] = nil
+	OutputsChanged = true
+	wiremod.ResetWire()
+end
+
+--Removes an input from this starfall chip
+--Args : "name" the input name
+function wiremod.RemoveInput(name)
+	WireInputs[name] = nil
+	InputsChanged = true
+	wiremod.ResetWire()
+end
+
+--Refrechs outputs and inputs for this starfall chip
+function wiremod.ResetWire()
+	if (InputsChanged) then
+		local internalTypes = {}
+		local internalNames = {}
+		local num = 1
+		for k, v in pairs(WireInputs) do
+			internalTypes[num] = wiremod.GetInternalType(v)
+			internalNames[num] = k
+			num = num + 1
+		end
+		wire.createInputs(internalNames, internalTypes)
+	end
+	if (OutputsChanged) then
+		local internalTypes = {}
+		local internalNames = {}
+		local num = 1
+		for k, v in pairs(WireOutputs) do
+			internalTypes[num] = wiremod.GetInternalType(v)
+			internalNames[num] = k
+			num = num + 1
+		end
+		wire.createOutputs(internalNames, internalTypes)
+	end
+end
+
+--Returns the type string from the nice type enum
+function wiremod.GetInternalType(type)
+	if (type == 0) then
+		return "Normal"
+	elseif (type == 1) then
+		return "Normal"
+	elseif (type == 2) then
+		return "String"
+	elseif (type == 3) then
+		return "String"
+	elseif (type == 4) then
+		return "Vector"
+	elseif (type == 5) then
+		return "Angle"
+	elseif (type == 6) then
+		return "Wirelink"
+	elseif (type == 7) then
+		return "Entity"
+	end
+end
+
+function wiremod.InternalToType(rawVar, rawType)
+	if ((rawType == "Normal" and rawVar == 0) or (rawType == "Normal" and rawVar == 1)) then return wiremod.Types.BOOLEAN end
+	if (rawType == "Normal") then return wiremod.Types.NUMBER end
+	if (rawType == "Entity") then return wiremod.Types.ENTITY end
+	if (rawType == "Wirelink") then return wiremod.Types.WIRELINK end
+	if (rawType == "Vector") then return wiremod.Types.VECTOR end
+	if (rawType == "Angle") then return wiremod.Types.ANGLE end
+
+	if (rawType == "String" and string.StartsWith(rawVar, "BIN_")) then return wiremod.Types.BINARY end
+	if (rawType == "String") then return wiremod.Types.STRING end
+end
+
+--Computes a wiremod value to a nice type
+function wiremod.ComputeInternalValue(var, type)
+	if (type == 0) then
+		if (var == nil) then
+			return 0
+		end
+		return var
+	elseif (type == 1) then
+		if (var == nil) then
+			return false
+		end
+		if (var > 0) then
+			return true
+		elseif (var < 0) then
+			return false
+		end
+	elseif (type == 2) then
+		if (var == nil) then return "BIN_NULL" end
+		return var
+	elseif (type == 3) then
+		return var
+	elseif (type == 4) then
+		return var
+	elseif (type == 5) then
+		return var
+	elseif (type == 6) then
+		return var
+	elseif (type == 7) then
+		return var
+	end
+end
+
+--Checks if a specified value is valid
+--Args : "var" the value to check, "type" the nice type of value
+function wiremod.ValidValue(var, type)
+	if (type == 0) then
+		return true
+	elseif (type == 1) then
+		return true
+	elseif (type == 2) then
+		return true
+	elseif (type == 3) then
+		return not(var == nil)
+	elseif (type == 4) then
+		return not(var == nil)
+	elseif (type == 5) then
+		return not(var == nil)
+	elseif (type == 6) then
+		return not(var == nil)
+	elseif (type == 7) then
+		return IsValid(var)
+	end
+end
+
+--Adds a callback for all inputs on this Starfall chip
+--Callback parametters : Input name, Computed input value, Is value valid
+function wiremod.SetInputCallback(func)
+	InputCallback = func
+	for k, v in pairs(WireInputs) do
+		if (wiremod.ValidValue(wire.ports[k], v)) then
+			InputCallback(k, wiremod.ComputeInternalValue(wire.ports[k], v), true)
+		end
+	end
+end
+
+--Adds a callback for all outputs on the specified entity
+--Callback parametters : Output name, Computed output value, Is value valid
+function wiremod.AddOutputCallback(ent, func)
+	if (not(HookedEnts[ent] == nil)) then return end
+	HookedEnts[ent] = func
+	local wire = ent:getWirelink()
+	wire:addOutputCallback("WiremodLib_" .. ent:index(), function(w, o, v)
+		local t = wiremod.InternalToType(v, wire:outputType(o))
+		HookedEnts[ent](o, wiremod.ComputeInternalValue(v, t), wiremod.ValidValue(v, t), v)
+	end)
+end
+
+--Removes the output callback of the specified entity
+function wiremod.RemoveOutputCallback(ent)
+	if (HookedEnts[ent] == nil) then return end
+	HookedEnts[ent] = nil
+	local wire = ent:getWirelink()
+	wire:removeOutputCallback("WiremodLib_" .. ent:index())
+end
+
+--Base hooks
+hook("input", "WiremodLib_InputChanged", function(inp, var)
+	if (not(InputCallback == nil)) then
+		local t = WireInputs[inp]
+		InputCallback(inp, wiremod.ComputeInternalValue(var, t), wiremod.ValidValue(var, t))
+	end
+end)
+--End
+
+function InvertWireBool(b)
+	if (type(b) == "number") then
+		if (b == 1) then return 0 end
+		if (b == 0) then return 1 end
+	end
+end

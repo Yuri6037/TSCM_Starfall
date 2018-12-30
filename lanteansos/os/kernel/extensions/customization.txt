@@ -1,0 +1,70 @@
+--@name CustomizationKernelExtension
+--@author Yuri6037
+
+AvailableWallpapers = {
+	["Default"] = GUI.Texture("models/props_lab/cornerunit_cloud"),
+	["Solid Color"] = GUI.Texture("sprops/trans/wheels/wheel_d_rim1"),
+	["Computer Like"] = GUI.Texture("phoenix_storms/wire/pcb_green"),
+	["Caution"] = GUI.Texture("phoenix_storms/stripes"),
+	["Metal"] = GUI.Texture("models/props_pipes/pipeset_metal02"),
+	["Glow"] = GUI.Texture("glow/glowwhite"),
+	["Funky"] = GUI.Texture("spacebuild/hazard2"),
+	["Universe"] = GUI.Texture("models/effects/splode_sheet"),
+	["Bricks"] = GUI.Texture("models/props/de_inferno/infflra"),
+	["Floor Like"] = GUI.Texture("spacebuild/floor"),
+	["Map 1"] = GUI.Texture("models/props_canal/canalmap_sheet"),
+	["Map 2"] = GUI.Texture("models/props_canal/coastmap_sheet"),
+	["Sci-Fi"] = GUI.Texture("models/props_combine/weaponstripper_sheet"),
+	["Wood"] = GUI.Texture("models/props/de_inferno/woodfloor008a"),
+	["Rough 1"] = GUI.Texture("models/props_debris/plasterwall009d"),
+	["Rough 2"] = GUI.Texture("models/props_wasteland/concretefloor010a"),
+	["Rough 3"] = GUI.Texture("models/props_wasteland/metal_tram001a"),
+	["Grided"] = GUI.Texture("sprops/sprops_grid_12x12")
+}
+MainTex = AvailableWallpapers["Default"]
+MainColor = COLOR(120, 50, 50)
+
+AvailableWallpapersList = {}
+for k, v in pairs(AvailableWallpapers) do
+	table.insert(AvailableWallpapersList, k)
+end
+table.sort(AvailableWallpapersList)
+
+local FntSize = {14, 20, 32}
+local FntName = "Federation"
+
+local OSDefaultColor = COLOR(0, 0, 0)
+local DefaultTextColor = COLOR(0, 0, 0)
+
+function OS.GetFontSettings()
+	return FntName, FntSize
+end
+
+function OS.SetFontSettings(name, sizes)
+	FntName = name
+	FntSize = sizes
+	OS.Reboot()
+	StandardFont = GUI.Font(FntName, FntSize[3], true)
+	LargeFont = GUI.Font(FntName, FntSize[2], true)
+	SmallFont = GUI.Font(FntName, FntSize[1], true)
+end
+
+function OS.GetTextColor()
+	return DefaultTextColor
+end
+
+function OS.SetTextColor(col)
+	DefaultTextColor = col
+end
+
+function OS.GetSystemTextColor()
+end
+
+OS.CreateConfig("MainColor", MainColor, function(val)
+	MainColor = val
+	ReloadDesktopEnv = true
+end)
+OS.CreateConfig("MainTex", "Default", function(val)
+	MainTex = AvailableWallpapers[val]
+	ReloadDesktopEnv = true
+end)

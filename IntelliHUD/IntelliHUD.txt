@@ -1,0 +1,901 @@
+--@name IntelliHUD
+--@author Yuri6037
+--@class hud
+--@shared
+
+--@include lanai/libs/screen/gl_lib.txt
+--@include lanai/libs/screen/safe_net.txt
+
+--@requiresv lanai/libs/processor/string_lib.txt
+
+VERSION_HUD = "5.0"
+
+WEAPON_TYPES = {
+	["weapon_ar2"] = {
+		Clip1 = 30
+	},
+	["weapon_smg1"] = {
+		Clip1 = 45
+	},
+	["weapon_crossbow"] = {
+		Clip1 = 1
+	},
+	["weapon_shotgun"] = {
+		Clip1 = 6
+	},
+	["weapon_pistol"] = {
+		Clip1 = 18
+	},
+	["weapon_357"] = {
+		Clip1 = 6
+	}
+}
+
+ANNILER_BLOCKED_CLASS_REMOVE = {
+	["starfall_hologram"] = true
+}
+
+SG_CTRL_VERSIONS = {
+	["YURI_SG_CTRL_V1"] = function(ply)
+		return "TRY_" .. ply:index() --Returns the string to transmit to lower shield
+	end,
+	["YURI_SG_SCR"] = function(ply)
+		return tostring(ply:index())
+	end
+}
+
+if (SERVER) then
+    globaltables.player.IntelliHUDLinkedPlayers = {}
+
+	local function GetSignal(gate)
+		if (stargate.getSignal(gate) == nil or stargate.getSignal(gate) == "") then
+			local to = stargate.target(gate)
+			if (IsValid(to)) then
+				local ir = stargate.iris(to)
+				if (IsValid(ir) and stargate.irisActive(ir)) then
+					return "IRIS"
+				else
+					return "NONE"
+				end
+			else
+				return "ERROR"
+			end
+		end
+		return stargate.getSignal(gate)
+	end
+
+	require("lanai/libs/screen/safe_net.txt")
+
+	wire.createInputs({"LanAI Core"}, {"Wirelink"})
+
+	local plys = {}
+	local plysForceSend = {}
+	local plysData = {}
+	local plysVeh = {}
+
+	local Anniling = {}
+	local Shoots = {}
+
+	local function CheckPlayerSeats(p)
+		if (globaltables.global.IntelliHUD == nil) then
+			return
+		end
+
+		if (p:inVehicle()) then
+			if (not(plysVeh[p] == p:vehicle())) then
+				plysVeh[p] = p:vehicle()
+				local e = p:vehicle()
+				if (IsValid(e) and not(globaltables.global.IntelliHUD[e:index()] == nil)) then
+					local data = globaltables.global.IntelliHUD[e:index()]
+					if (IsValid(data.ZPM) and data.ZPM:class() == "starfall_processor") then
+						--print(data.HorizonBase)
+						plysData[p].VehData = {EnergyEntity = data.ZPM:getWirelink(), Name = data.Name, NameColor = data.NameColor, HorizonBase = data.HorizonBase}
+					end
+				end
+			end
+			if (not(plysData[p].VehData == nil)) then
+				local en = plysData[p].VehData.EnergyEntity
+				if (IsValid(en)) then
+					if (not(plysData[p].VehData.PEnergy == en["P"])) then
+						plysData[p].VehData.PEnergy = en["P"]
+						plysForceSend[p] = true
+					end
+				end
+			end
+		elseif (IsValid(plysVeh[p])) then
+			plysVeh[p] = nil
+			plysData[p].VehData = nil
+			plysForceSend[p] = true
+		end
+	end
+
+	local function IsWorld(ent)
+		return tostring(ent) == "Entity [0][worldspawn]"
+	end
+
+	local function ChatListen(str, ply)
+		if (string.StartsWith(str, "tp")) then
+			local dest = str:sub(4, string.len(str))
+			if (string.find(dest, "sha")) then
+				ply:setPos(Vector(-7634, -9258, 6912))
+				chat.tell(ply, Color(255, 0, 0), "[IntelliHUD] -> Teleporting you to shakuras.")
+				return true
+			elseif (string.find(dest, "hii")) then
+				ply:setPos(Vector(4011, 10049, -5943))
+				chat.tell(ply, Color(255, 0, 0), "[IntelliHUD] -> Teleporting you to hiigara.")
+				return true
+			elseif (string.find(dest, "ear")) then
+				ply:setPos(Vector(845, 8269, 8129))
+				chat.tell(ply, Color(255, 0, 0), "[IntelliHUD] -> Teleporting you to earth.")
+				return true
+			elseif (string.find(dest, "moo")) then
+				ply:setPos(Vector(-4737, 13005, 10016))
+				chat.tell(ply, Color(255, 0, 0), "[IntelliHUD] -> Teleporting you to moon.")
+				return true
+			elseif (string.find(dest, "sta")) then
+				ply:setPos(Vector(10943, -6900, 8992))
+				chat.tell(ply, Color(255, 0, 0), "[IntelliHUD] -> Teleporting you to station.")
+				return true
+			elseif (string.find(dest, "lav")) then
+				ply:setPos(Vector(-11850, 835, -4591))
+				chat.tell(ply, Color(255, 0, 0), "[IntelliHUD] -> Teleporting you to lava.")
+				return true
+			elseif (string.find(dest, "offsety")) then
+				ply:setPos(ply:getPos() + Vector(0, 0, 200))
+				return true
+			end
+		end
+	end
+
+	hook("net", "IntelliHUD_NetLink", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "CONNECT") then
+			local ply = net.readEntity()
+			table.insert(plys, ply)
+			plysForceSend[ply] = true
+			plysData[ply] = {}
+			plysData[ply].Stargate = {}
+
+			chat.tell(ply, Color(0, 128, 255), "[IntelliHUD] -> Welcome, " .. ply:name() .. ".")
+
+			if (ply == ents.owner()) then
+				chat.listen(ChatListen, ply)
+			end
+
+			globaltables.player.IntelliHUDLinkedPlayers[ply] = true
+		elseif (cmd == "DISCONNECT") then
+			local ply = net.readEntity()
+			for k, v in pairs(plys) do
+				if (v == ply) then
+					table.remove(plys, k)
+					break
+				end
+			end
+			plysForceSend[ply] = nil
+			plysData[ply] = nil
+
+			chat.tell(ply, Color(0, 128, 255), "[IntelliHUD] -> Bye, " .. ply:name() .. ".")
+
+			if (ply == ents.owner()) then
+				chat.stop(ChatListen, ply)
+			end
+
+			globaltables.player.IntelliHUDLinkedPlayers[ply] = nil
+		elseif (cmd == "TRY_OPEN_IRIS") then
+			local ent = ply:eyeTrace().Entity
+			if (IsValid(ent)) then
+				if (ent:class() == "stargate_atlantis" or ent:class() == "stargate_universe" or ent:class() == "stargate_sg1") then
+					if (stargate.open(ent)) then
+						print(stargate.open(ent))
+						local s = stargate.getSignal(ent)
+						print(s)
+						if (not(SG_CTRL_VERSIONS[s] == nil) and not(timer.exists("IntelliHUD_StopTransmit"))) then
+							local str = SG_CTRL_VERSIONS[s](ply)
+							stargate.transmit(ent, str)
+							timer.create("IntelliHUD_StopTransmit", 1, 1, function()
+								stargate.transmit(ent, "")
+							end)
+						end
+					end
+				end
+			end
+		elseif (cmd == "FIRE_ANNILER") then
+			if (not(holograms.canSpawn()) or #Shoots >= 3) then return end
+
+			local pos = ply:eyePos()
+			local angs = ply:eyeAngles() + Angle(90, 0, 0)
+			local holo1 = holograms.create(pos, angs, "models/sprops/cylinders/size_2/cylinder_3x3.mdl", 1)
+			holo1:setScale(Vector(3, 3, 32))
+			holo1:setMaterial("models/props_lab/warp_sheet")
+			holo1:setColor(Color(0, 128, 255))
+			holo1:setAlpha(255)
+
+			table.insert(Shoots, holo1)
+		end
+	end)
+
+	timer.create("IntelliHUD_Anniller", 0.01, 0, function()
+		for k, v in pairs(Shoots) do
+			v:setVel(v:getAngles():Up() * 600)
+
+			local ent = trace.traceEntity(v, v:getPos(), v:getPos() + v:getAngles():Up() * 1.5, find.allPlayers(), trace.MASK_SOLID, false).Entity
+			if (IsWorld(ent)) then
+				print(ent)
+				v:remove()
+				table.remove(Shoots, k)
+			end
+			if (IsValid(ent)) then
+				local e = nil
+				if (ANNILER_BLOCKED_CLASS_REMOVE[ent:class()] or not(Anniling[ent] == nil)) then
+					print(ent)
+					v:remove()
+					table.remove(Shoots, k)
+				else
+					e = ent
+				end
+				if (IsValid(e)) then
+					print(e)
+					v:remove()
+					local p = e:getPos()
+					local mdl = e:model()
+					if (string.StartsWith(mdl, "*")) then
+						mdl = "models/props_combine/weaponstripper.mdl"
+					end
+					local holo = holograms.create(p, e:getAngles(), mdl, 1.2)
+					holo:setMaterial("models/alyx/emptool_glow")
+					holo:setParent(e)
+					table.remove(Shoots, k)
+					Anniling[e] = {Entity = e, Alpha = 255}
+				end
+			end
+		end
+
+		for k, v in pairs(Anniling) do
+			if (not(IsValid(v.Entity))) then
+				Anniling[k] = nil
+				return
+			end
+			v.Alpha = v.Alpha - 1
+			v.Entity:setAlpha(v.Alpha)
+			if (v.Alpha <= 5) then
+				v.Entity:remove()
+				Anniling[k] = nil
+			end
+		end
+	end)
+
+	timer.create("IntelliHUD_MainUpdateLoop", 1, 0, function()
+		if (#plys == 0) then return end
+		for k, v in pairs(plys) do
+			if (not(IsValid(v))) then
+				table.remove(plys, k)
+			else
+				local data = v:getEnvironmentData()
+				if (data == nil) then
+				    chat.tell(v, Color(0, 128, 255), "[IntelliHUD] -> An unexpected error in Stargazer has been found ! Workarrounding...")
+				    return
+				end
+
+				if (not(plysData[v].Oxygen == data.air.Oxygen) or plysForceSend[v]) then
+					plysData[v].Oxygen = data.air.Oxygen
+					plysForceSend[v] = true
+				end
+				if (not(plysData[v].CO2 == data.air.CO2) or plysForceSend[v]) then
+					plysData[v].CO2 = data.air.CO2
+					plysForceSend[v] = true
+				end
+				if (not(plysData[v].Nitrogen == data.air.Nitrogen) or plysForceSend[v]) then
+					plysData[v].Nitrogen = data.air.Nitrogen
+					plysForceSend[v] = true
+				end
+				if (not(plysData[v].Hydrogen == data.air.Hydrogen) or plysForceSend[v]) then
+					plysData[v].Hydrogen = data.air.Hydrogen
+					plysForceSend[v] = true
+				end
+
+				if (not(plysData[v].Temperature == data.temperature) or plysForceSend[v]) then
+					plysData[v].Temperature = data.temperature
+					plysForceSend[v] = true
+				end
+				if (not(plysData[v].Gravity == data.gravity) or plysForceSend[v]) then
+					plysData[v].Gravity = data.gravity
+					plysForceSend[v] = true
+				end
+				if (not(plysData[v].Planet == data.name) or plysForceSend[v]) then
+					if (data.name == nil) then
+						chat.tell(v, Color(0, 128, 255), "[IntelliHUD] -> An unexpected error in Stargazer has been found ! Workarrounding...")
+						return
+					end
+					if (not(plysData[v].Planet == data.name)) then
+						local planet = string.gsub(data.name, "Planet", "")
+						planet = string.gsub(planet, " ", "")
+						if (planet == "Space" or planet == "Lava" or planet == "Moon") then
+							chat.tell(v, Color(0, 128, 255), "[IntelliHUD] -> WARNING : Life is not supported here.")
+						end
+					end
+
+					plysData[v].Planet = data.name
+					plysForceSend[v] = true
+				end
+				if (not(wire.ports["LanAI Core"] == nil)) then
+					local lnk = wire.ports["LanAI Core"]
+					if (not(plysData[v].ShipName == lnk["ShipName"]) or plysForceSend[v]) then
+						plysData[v].ShipName = lnk["ShipName"]
+						plysData[v].CoreAI = lnk:entity()
+						plysForceSend[v] = true
+					end
+				end
+				if (IsValid(v:activeWeapon()) and v:activeWeapon():class() == "weapon_physcannon") then
+					local ent = v:eyeTrace().Entity
+					if (IsValid(ent)) then
+						if (ent:class() == "stargate_atlantis" or ent:class() == "stargate_sg1" or ent:class() == "stargate_universe") then
+							if (not(plysData[v].Stargate.Entity == ent:index())) then
+								plysData[v].Stargate.Entity = ent:index()
+								plysForceSend[v] = true
+							end
+							if (not(plysData[v].Stargate.Address == stargate.address(ent))) then
+								plysData[v].Stargate.Address = stargate.address(ent)
+								plysForceSend[v] = true
+							end
+							if (stargate.open(ent)) then
+								if (IsValid(stargate.target(ent))) then
+									local e = stargate.target(ent)
+									if (not(plysData[v].Stargate.TargetEntity == e:index())) then
+										plysData[v].Stargate.TargetEntity = e:index()
+										plysData[v].Stargate.TargetClass = e:class()
+										plysForceSend[v] = true
+									end
+									if (not(plysData[v].Stargate.TargetAddress == stargate.address(e))) then
+										plysData[v].Stargate.TargetAddress = stargate.address(e)
+										plysForceSend[v] = true
+									end
+								elseif (not(plysData[v].Stargate.TargetEntity == nil)) then
+									plysData[v].Stargate.TargetEntity = nil
+									plysData[v].Stargate.TargetClass = nil
+									plysData[v].Stargate.TargetAddress = nil
+									plysForceSend[v] = true
+								end
+								if (not(plysData[v].Stargate.Signal == GetSignal(ent))) then
+									plysData[v].Stargate.Signal = GetSignal(ent)
+									plysForceSend[v] = true
+
+									if (not(SG_CTRL_VERSIONS[plysData[v].Stargate.Signal] == nil)) then
+										chat.tell(v, Color(0, 128, 255), "[IntelliHUD] -> Righ-Click to send iris lower request.")
+									end
+								end
+							end
+						elseif (not(plysData[v].Stargate.Entity == nil)) then
+							plysData[v].Stargate = {}
+							plysForceSend[v] = true
+						end
+					elseif (not(plysData[v].Stargate.Entity == nil)) then
+						plysData[v].Stargate = {}
+						plysForceSend[v] = true
+					end
+				elseif (not(plysData[v].Stargate.Entity == nil)) then
+					plysData[v].Stargate = {}
+					plysForceSend[v] = true
+				end
+				CheckPlayerSeats(v)
+
+				if (plysForceSend[v]) then
+					StartNet(function()
+						net.writeTable(plysData[v])
+					end, v)
+					plysForceSend[v] = false
+				end
+			end
+		end
+	end)
+else
+	require("lanai/libs/screen/gl_lib.txt")
+	require("lanai/libs/screen/safe_net.txt")
+
+	local function HackPlayerMaxHealth(p)
+		if (p == nil) then
+			p = ents.player()
+		end
+		if (p:health() > p:maxHealth()) then
+			return p:health()
+		else
+			return p:maxHealth()
+		end
+	end
+
+	local function MathPirateTruncature(n, num)
+		local str = tostring(n)
+		str = str:sub(1, num)
+		return tonumber(str)
+	end
+
+	local EnvData = {}
+	local StandardFont = gl.glGenFonts("federation", true, 24)
+	local StandardFont1 = gl.glGenFonts("federation", true, 16)
+	local StandardFont2 = gl.glGenFonts("federation", true, 32)
+
+	local sgu = gl.glGenFonts("Stargate Address Glyphs U", true, 40)
+	local sg1 = gl.glGenFonts("Stargate Address Glyphs Sg1", true, 24)
+	local sga = gl.glGenFonts("Stargate Address Glyphs Atl", true, 18)
+
+	--GL_Lib enables
+	gl.glEnable(GL_BLEND)
+
+	hook("hudlink", "IntelliHUD_Link", function(ply)
+		StartNet(function()
+			net.writeString("CONNECT")
+			net.writeEntity(ply)
+		end)
+	end)
+
+	hook("hudunlink", "IntelliHUD_Unlink", function(ply)
+		StartNet(function()
+			net.writeString("DISCONNECT")
+			net.writeEntity(ply)
+		end)
+	end)
+
+	hook("net", "IntelliHUD_NetLink", function(len)
+		EnvData = net.readTable()
+		EnvData.Air = EnvData.Oxygen + EnvData.Hydrogen + EnvData.Nitrogen
+	end)
+
+	hook("playerbindpress", "IntelliHUD_PlayerBindPressed", function(ply, bind, pressed)
+		if (not(hud.isLinked())) then return end
+		if (IsValid(ply:activeWeapon()) and ply:activeWeapon():class() == "weapon_physcannon" and bind == "+attack2") then
+			StartNet(function()
+				net.writeString("TRY_OPEN_IRIS")
+			end)
+		elseif (IsValid(ply:activeWeapon()) and ply:activeWeapon():class() == "weapon_asura" and bind == "+attack2") then
+			StartNet(function()
+				net.writeString("FIRE_ANNILER")
+			end)
+		end
+	end)
+
+	hook("hudshoulddraw", "IntelliHUD_CancelRender", function(name)
+		if (name == "CHudBattery") then return false end
+		if (name == "CHudHealth") then return false end
+		if (name == "CHudAmmo") then return false end
+		if (name == "CHudSecondaryAmmo") then return false end
+	end)
+
+	local function IsVectorInRect(x, y, w, h, vec)
+		if (vec.x >= x and vec.x <= x + w) then
+			if (vec.y >= y and vec.y <= y + h) then
+				return true
+			end
+		end
+		return false
+	end
+
+	local KillRender = false
+	timer.create("TimeQuotaErrorBypass", 0.0001, 0, function()
+		local cpu = cpuTime() * 100 / cpuMax()
+		if (cpu > 50 and not(KillRender)) then
+			print(cpu)
+			KillRender = true
+			timer.create("ResumeRender", 2, 1, function()
+				local cpuAv = cpuAverage() * 100 / cpuMax()
+				if (cpuAv > 60 and OS.ValidHandle(CurWindowHdl)) then
+					OS.MsgBox("Lanteans OS", "Current application exceeded allocated CPU time...", MsgType.ERROR)
+					OS.CloseApp(CurWindowHdl)
+				end
+				KillRender = false
+			end)
+		end
+	end)
+
+	local WarnR = 255
+	local WarnInc = false
+	hook("render", "IntelliHUD_Render", function(ply)
+		if (KillRender) then return end
+
+		profiler.push("MainRender")
+		local ScrW, ScrH = render.getScreenRes()
+
+		local ply = ents.player()
+
+		local ex = ScrW - 200
+		local ey = ScrH / 2 - 256
+
+		local cx = ScrW / 2 - 256
+		local cy = 20
+
+		local wx = 20
+		local wy = ScrH / 2 - 256
+
+		gl.glBindColor(0, 0, 0, 200)
+		gl.glRoundedRect(cx, cy, 512, 128, 16)
+		gl.glRoundedRect(ex, ey, 180, 512, 16)
+		gl.glRoundedRect(wx, wy, 180, 512, 16)
+
+		--Status bar
+		profiler.push("StatusBar")
+		gl.glRoundedRect(0, ScrH - 32, ScrW, 32, 8)
+		gl.glBindFont(StandardFont)
+		gl.glBindColor(255, 255, 255)
+		local w = gl.glTextWidth("Welcome, " .. ply:name() .. ", to IntelliHUD V. " .. VERSION_HUD)
+		gl.glText("Welcome, " .. ply:name() .. ", to IntelliHUD V. " .. VERSION_HUD, ScrW / 2 - w / 2, ScrH - 28)
+		profiler.pop()
+
+		--Weapon infos
+		profiler.push("WeaponInfos")
+		gl.glBindColor(133, 133, 133)
+		local w = gl.glTextWidth("Weapon")
+		gl.glText("Weapon", wx + 90 - w / 2, wy + 10)
+		gl.glBindFont(StandardFont1)
+		local weap = ply:activeWeapon()
+		if (IsValid(weap)) then
+			profiler.push("General")
+			gl.glBindColor(255, 255, 255, 128)
+			gl.glRect(wx + 10, wy + 60, 160, 32)
+			gl.glRect(wx + 10, wy + 130, 160, 32)
+			gl.glRect(wx + 10, wy + 200, 160, 32)
+			gl.glRect(wx + 10, wy + 270, 160, 32)
+			gl.glBindColor(133, 133, 133)
+			w = gl.glTextWidth(weap:getPrintName())
+			gl.glText(weap:getPrintName(), wx + 90 - w / 2, wy + 67)
+			w = gl.glTextWidth(weap:class())
+			gl.glText(weap:class(), wx + 90 - w / 2, wy + 277)
+			gl.glBindColor(0, 255, 0, 128)
+			profiler.pop()
+			local clip1Str = "None"
+			local clip2Str = "None"
+			profiler.push("Clip1Get")
+			if (not(weap:clip1() == -1)) then
+				local mx = 100
+				if (not(WEAPON_TYPES[weap:class()] == nil)) then
+					mx = WEAPON_TYPES[weap:class()].Clip1
+				end
+				w = weap:clip1() * 160 / mx
+				gl.glRect(wx + 10, wy + 130, w, 32)
+				clip1Str = "Clip1 : " .. weap:clip1() .. " / " .. mx
+			elseif (weap:clip1() == -1 and not(weap:getPrimaryAmmoType() == -1)) then
+				clip1Str = "Clip1 : " .. ply:getAmmoCount(weap:getPrimaryAmmoType())
+			end
+			profiler.pop()
+
+			profiler.push("Clip2Get")
+			if (not(weap:clip2() == -1)) then
+				local mx = 100
+				if (not(WEAPON_TYPES[weap:class()] == nil)) then
+					mx = WEAPON_TYPES[weap:class()].Clip1
+				end
+				w = weap:clip2() * 160 / mx
+				gl.glRect(wx + 10, wy + 200, w, 32)
+				clip2Str = "Clip2 : " .. weap:clip2() .. " / " .. mx
+			elseif (weap:clip2() == -1 and not(weap:getSecondaryAmmoType() == -1)) then
+				clip2Str = "Clip2 : " .. ply:getAmmoCount(weap:getSecondaryAmmoType())
+			end
+			profiler.pop()
+			profiler.push("Clip1Render")
+			gl.glBindColor(133, 133, 133)
+			w = gl.glTextWidth(clip1Str)
+			gl.glText(clip1Str, wx + 90 - w / 2, wy + 137)
+			profiler.pop()
+			profiler.push("Clip2Render")
+			w = gl.glTextWidth(clip2Str)
+			gl.glText(clip2Str, wx + 90 - w / 2, wy + 207)
+			profiler.pop()
+		end
+		profiler.pop()
+
+		--Bars
+		profiler.push("Globals")
+		profiler.push("Bars")
+		local hmax = HackPlayerMaxHealth()
+		gl.glBindColor(255, 255, 255, 128)
+		gl.glRect(cx + 10, cy + 30, 492, 32)
+		gl.glRect(cx + 10, cy + 68, 492, 32)
+		local w = math.floor(ply:health() * 492 / hmax)
+		gl.glBindColor(255, 0, 0, 128)
+		gl.glRect(cx + 10, cy + 30, w, 32)
+		w = math.floor(ply:armor() * 492 / 100)
+		gl.glBindColor(0, 0, 255, 128)
+		gl.glRect(cx + 10, cy + 68, w, 32)
+		profiler.pop()
+
+		--Texts
+		profiler.push("Texts")
+		gl.glBindColor(133, 133, 133)
+		gl.glBindFont(StandardFont)
+		local p = math.floor(ply:health() * 100 / hmax)
+		local w = gl.glTextWidth("Health : " .. p .. "%")
+		gl.glText("Health : " .. p .. "%", cx + 10 + 246 - w / 2, cy + 32)
+		w = gl.glTextWidth("Armour : " .. ply:armor() .. "%")
+		gl.glText("Armour : " .. ply:armor() .. "%", cx + 10 + 246 - w / 2, cy + 70)
+		profiler.pop()
+		profiler.pop()
+
+		--Environment
+		if (EnvData.Planet == nil or EnvData.Temperature == nil or EnvData.Oxygen == nil or EnvData.Gravity == nil) then return end
+
+		profiler.push("EnvironmentData")
+		--Bars
+		profiler.push("Bars")
+		local w = EnvData.Air * 160 / 100
+		gl.glBindColor(255, 255, 255, 128)
+		gl.glRect(ex + 10, ey + 60, 160, 32)
+		gl.glRect(ex + 10, ey + 130, 160, 32)
+		gl.glRect(ex + 10, ey + 200, 160, 32)
+		gl.glRect(ex + 10, ey + 270, 160, 32)
+		gl.glRect(ex + 10, ey + 340, 160, 32)
+		gl.glRect(ex + 10, ey + 410, 160, 32)
+		if (EnvData.Air < 50 and EnvData.Air >= 30) then
+			gl.glBindColor(255, 128, 0, 128)
+		elseif (EnvData.Air < 30) then
+			gl.glBindColor(255, 0, 0, 128)
+		else
+			gl.glBindColor(0, 128, 255, 128)
+		end
+		gl.glRect(ex + 10, ey + 60, w, 32)
+
+		gl.glBindColor(255, 64, 0, 128)
+		w = EnvData.CO2 * 160 / 100
+		gl.glRect(ex + 10, ey + 130, w, 32)
+
+		gl.glBindColor(0, 128, 255, 128)
+		w = EnvData.Oxygen * 160 / 100
+		gl.glRect(ex + 10, ey + 200, w, 32)
+		w = EnvData.Hydrogen * 160 / 100
+		gl.glRect(ex + 10, ey + 270, w, 32)
+		w = EnvData.Nitrogen * 160 / 100
+		gl.glRect(ex + 10, ey + 340, w, 32)
+
+		gl.glBindColor(0, 255, 0, 128)
+		w = (EnvData.Gravity * 100) * 160 / 100
+		gl.glRect(ex + 10, ey + 410, w, 32)
+		profiler.pop()
+
+		--Texts
+		profiler.push("Texts")
+		profiler.push("General")
+		EnvData.Planet = string.gsub(EnvData.Planet, "Planet", "")
+		EnvData.Planet = string.gsub(EnvData.Planet, " ", "")
+		if (EnvData.Planet == "Space" or EnvData.Planet == "Lava" or EnvData.Planet == "Moon") then
+			gl.glBindColor(255, 0, 0)
+		else
+			gl.glBindColor(133, 133, 133)
+		end
+		local w = gl.glTextWidth(EnvData.Planet)
+		gl.glText(EnvData.Planet, ex + 90 - w / 2, ey + 10)
+		gl.glBindFont(StandardFont1)
+		w = gl.glTextWidth("Air : " .. EnvData.Air .. "%")
+		gl.glText("Air : " .. EnvData.Air .. "%", ex + 90 - w / 2, ey + 67)
+		w = gl.glTextWidth("CO2 : " .. MathPirateTruncature(EnvData.CO2, 4) .. "%")
+		gl.glText("CO2 : " .. MathPirateTruncature(EnvData.CO2, 4) .. "%", ex + 90 - w / 2, ey + 137)
+		w = gl.glTextWidth("Oxygen : " .. EnvData.Oxygen .. "%")
+		gl.glText("Oxygen : " .. EnvData.Oxygen .. "%", ex + 90 - w / 2, ey + 207)
+		w = gl.glTextWidth("Hydrogen : " .. EnvData.Hydrogen .. "%")
+		gl.glText("Hydrogen : " .. EnvData.Hydrogen .. "%", ex + 90 - w / 2, ey + 277)
+		w = gl.glTextWidth("Nitrogen : " .. EnvData.Nitrogen .. "%")
+		gl.glText("Nitrogen : " .. EnvData.Nitrogen .. "%", ex + 90 - w / 2, ey + 347)
+
+		w = gl.glTextWidth("Gravity : " .. EnvData.Gravity * 100 .. "%")
+		gl.glText("Gravity : " .. EnvData.Gravity * 100 .. "%", ex + 90 - w / 2, ey + 417)
+		profiler.pop()
+
+		profiler.push("Temperature")
+		gl.glBindFont(StandardFont)
+		local tc = math.floor(EnvData.Temperature - 273.15)
+		if (tc > -100 and tc < 100) then
+			gl.glBindColor(133, 133, 133)
+		elseif (tc <= -100) then
+			gl.glBindColor(0, 255, 255)
+		elseif (tc >= 100) then
+			gl.glBindColor(255, 0, 0)
+		end
+		w = gl.glTextWidth(tc .. "°C")
+		gl.glText(tc .. "°C", ex + 90 - w / 2, ey + 465)
+		profiler.pop()
+
+		profiler.push("Warnings")
+		if (EnvData.Air < 20) then
+			gl.glBindFont(StandardFont2)
+			local w = gl.glTextWidth("WARNING : Remaining air level is low")
+			if (WarnR >= 255 and WarnInc) then
+				WarnR = 255
+				WarnInc = false
+			elseif (WarnR <= 0 and not(WarnInc)) then
+				WarnR = 0
+				WarnInc = true
+			end
+			if (WarnInc) then
+				WarnR = WarnR + time.frameTime() * 500
+			else
+				WarnR = WarnR - time.frameTime() * 500
+			end
+
+			gl.glBindColor(WarnR, 0, 0)
+			gl.glText("WARNING : Remaining air level is low", ScrW / 2 - w / 2, ScrH / 2 - 24)
+		end
+		profiler.pop()
+		profiler.pop()
+		profiler.pop()
+
+		--Render other players
+		profiler.push("Radar")
+        local tt = find.allPlayers()
+		for i = 1, #tt do
+		    local v = tt[i]
+			if (IsValid(v) and not(v == ents.player())) then
+				profiler.push("DistanceProjection")
+				local scr = v:getPos():ToScreen()
+				local dist = v:getPos():Distance(ents.player():getPos())
+				profiler.pop()
+				if (not(dist > 10000)) then
+					profiler.push("Render")
+					if (dist <= 2500 and not(dist <= 1250)) then
+						gl.glBindColor(255, 255, 0)
+					elseif (dist <= 1250) then
+						gl.glBindColor(255, 0, 0)
+					else
+						gl.glBindColor(0, 255, 0)
+					end
+					gl.glRect(scr.x, scr.y, 16, 16)
+					gl.glBindColor(255, 255, 255)
+					gl.glText(v:name(), scr.x + 24, scr.y)
+					gl.glRoundedRect(scr.x, scr.y + 40, 256, 16, 8)
+					gl.glBindColor(128, 255, 0)
+					local w = v:health() * 256 / HackPlayerMaxHealth(v)
+					gl.glRoundedRect(scr.x, scr.y + 40, w, 16, 8)
+					gl.glBindColor(255, 255, 255)
+					gl.glText("Health : " .. (v:health() * 100 / HackPlayerMaxHealth(v)) .. " %", scr.x, scr.y + 60)
+					profiler.pop()
+				end
+			end
+		end
+		profiler.pop()
+
+		profiler.push("AIWaypoint")
+		if (not(EnvData.CoreAI == nil)) then
+			local v = EnvData.CoreAI:getPos():ToScreen()
+			if (IsVectorInRect(0, 0, ScrW, ScrH, v)) then
+				gl.glBindColor(255, 0, 0)
+				gl.glRect(v.x, v.y, 16, 16)
+
+				gl.glBindColor(133, 133, 133)
+				gl.glBindFont(StandardFont)
+				gl.glText(EnvData.ShipName, v.x + 16, v.y)
+			else
+				if (v.x < 0) then v.x = 0 end
+				if (v.x > ScrW) then v.x = ScrW - 16 end
+				if (v.y < 0) then v.y = 0 end
+				if (v.y > ScrH) then v.y = ScrH - 16 end
+
+				gl.glBindColor(0, 255, 0)
+				gl.glRect(v.x, v.y, 16, 16)
+
+				gl.glBindColor(133, 133, 133)
+				gl.glBindFont(StandardFont)
+				gl.glText(EnvData.ShipName, v.x + 16, v.y)
+			end
+		end
+		profiler.pop()
+
+		profiler.push("VehicleData")
+		if (not(EnvData.VehData == nil)) then
+			if (EnvData.VehData.NameColor == nil) then
+				gl.glBindColor(133, 133, 133)
+			else
+				gl.glBindColor(EnvData.VehData.NameColor.r, EnvData.VehData.NameColor.g, EnvData.VehData.NameColor.b)
+			end
+			if (EnvData.VehData.Name == nil) then
+				EnvData.VehData.Name = "Vehicle"
+			end
+			local w = gl.glTextWidth(EnvData.VehData.Name)
+			gl.glText(EnvData.VehData.Name, wx + 90 - w / 2, wy + 330)
+			gl.glBindColor(255, 255, 0)
+			local a = EnvData.VehData.PEnergy * 360 / 100
+			gl.glCircle(wx + 90, wy + 410, 64, a)
+			gl.glBindColor(255, 255, 255)
+			gl.glCircle(wx + 90, wy + 410, 32, 360)
+			local txt = math.floor(EnvData.VehData.PEnergy) .. "%"
+			gl.glBindColor(133, 133, 133)
+			gl.glBindFont(StandardFont1)
+			w = gl.glTextWidth(txt)
+			gl.glText(txt, wx + 90 - w / 2, wy + 400)
+
+			local W, H = render.getScreenRes()
+			gl.glBindColor(255, 255, 255)
+			gl.glRect(W / 2 - 16, H / 2, 32, 2)
+			gl.glRect(W / 2, H / 2 - 16, 2, 32)
+
+			if (IsValid(EnvData.VehData.HorizonBase)) then
+				local angs = EnvData.VehData.HorizonBase:getAngles()
+
+				local e = ply:vehicle()
+				if (IsValid(e) and e:class() == "prop_vehicle_prisoner_pod" and EnvData.VehData.HorizonBase == e) then
+					local YCoord = angs.pitch * H / 360
+					gl.glBindColor(255, 255, 255)
+					gl.glRect(W / 2 - 64, YCoord, 128, 2)
+				else
+					local YCoord = H / 2 + (angs.pitch * 4)
+					gl.glBindColor(255, 255, 255)
+					gl.glRect(W / 2 - 64, YCoord, 128, 2)
+				end
+
+				--Render vehicle speed in kph
+				local sourceSpd = EnvData.VehData.HorizonBase:getVelocity():Length()
+				--1GridUnit -> 19.05 * 10^-3m
+				--sourceSpd -> x
+				local mps = sourceSpd * (19.05 * 0.001)
+				local kph = mps / 3.6
+				local txt = math.floor(kph) .. "Km/h"
+				local w = gl.glTextWidth(txt)
+				gl.glBindColor(133, 133, 133)
+				gl.glText(txt, wx + 90 - w / 2, wy + 470)
+				--End
+			end
+		end
+		profiler.pop()
+
+		profiler.push("StargateData")
+		if (not(EnvData.Stargate.Entity == nil)) then
+			local e = find.byIndex(EnvData.Stargate.Entity)
+			if (IsValid(e)) then
+				gl.glBindColor(0, 0, 0, 128)
+                local x = ScrW / 2 - 128
+                local y = ScrH / 2 - 128
+                gl.glRoundedRect(x, y, 256, 256, 8)
+                gl.glBindColor(255, 255, 255)
+                gl.glBindFont(StandardFont1)
+                local txt = "ERROR"
+                if (e:class() == "stargate_sg1") then
+					txt = "SG1"
+				elseif (e:class() == "stargate_atlantis") then
+					txt = "Atlantis"
+				elseif (e:class() == "stargate_universe") then
+					txt = "Universe"
+				end
+				local w = gl.glTextWidth("Stargate Type : " .. txt)
+				gl.glText("Stargate Type : " .. txt, (x + 128) - (w / 2), y + 32)
+
+				local w = gl.glTextWidth("-> Address <-")
+				gl.glText("-> Address <-", (x + 128) - (w / 2), y + 70)
+
+				local w = gl.glTextWidth("-> Outbound <-")
+				gl.glText("-> Outbound <-", (x + 128) - (w / 2), y + 128)
+
+				local w = gl.glTextWidth("-> Received Signal <-")
+				gl.glText("-> Received Signal <-", (x + 128) - (w / 2), y + 186)
+
+				if (e:class() == "stargate_sg1") then
+					gl.glBindFont(sg1)
+				elseif (e:class() == "stargate_atlantis") then
+					gl.glBindFont(sga)
+				elseif (e:class() == "stargate_universe") then
+					gl.glBindFont(sgu)
+				end
+
+				gl.glBindColor(0, 0, 255)
+				local w = gl.glTextWidth(EnvData.Stargate.Address)
+				gl.glText(EnvData.Stargate.Address, (x + 128) - (w / 2), y + 90)
+
+				if (not(EnvData.Stargate.TargetClass == nil)) then
+					e = EnvData.Stargate.TargetClass
+					if (e == "stargate_sg1") then
+						gl.glBindFont(sg1)
+					elseif (e == "stargate_atlantis") then
+						gl.glBindFont(sga)
+					elseif (e == "stargate_universe") then
+						gl.glBindFont(sgu)
+					end
+				else
+					gl.glBindFont(StandardFont1)
+				end
+				gl.glBindColor(255, 255, 0)
+				local w = gl.glTextWidth(EnvData.Stargate.TargetAddress or "NONE")
+				gl.glText(EnvData.Stargate.TargetAddress or "NONE", (x + 128) - (w / 2), y + 148)
+
+				gl.glBindFont(StandardFont1)
+				gl.glBindColor(0, 255, 255)
+				local w = gl.glTextWidth(EnvData.Stargate.Signal or "NONE")
+				gl.glText(EnvData.Stargate.Signal or "NONE", (x + 128) - (w / 2), y + 206)
+			end
+		end
+		profiler.pop()
+
+		profiler.pop()
+	end)
+end

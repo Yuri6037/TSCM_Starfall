@@ -1,0 +1,213 @@
+--@name ResourcesGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.ComputeNetStream(tbl)
+	local a = tbl.Energy
+	local b = tbl.MaxEnergy
+
+	tbl.Energy = RoundNumber((a * 100) / b)
+	tbl.MaxEnergy = nil
+
+	a = tbl.Oxygen
+	b = tbl.MaxOxygen
+
+	tbl.Oxygen = RoundNumber((a * 100) / b)
+	tbl.MaxOxygen = nil
+
+	a = tbl.Water
+	b = tbl.MaxWater
+
+	tbl.Water = RoundNumber((a * 100) / b)
+	tbl.MaxWater = nil
+
+	a = tbl.Deuter
+	b = tbl.MaxDeuter
+
+	tbl.Deuter = RoundNumber((a * 100) / b)
+	tbl.MaxDeuter = nil
+
+	return tbl
+end
+
+function gui.Render(x, y)
+	gl.glBindColor(0, 0, 0, 128)
+
+	gl.glCircle(120, 120, 100, 360)
+	gl.glCircle(360, 120, 100, 360)
+	gl.glCircle(600, 120, 100, 360)
+	gl.glCircle(840, 120, 100, 360)
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 0)
+	gl.glText("Energy", 75, 20)
+	gl.glBindColor(255, 0, 0)
+	gl.glText("Deuterium", 300, 20)
+	gl.glBindColor(0, 128, 255)
+	gl.glText("Oxygen", 550, 20)
+	gl.glBindColor(0, 255, 0)
+	gl.glText("Water", 800, 20)
+
+   if (not(Net.Energy == nil)) then
+		local num = Net.Energy * 360 / 100
+		gl.glBindColor(255, 255, 0, 64)
+		gl.glCircle(120, 120, 100, num)
+
+		gl.glBindColor(255, 255, 255, 255)
+		gl.glCircle(120, 120, 50, 360)
+
+		gl.glBindColor(255, 150, 0, 255)
+		local w = gl.glTextWidth(Net.Energy .. "%")
+		gl.glText(Net.Energy .. "%", 120 - w / 2, 100)
+	end
+	if (not(Net.Deuter == nil)) then
+		local num = Net.Deuter * 360 / 100
+		gl.glBindColor(255, 0, 0, 64)
+		gl.glCircle(360, 120, 100, num)
+
+		gl.glBindColor(255, 255, 255, 255)
+		gl.glCircle(360, 120, 50, 360)
+
+		gl.glBindColor(255, 0, 0, 255)
+		local w = gl.glTextWidth(Net.Deuter .. "%")
+		gl.glText(Net.Deuter .. "%", 360 - w / 2, 100)
+	end
+	if (not(Net.Oxygen == nil)) then
+		local num = Net.Oxygen * 360 / 100
+		gl.glBindColor(0, 128, 255, 64)
+		gl.glCircle(600, 120, 100, num)
+
+		gl.glBindColor(255, 255, 255, 255)
+		gl.glCircle(600, 120, 50, 360)
+
+		gl.glBindColor(0, 128, 255, 255)
+		local w = gl.glTextWidth(Net.Oxygen .. "%")
+		gl.glText(Net.Oxygen .. "%", 600 - w / 2, 100)
+	end
+	if (not(Net.Water == nil)) then
+		local num = Net.Water * 360 / 100
+		gl.glBindColor(0, 255, 0, 64)
+		gl.glCircle(840, 120, 100, num)
+
+		gl.glBindColor(255, 255, 255, 255)
+		gl.glCircle(840, 120, 50, 360)
+
+		gl.glBindColor(0, 255, 0, 255)
+		local w = gl.glTextWidth(Net.Water .. "%")
+		gl.glText(Net.Water .. "%", 840 - w / 2, 100)
+	end
+
+	if (not(SubInfos["AUTOMODE"])) then
+		gl.glPushMatrix()
+			gl.glTranslate(0, 0)
+			local but = "Enable Refinment"
+			if (Net.GazGen == 1) then
+				but = "Disable Refinment"
+			end
+			if (UI.Button(but, x + 100, y + 250, 256, 32)) then
+				StartNet(function()
+					net.writeString("ToggleGazgen")
+				end)
+			end
+			but = "Enable Energy"
+			if (Net.EnergyGen == 1) then
+				but = "Disable Energy"
+			end
+			if (UI.Button(but, x + 640, y + 250, 256, 32)) then
+				StartNet(function()
+					net.writeString("ToggleEnergygen")
+				end)
+			end
+		gl.glPopMatrix()
+	end
+
+	--[[gl.glBindColor(0, 0, 0, 200)
+
+	gl.glRoundedRect(x + 350, y + 20, 612, 32, 16)
+
+	gl.glRoundedRect(x + 350, y + 60, 612, 32, 16)
+
+	gl.glRoundedRect(x + 350, y + 100, 612, 32, 16)
+
+	gl.glRoundedRect(x + 350, y + 140, 612, 32, 16)
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Energy : ", x + 20, y + 20)
+	gl.glText("Deuterium : ", x + 20, y + 60)
+	gl.glText("Oxygen : ", x + 20, y + 100)
+	gl.glText("Water : ", x + 20, y + 140)
+
+	gl.glBindColor(0, 0, 255)
+	if (not(Net.Energy == nil)) then
+		local num = Net.Energy * 612 / 100
+		gl.glBindColor(255, 255, 0, 64)
+		gl.glRoundedRect(x + 350, y + 20, num, 32, 16)
+
+		gl.glBindColor(255, 255, 0, 255)
+		local w = gl.glTextWidth(Net.Energy .. "%")
+		gl.glText(Net.Energy .. "%", x + 350 + num - w, y + 20)
+	end
+	if (not(Net.Deuter == nil)) then
+		local num = Net.Deuter * 612 / 100
+		gl.glBindColor(255, 0, 0, 64)
+		gl.glRoundedRect(x + 350, y + 60, num, 32, 16)
+
+		gl.glBindColor(255, 0, 0, 255)
+		local w = gl.glTextWidth(Net.Deuter .. "%")
+		gl.glText(Net.Deuter .. "%", x + 350 + num - w, y + 60)
+	end
+	if (not(Net.Oxygen == nil)) then
+		local num = Net.Oxygen * 612 / 100
+		gl.glBindColor(0, 128, 255, 64)
+		gl.glRoundedRect(x + 350, y + 100, num, 32, 16)
+
+		gl.glBindColor(0, 128, 255, 255)
+		local w = gl.glTextWidth(Net.Oxygen .. "%")
+		gl.glText(Net.Oxygen .. "%", x + 350 + num - w, y + 100)
+	end
+	if (not(Net.Water == nil)) then
+		local num = Net.Water * 612 / 100
+		gl.glBindColor(0, 255, 0, 64)
+		gl.glRoundedRect(x + 350, y + 140, num, 32, 16)
+
+		gl.glBindColor(0, 255, 0, 255)
+		local w = gl.glTextWidth(Net.Water .. "%")
+		gl.glText(Net.Water .. "%", x + 350 + num - w, y + 140)
+	end
+
+	--Buttons
+	--Refinement button
+	if (Net.GazGen == 0 or Net.GazGen == nil) then
+	   gl.glBindColor(0, 0, 255)
+	else
+		gl.glBindColor(0, 128, 255)
+	end
+	gl.glRect(x + 100, y + 200, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Refinement", x + 150, y + 200)
+	--Energy button
+	if (Net.EnergyGen == 0 or Net.EnergyGen == nil) then
+	   gl.glBindColor(0, 0, 255)
+	else
+		gl.glBindColor(0, 128, 255)
+	end
+	gl.glRect(x + 640, y + 200, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Energy", x + 720, y + 200)]]--
+end
+
+function gui.CheckInputs(x, y)
+	--if (Screen:IsMouseInRect(x + 100, y + 200, 256, 32)) then
+	--	StartNet(function()
+	--		net.writeString("ToggleGazgen")
+	--	end)
+	--elseif (Screen:IsMouseInRect(x + 640, y + 200, 256, 32)) then
+	--	StartNet(function()
+	--		net.writeString("ToggleEnergygen")
+	--	end)
+	--end
+end
+
+RegisterGUI(2, 2, 3, "Resources", gui)

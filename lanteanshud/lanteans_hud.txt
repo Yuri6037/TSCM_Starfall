@@ -1,0 +1,53 @@
+--@name Lanteans HUD
+--@author Yuri6037
+--@class hud
+--@autoupdate
+--@shared
+
+--@requiresv lanai/processor/api/lanai_api.txt
+
+VERSION = "Alpha 1.0"
+
+function PlayerInBox(ply, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = ply:getPos().x
+	local cY = ply:getPos().y
+	local cZ = ply:getPos().z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+--@require lanai/constants.txt
+--@require lanai/libs/screen/safe_net.txt
+--@require lanteansos/libs/network.txt
+--@requirecl lanteansos/libs/gui.txt
+--@require lanai/libs/processor/string_lib.txt
+--@requirecl lanteanshud/client/clientmain.txt
+--@requirecl lanteanshud/client/packets.txt
+--@includedir lanteanshud/client/apps
+--@requiresv lanteanshud/server/servermain.txt
+--@requiresv lanteanshud/server/packets.txt
+--@includedir lanteanshud/server/apps
+
+for k, v in pairs(starfall.getScripts()) do
+	if (string.StartsWith(k, "lanteanshud/client/apps") and CLIENT) then
+		v()
+	elseif (string.StartsWith(k, "lanteanshud/server/apps") and SERVER) then
+		v()
+	end
+end

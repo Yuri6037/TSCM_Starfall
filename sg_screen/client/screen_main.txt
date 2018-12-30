@@ -1,0 +1,183 @@
+--@name ScreenMain
+--@author Yuri6037
+
+local circle = gl.glPregenCircle(170, 200, 128)
+
+local function RenderStargate()
+	render.setTexture(nil)
+	if (SG_DATA.Active) then
+		render.setColor(255, 255, 0)
+	else
+		render.setColor(255, 255, 255)
+	end
+	render.drawCircle(170, 200, 128, 128)
+	render.drawCircle(170, 200, 129, 129)
+	render.drawCircle(170, 200, 130, 130)
+	render.drawCircle(170, 200, 131, 131)
+	if (SG_DATA.VortexOpen) then
+		if (SG_DATA.VortexStable) then
+			render.setColor(0, 255, 0)
+		else
+			render.setColor(255, 0, 0)
+		end
+		render.drawPoly(circle)
+	end
+
+	gl.glBindFont(Screen.StandardFont)
+	local w = gl.glTextWidth(SG_DATA.SelfName)
+	gl.glBindFont(SgGlyphFont)
+	local w1 = gl.glTextWidth(SG_DATA.SelfAddress)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText(SG_DATA.SelfName, (40 + 128) - w / 2, 170)
+	gl.glBindFont(SgGlyphFont)
+	gl.glText(SG_DATA.SelfAddress, (33 + 128) - w1 / 2, 200)
+end
+local function RenderAddressBar()
+	gl.glBindColor(255, 255, 255)
+	gl.glUnfilledRect(384, 448, 64, 64, 4)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glUnfilledRect(448, 448, 64, 64, 4)
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(125, 125, 0)
+	if (SG_DATA.Active and not(SG_DATA.VortexOpen)) then
+		gl.glText("Dialing : ", 10, 478)
+
+		--Address draw
+		gl.glBindFont(SgGlyphFont)
+		gl.glBindColor(0, 100, 255)
+		if (SG_DATA.SelfType == 1) then
+			gl.glText(SG_DATA.DialingAddress, 128, 478)
+		else
+			gl.glText(SG_DATA.DialingAddress, 128, 488)
+		end
+	elseif (SG_DATA.VortexOpen) then
+		gl.glText("Dialed : ", 10, 478)
+
+		--Address draw
+		gl.glBindFont(SgGlyphFont)
+		gl.glBindColor(0, 100, 255)
+		if (SG_DATA.SelfType == 1) then
+			gl.glText(SG_DATA.DialingAddress, 128, 478)
+		else
+			gl.glText(SG_DATA.DialingAddress, 128, 488)
+		end
+	else
+		local txt = TryGetTypeName()
+		gl.glText(txt .. " - Ready...", 10, 478)
+	end
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(125, 125, 0)
+	if (SG_DATA.Active and SG_DATA.VortexOpen) then
+		gl.glText(SG_DATA.DestinationName, 10, 448)
+	else
+		gl.glText("No destination.", 10, 448)
+	end
+
+	gl.glBindFont(SgSymbolFont)
+	gl.glBindColor(0, 100, 255)
+	if (SG_DATA.SelfType == 1) then
+		gl.glText(SG_DATA.DialingSymbol, 468, 438)
+		gl.glText(SG_DATA.CurrentSymbol, 404, 438)
+	else
+		gl.glText(SG_DATA.DialingSymbol, 448, 458)
+		gl.glText(SG_DATA.CurrentSymbol, 384, 458)
+	end
+
+	gl.glBindFont(Screen.StandardFont)
+end
+local function RenderButtons()
+	if (SG_DATA.Iris) then
+		gl.glBindColor(0, 255, 0)
+	else
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRect(340, 128, 128, 32)
+
+	if (Screen:IsMouseInRect(340, 256, 128, 32)) then
+		if (Screen:KeyUse()) then
+			gl.glBindColor(0, 0, 255)
+		else
+			gl.glBindColor(0, 255, 255)
+		end
+	else
+		gl.glBindColor(0, 0, 255)
+	end
+	gl.glRect(340, 256, 128, 32)
+
+	--Labels
+	gl.glBindColor(0, 0, 0)
+	gl.glText("Close", 340, 256)
+	gl.glText("Iris", 340, 128)
+end
+local function RenderWarnings()
+	gl.glBindColor(255, 0, 0)
+	if (SG_DATA.Active and SG_DATA.Incoming and not(SG_DATA.DestinationSafe)) then
+		gl.glText("WARNING : INCOMING UNSAFE !", 20, 370)
+	elseif (SG_DATA.Active and SG_DATA.Incoming) then
+		gl.glText("WARNING : INCOMING CONNECTION !", 20, 370)
+	elseif (SG_DATA.Active and not(SG_DATA.DestinationSafe)) then
+		gl.glText("WARNING : UNSAFE DESTINATION !", 20, 370)
+	end
+end
+local function CheckButtons()
+	if (Screen:IsMouseInRect(340, 256, 128, 32)) then --Close
+		StartNet(function()
+			net.writeInt(3, 4, true)
+		end)
+	elseif (Screen:IsMouseInRect(340, 128, 128, 32)) then --Iris
+		StartNet(function()
+			net.writeInt(4, 4, true)
+		end)
+	elseif (Screen:IsMouseInRect(256, 0, 128, 32)) then --Switch screen
+		StartNet(function()
+			net.writeInt(2, 4, true)
+		end)
+	end
+end
+
+local mainScreen = {}
+mainScreen.Name = "Main"
+local Idle = render.getTextureID("phoenix_storms/wire/pcb_blue")
+local Inbound = render.getTextureID("phoenix_storms/wire/pcb_red")
+function mainScreen:OnRender()
+	gl.glBindColor(133, 133, 133)
+	if (SG_DATA.Incoming) then
+		gl.glBindTexture(Inbound)
+	else
+		gl.glBindTexture(Idle)
+	end
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(133, 133, 133)
+	gl.glRect(128, 0, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glUnfilledRect(128, 0, 128, 32, 2)
+	gl.glText("Main", 162, 0)
+
+	gl.glBindColor(0, 0, 0)
+	gl.glRect(256, 0, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glUnfilledRect(256, 0, 128, 32, 2)
+	gl.glText("Dial", 290, 0)
+
+	RenderStargate()
+	RenderAddressBar()
+	RenderButtons()
+	RenderWarnings()
+end
+function mainScreen:Animate(t)
+end
+function mainScreen:OnShow()
+end
+function mainScreen:OnExit()
+end
+function mainScreen:OnTouched(mouseX, mouseY)
+	CheckButtons(mouseX, mouseY)
+end
+
+Screen:Register(mainScreen)

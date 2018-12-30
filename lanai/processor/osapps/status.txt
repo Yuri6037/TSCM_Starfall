@@ -1,0 +1,11 @@
+--@name StatusAppUpdater
+--@author Yuri6037
+
+DefineOSApp("status", function()
+    CheckVar("EnergyActive", Ship.EnergyGen["Active"])
+    CheckVar("RefineActive", Ship.GazGen["Active"])
+    CheckVar("LSActive", Ship.LS["Active"])
+    if (not(Ship.Cloak == nil)) then
+        CheckVar("CloakActive", Ship.Cloak["Active"])
+    end
+end)

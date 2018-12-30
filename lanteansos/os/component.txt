@@ -1,0 +1,42 @@
+--@name Lanteans OS ComponentLib
+--@author Yuri6037
+
+AUTO = -1 --Used in SetSize to define automatic size in a given direction (width or height)
+
+COMP_META = {
+    Init = function(data) end,
+    Render = function(x, y) end,
+    Touched = function(x, y) end,
+    Destroy = function() end
+}
+
+function COMP_META:Construct(x, y, parent, idxnbr)
+	self:SetSize(0, 0)
+	self:SetPos(x, y)
+	self.Parent = parent
+	self.Index = idxnbr
+end
+
+function COMP_META:SetPos(x, y)
+    self.X = x
+    self.Y = y
+end
+
+function COMP_META:SetSize(w, h)
+    if (w == AUTO) then
+        self.W = self.Parent.Width - (self.X * 2)
+    else
+        self.W = w
+    end
+    if (h == AUTO) then
+        self.H = self.Parent.Height - (self.Y * 2)
+    else
+        self.H = h
+    end
+end
+
+function COMP_META:Remove()
+	self.Parent:RemoveComponent(self.Index)
+end
+
+COMP_META.__index = COMP_META

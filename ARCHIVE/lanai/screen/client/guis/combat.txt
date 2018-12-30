@@ -1,0 +1,98 @@
+--@name CombatGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.Render(x, y)
+	gl.glBindColor(40, 40, 40, 200)
+	--Unfilled rects
+	gl.glRoundedRect(20, 20, 450, 230, 8)
+	gl.glRoundedRect(515, 20, 450, 230, 8)
+
+	--Our stats
+	gl.glBindColor(255, 0, 0)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("Our Ship", 300, 40)
+	--Health
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRoundedRect(64, 40, 32, 170, 4)
+	gl.glBindColor(255, 100, 100)
+	if (not(Net.Health == nil)) then
+		local num = (Net.Health * 170) / 100
+		gl.glRoundedRect(64, 40, 32, num, 4)
+	end
+	gl.glText("Health", 40,  210)
+	--Shields
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRoundedRect(190, 40, 32, 170, 4)
+	gl.glBindColor(100, 100, 255)
+	if (not(Net.ShieldCharge == nil)) then
+		local num = (Net.ShieldCharge * 170) / 100
+		gl.glRoundedRect(190, 40, 32, num, 4)
+	end
+	gl.glText("Shields", 160,  210)
+	--Plating
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRoundedRect(316, 90, 32, 120, 4)
+	gl.glBindColor(255, 255, 100)
+	if (not(Net.Plating == nil)) then
+		local num = (Net.Plating * 120) / 100
+		gl.glRoundedRect(316, 90, 32, num, 4)
+	end
+	gl.glText("Plating", 286,  210)
+
+	--Target stats
+	gl.glBindColor(0, 0, 0)
+	gl.glBindFont(Screen.StandardFont)
+	local str = ""
+	if (Net.TType == -1) then
+		str = "NULL"
+	elseif (Net.TType == 0) then
+		str = "Player"
+	elseif (Net.TType == 1) then
+		str = "Ship"
+	end
+	gl.glBindColor(255, 0, 0)
+	gl.glText("Target", 570, 40)
+
+	--Target Data (TEXTS)
+	gl.glBindColor(0, 0, 0)
+	if (not(Net.TName == nil)) then
+		gl.glText("Name : " .. Net.TName, 450, 260)
+	end
+	gl.glText("Type : " .. str, 20, 260)
+	if (not(Net.TShields == nil)) then
+		gl.glText("Shields : " .. Net.TShields, 250, 260)
+	end
+	--End
+
+	--Health
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRoundedRect(880, 40, 32, 170, 4)
+	gl.glBindColor(255, 100, 100)
+	if (not(Net.THealth == nil)) then
+		local num = (Net.THealth * 170) / 100
+		gl.glRoundedRect(880, 40, 32, num, 4)
+	end
+	gl.glText("Health", 850,  210)
+	--Shields
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRoundedRect(760, 40, 32, 170, 4)
+	gl.glBindColor(100, 100, 255)
+	if (not(Net.TShieldCharge == nil)) then
+		local num = (Net.TShieldCharge * 170) / 100
+		gl.glRoundedRect(760, 40, 32, num, 4)
+	end
+	gl.glText("Shields", 730,  210)
+	--Plating
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRoundedRect(640, 90, 32, 120, 4)
+	gl.glBindColor(255, 255, 100)
+	if (not(Net.TPlating == nil)) then
+		local num = (Net.TPlating * 120) / 100
+		gl.glRoundedRect(640, 90, 32, num, 4)
+	end
+	gl.glText("Plating", 610,  210)
+end
+
+RegisterGUI(3, -1, -1, "Tactical Screen", gui)

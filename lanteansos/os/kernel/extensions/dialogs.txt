@@ -1,0 +1,23 @@
+--@name DialogsKernelExtension
+--@author Yuri6037
+
+local DIALOG_MAX_CHARS = 54
+
+function OS.Dialog(type1, title, okfnc, data)
+	if (type1 == "msg" and type(data) == "string") then
+		local msg = {}
+		while (string.len(data) > DIALOG_MAX_CHARS) do
+			table.insert(msg, data:sub(0, DIALOG_MAX_CHARS))
+			data = data:sub(DIALOG_MAX_CHARS + 1)
+		end
+		table.insert(msg, data)
+		data = msg
+	end
+	local hh = CurWindowHdl
+	local args = {
+		["OKFunc"] = okfnc,
+		["Title"] = title,
+		["Data"] = data,
+	}
+	OS.StartApp(type1 .. "dialog", args, true)
+end

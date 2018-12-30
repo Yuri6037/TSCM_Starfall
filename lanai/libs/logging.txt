@@ -1,0 +1,37 @@
+--@name LoggingLib
+--@author Yuri6037
+
+local LogLevel = 2
+local LogHandlers = {}
+
+function util.AddLogHandler(fnc)
+	table.insert(LogHandlers, fnc)
+end
+
+function util.SetLogLevel(level)
+	LogLevel = level
+end
+
+LOG_DEBUG = 0
+LOG_INFO = 1
+LOG_WARN = 2
+LOG_ERR = 3
+function util.Log(id, level, ...)
+	if (level < LogLevel) then return end
+	local lname = "DEBUG"
+	if (level == LOG_INFO) then
+		lname = "INFO"
+	elseif (level == LOG_WARN) then
+		lname = "WARNING"
+	elseif (level == LOG_ERR) then
+		lname = "ERROR"
+	end
+	local str = "[" .. id .. "]{" .. lname .. "}(" .. os.date("%X") .. ") "
+	local args = {...}
+	for k, v in pairs(args) do
+		str = str .. tostring(v)
+	end
+	for k, v in pairs(LogHandlers) do
+		v(str)
+	end
+end

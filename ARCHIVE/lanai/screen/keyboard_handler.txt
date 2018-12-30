@@ -1,0 +1,42 @@
+--@name KeyboardHandler
+--@author Yuri6037
+
+if (SERVER) then
+	APPS = {
+		[2] = true
+	}
+
+	CurAppRequiresKeyboard = false
+	local OldKeyboardEnt = nil
+
+	function InitKeyboardHandler(keyboardEnt)
+		if (IsValid(OldKeyboardEnt)) then
+			wiremod.RemoveOutputCallback(OldKeyboardEnt)
+			OldKeyboardEnt = nil
+		end
+		if (not(IsValid(keyboardEnt))) then return end
+		wiremod.AddOutputCallback(keyboardEnt, function(name, var, valid, raw)
+			if (CurAppRequiresKeyboard) then
+				if (name == "Memory") then
+					StartNet(function()
+						net.writeString("KEY")
+						net.writeInt(raw, 8, true)
+					end)
+				end
+			end
+		end)
+		OldKeyboardEnt = keyboardEnt
+	end
+elseif (CLIENT) then
+	ListeningKeyboard = false
+	KeyboardListener = nil
+
+	function RequireKeyboard(func)
+		KeyboardListener = func
+		ListeningKeyboard = true
+	end
+	function DisposeKeyboard()
+		KeyboardListener = nil
+		ListeningKeyboard = false
+	end
+end

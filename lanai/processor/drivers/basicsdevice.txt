@@ -1,0 +1,211 @@
+--@name BasicsDeviceManager
+--@author Yuri6037
+
+local CanNoclip = true
+function IsNoclipDisabled()
+	return not(CanNoclip)
+end
+
+function CheckEnergy()
+	local percent = Ship.Node["Energy"] * 100 / Ship.Node["Max Energy"]
+	return percent > 5
+end
+
+function SwitchNoclip(b)
+	CanNoclip = b
+	if (b) then
+		Ship.LS["Disable Noclip"] = 1
+	else
+		Ship.LS["Disable Noclip"] = 0
+	end
+end
+
+function StartShieldDivertPower(divert)
+	Ship.Shield["Divert Power"] = divert
+end
+
+function EndShieldDivertPower()
+	Ship.Shield["Divert Power"] = 0
+end
+
+function GetPlayerShipNode(ply)
+	for k, v in pairs(find.byClass("stargazer_node")) do
+		if (v:owner() == ply) then
+			return v, v:getPos():Distance(Ship.Core:entity():getPos())
+		end
+	end
+	return nil, nil
+end
+
+function GetLSEnvData()
+	local oxygen = Ship.LS["Oxygen Level"]
+	local co2 = Ship.LS["CO2 Level"]
+	local temp = Ship.LS["Temperature"]
+	local grv = Ship.LS["Gravity"]
+	return oxygen, co2, grv, temp
+end
+
+local CurSound = nil
+function SetEnvSound(snd)
+	if (snd == nil) then
+		Ship.Core:entity():stopEnvironmentSound()
+		CurSound = nil
+	elseif (not(CurSound == nil)) then
+		if (timer.exists("LanAI_EnvSound_Reboot")) then timer.remove("LanAI_EnvSound_Reboot") end
+		Ship.Core:entity():stopEnvironmentSound()
+		timer.create("LanAI_EnvSound_Reboot", 1, 1, function()
+			Ship.Core:entity():setEnvironmentSound(snd)
+			CurSound = snd
+		end)
+	else
+		Ship.Core:entity():setEnvironmentSound(snd)
+		CurSound = snd
+	end
+end
+
+function GetShipSize()
+	if (Ship.Shield == nil) then return 0, 0 end
+	local min, max = Ship.Core:entity():getShipSize()
+	min, max = Ship.Shield:entity():getRotatedAABB(min, max)
+	return min + Ship.Shield:entity():pos(), max + Ship.Shield:entity():pos()
+end
+
+Ship.Bounds = math.CreateBoundingBox()
+
+HookLoadEntity(function(ent)
+	local min = ent:localToWorld(ent:obbMins())
+	local max = ent:localToWorld(ent:obbMaxs())
+	local rmin = ents.self():worldToLocal(min)
+	local rmax = ents.self():worldToLocal(max)
+	Ship.Bounds:Encapsulate(rmin)
+	Ship.Bounds:Encapsulate(rmax)
+end)
+
+local HDbgBBoxA = nil
+local HDbgBBoxB = nil
+function ToggleDebugBoundingBox()
+	if (IsValid(HDbgBBoxA) or IsValid(HDbgBBoxB)) then
+		if (IsValid(HDbgBBoxA)) then
+			HDbgBBoxA:remove()
+		end
+		if (IsValid(HDbgBBoxB)) then
+			HDbgBBoxB:remove()
+		end
+		return
+	end
+	local min = ents.self():localToWorld(Ship.Bounds.Min)
+	local max = ents.self():localToWorld(Ship.Bounds.Max)
+	HDbgBBoxA = holograms.create(min, Angle(0, 0, 0), ents.self():model())
+	HDbgBBoxB = holograms.create(max, Angle(0, 0, 0), ents.self():model())
+end
+
+local classes = {
+	"ship_core",
+	"stargazer_ls_core",
+	"stargazer_energy_core",
+	"stargazer_refinement_core",
+	"st_shield_emitter",
+	"st_cloaking_device",
+	"stargazer_node",
+	"stargazer_probe",
+	"stargazer_water_core",
+	"starfall_processor",
+	"starfall_emitter",
+	"starfall_screen",
+	"starfall_hud"
+}
+RegisterDriver(classes, function(ent)
+	if (ent:class() == "ship_core") then
+		Ship.Core = ent:getWirelink()
+		Ship.Core["Enable Plating"] = 1
+	elseif (ent:class() == "stargazer_ls_core") then
+		Ship.LS = ent:getWirelink()
+		Ship.LS["Disable Use"] = 1
+		Ship.LS["Name"] = ShipName
+	elseif (ent:class() == "stargazer_energy_core") then
+		Ship.EnergyGen = ent:getWirelink()
+		Ship.EnergyGen["Disable Use"] = 1
+	elseif (ent:class() == "stargazer_refinement_core") then
+		Ship.GazGen = ent:getWirelink()
+		Ship.GazGen["Disable Use"] = 1
+	elseif (ent:class() == "st_shield_emitter") then
+		Ship.Shield = ent:getWirelink()
+	elseif (ent:class() == "st_cloaking_device") then
+		Ship.Cloak = ent:getWirelink()
+	elseif (ent:class() == "stargazer_node") then
+		Ship.Node = ent:getWirelink()
+	elseif (ent:class() == "stargazer_probe") then
+		Ship.Probe = ent:getWirelink()
+	elseif (ent:class() == "stargazer_water_core") then
+	    Ship.Water = ent:getWirelink()
+	elseif (ent:class() == "starfall_processor" or ent:class() == "starfall_emitter" or ent:class() == "starfall_screen" or ent:class() == "starfall_hud") then
+		SFAllowedSubEntities[ent:index()] = true
+		return false
+	end
+	return true
+end)
+
+function ToggleShipFunc(o)
+	if (o == "Energy") then
+		if (Ship.EnergyGen["Active"] == 1) then
+			aiSay("Energy generator is now deactivated.")
+		else
+			aiSay("Energy generator is now activated.")
+		end
+		Ship.EnergyGen["Activate"] = WNot(Ship.EnergyGen["Active"])
+		return
+	end
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return
+	end
+	if (o == "Cloak") then
+		if (Ship.Cloak == nil) then
+			aiSay("Your ship has no cloaks...")
+			return
+		end
+		if (Ship.Cloak["Active"] == 0) then
+			aiSay("Cloak is now activated.")
+		else
+			aiSay("Cloak is now deactivated.")
+		end
+		Ship.Cloak["Activate"] = WNot(Ship.Cloak["Active"])
+	elseif (o == "Shields") then
+		if (Ship.Shield == nil) then
+			aiSay("Your ship has no shields, unable to perform action !")
+			return
+		end
+		if (Ship.Shield["Active"] == 0) then
+			aiSay("Shields are now up.")
+		else
+			aiSay("Shields are now down.")
+		end
+		Ship.Shield["Activate"] = WNot(Ship.Shield["Active"])
+	elseif (o == "Gaz") then
+		if (Ship.GazGen["Active"] == 1) then
+			aiSay("Air generator is now deactivated.")
+		else
+			aiSay("Air generator is now activated.")
+		end
+		Ship.GazGen["Activate"] = WNot(Ship.GazGen["Active"])
+	elseif (o == "Life") then
+		if (Ship.LS["Active"] == 0) then
+			aiSay("Life support is now online.")
+		else
+			aiSay("Life support is now offline.")
+		end
+		Ship.LS["Activate"] = WNot(Ship.LS["Active"])
+		SwitchNoclip(CanNoclip)
+	end
+end
+
+OSAddFunction("BASICS", ToggleShipFunc)
+
+OSAddFunction("NoClip", function()
+	SwitchNoclip(not(CanNoclip))
+	if (CanNoclip) then
+		aiSay("Anti NoClip is now activated.")
+	else
+		aiSay("Anti NoClip is now desactivated.")
+	end
+end)

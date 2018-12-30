@@ -1,0 +1,130 @@
+--@name ShipAI_V2_Client
+--@author Yuri6037
+
+--Screens
+--@include ship_ai_v2/client/screens/main.txt
+--@include ship_ai_v2/client/screens/lockdown.txt
+--@include ship_ai_v2/client/screens/autodestruct.txt
+--Guis
+--@include ship_ai_v2/client/guis/combat.txt
+--@include ship_ai_v2/client/guis/info.txt
+--@include ship_ai_v2/client/guis/radar.txt
+--@include ship_ai_v2/client/guis/resources.txt
+--@include ship_ai_v2/client/guis/status.txt
+--@include ship_ai_v2/client/guis/warp.txt
+
+--Requires all client stuff (included from server)
+require("ship_ai_v2/lib/string_lib.txt")
+require("ship_ai_v2/lib/boolean_invert_hacker.txt")
+require("ship_ai_v2/constants.txt")
+--Requires all gui stuff
+require("ship_ai_v2/client/guis/combat.txt")
+require("ship_ai_v2/client/guis/info.txt")
+require("ship_ai_v2/client/guis/radar.txt")
+require("ship_ai_v2/client/guis/resources.txt")
+require("ship_ai_v2/client/guis/status.txt")
+require("ship_ai_v2/client/guis/warp.txt")
+--Requires all screen stuff
+require("ship_ai_v2/client/screens/main.txt")
+require("ship_ai_v2/client/screens/lockdown.txt")
+require("ship_ai_v2/client/screens/autodestruct.txt")
+
+--Net table representing all values for current gui
+Net = {
+}
+
+--Alerts table representing all alerts drawn in main screen
+Alerts = {
+}
+
+--Booleans for special alerts, only used for rendering, never for actions
+Evacuation = false
+SelfDestruct = false
+SelfDestructDispTimer = 60
+
+StartNet(function()
+	net.writeString("ScreenReload")
+end)
+
+--Displays the first screen
+Screen:Display("Load")
+
+LoadingStr = "INF./INF."
+
+--The main net hook, receiving and analysing messages from server
+hook("net", "ShipAI_II_Receive", function(len)
+	local c = net.readString()
+
+	if (string.find(c, "LOAD.")) then
+		if (c == "LOAD.END") then
+			Screen:Display("Main")
+		elseif (c == "LOAD.START") then
+			Screen:Display("Load")
+		elseif (c == "LOAD.UPD") then
+			LoadingStr = net.readString()
+		end
+		return
+	end
+
+	if (c == "G") then --Server wants to change GUI
+		curGUI = net.readInt(4, true)
+		if (curGUI == 6) then
+			UpdateBeamRegistry()
+		end
+	elseif (c == "GW") then
+		curGUI = 5
+		UpdateWarpRegistry(net.readTable())
+	elseif (c == "L") then --Server wants lockdown
+		Screen:Display("Lockdown")
+	elseif (c == "U") then --Server wants unlock
+		Screen:Display("Main")
+	elseif (c == "E") then --Evacuation alert toggle
+		Evacuation = HackBooleanCInvert(Evacuation)
+	elseif (c == "A") then --Alerts
+		local id = net.readInt(4, true)
+		if (id == 0) then
+			for k, v in pairs(Alerts) do
+				if (v.Text == "HIGH ALERT") then
+					table.remove(Alerts, k)
+				end
+			end
+			table.insert(Alerts, {Alpha = 255, Text = "HIGH ALERT"})
+		elseif (id == 1) then
+			for k, v in pairs(Alerts) do
+				if (v.Text == "NORMAL ALERT") then
+					table.remove(Alerts, k)
+				end
+			end
+			table.insert(Alerts, {Alpha = 200, Text = "NORMAL ALERT"})
+		elseif (id == 2) then
+			for k, v in pairs(Alerts) do
+				if (v.Text == "LOW ALERT") then
+					table.remove(Alerts, k)
+				end
+			end
+			table.insert(Alerts, {Alpha = 128, Text = "LOW ALERT"})
+		elseif (id == 3) then
+			for k, v in pairs(Alerts) do
+				table.remove(Alerts, k)
+				break
+			end
+		end
+	elseif (c == "D") then --Autodestruction toggle
+		SelfDestruct = HackBooleanCInvert(SelfDestruct)
+		if (SelfDestruct) then
+			Screen:Display("Autodestruct")
+			timer.remove("Ship_AI_DestroyTimer")
+			timer.create("Ship_AI_DestroyTimer", 1, 60, function()
+				SelfDestructDispTimer = SelfDestructDispTimer - 1
+				if (SelfDestructDispTimer < 0) then
+					SelfDestructDispTimer = 0
+				end
+			end)
+		else
+			Screen:Display("Main")
+			timer.remove("Ship_AI_DestroyTimer")
+		end
+	else
+		Net = net.readTable()
+	end
+end)

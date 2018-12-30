@@ -1,0 +1,151 @@
+--@name Lanteans OS AppCard (AnimatedDesktop)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "animdesktop"
+AppCode = [[
+local Shortcuts = {
+	{
+		TargetApp = "osstatus",
+		TargetFunc = nil,
+		DisplayName = nil, --Autogen (If TargetApp is not "NULL")
+		Icon = nil --Autogen (If TargetApp is not "NULL")
+	},
+	{
+		TargetApp = "files",
+		TargetFunc = nil,
+		DisplayName = nil, --Autogen (If TargetApp is not "NULL")
+		Icon = nil --Autogen (If TargetApp is not "NULL")
+	},
+	{
+		TargetApp = "ctrlpnl",
+		TargetFunc = nil,
+		DisplayName = nil, --Autogen (If TargetApp is not "NULL")
+		Icon = nil --Autogen (If TargetApp is not "NULL")
+	}
+}
+for k, v in pairs(Shortcuts) do
+	if (not(v.TargetApp == "NULL")) then
+		local inst = OS.NewApp(v.TargetApp)
+		v.DisplayName = inst.DisplayName
+		v.Icon = inst.Icon.Dock
+	end
+end
+AppsMenuChar = "A"
+local app = {}
+function app:Init()
+end
+OS.DefineApp("animdesktop", app)
+local BC1X = 0
+local BC2X = -ScrW
+local OldScr = nil
+local OldFnc = ReloadDesktopEnvironment
+function DrawDesktopShortcuts()
+	local x = 10
+	local y = 40
+	for k, v in pairs(Shortcuts) do
+		if (not(v.Icon == nil) and not(v.DisplayName == nil)) then
+			local w = GUI.TextSize(v.DisplayName, SmallFont)
+			if (GUI.MouseInRect(x, y, w, 46)) then
+				GUI.NormGradiantRect(x, y, w, 46, COLOR(255, 255, 255))
+				GUI.InvGradiantRect(x, y, w, 46, COLOR(255, 255, 255))
+			end
+			GUI.Icon(x + w / 2 - 16, y, v.Icon)
+			GUI.Text(v.DisplayName, x, y + 32, SmallFont, COLOR(0, 0, 0))
+			y = y + 56
+		end
+	end
+end
+function CheckDesktopShortcuts()
+	local x = 10
+	local y = 40
+	for k, v in pairs(Shortcuts) do
+		if (not(v.Icon == nil) and not(v.DisplayName == nil)) then
+			local w = GUI.TextSize(v.DisplayName, SmallFont)
+			if (GUI.MouseInRect(x, y, w, 46)) then
+				if (not(v.TargetFunc == nil)) then
+					v.TargetFunc()
+				else
+					OS.StartApp(v.TargetApp)
+				end
+			end
+			y = y + 56
+		end
+	end
+end
+function ReloadDesktopEnvironment()
+	if (AppsMenuChar == nil) then
+		OS.Dialog("msg", "Animated Desktop", nil, "Starfall has corrupted internal memory !")
+		AppsMenuChar = "A"
+	end
+	render.clear(0, 0, 0, 0)
+	GUI.GradiantRect(0, 0, ScrW, 32, COLOR(255, 255, 255))
+	GUI.NormGradiantRect(ScrW / 2 - 256, ScrH - 60, 512, 60, COLOR(255, 255, 255))
+	GUI.Text(AppsMenuChar, (ScrW / 2 - 256) + 5, ScrH - 46, StandardFont, COLOR(0, 255, 255))
+end
+local scr = {
+	Render = function(self)
+		--Render desktop environment
+		if (ReloadDesktopEnv) then
+			DesktopEnv:DrawToTexture(ReloadDesktopEnvironment)
+			GUI.Reset()
+			ReloadDesktopEnv = false
+		end
+		GUI.Reset()
+		GUI.TexturedRect(BC1X, 0, ScrW, ScrH, MainTex, MainColor)
+		GUI.TexturedRect(BC2X, 0, ScrW, ScrH, MainTex, MainColor)
+		DesktopEnv:Draw(0, 0, ScrW, ScrH)
+		DWMMain()
+		DrawDesktopShortcuts()
+	end,
+	Update = function(self, ticks)
+		DWMUpdate()
+		if (self.elapsed == nil) then self.elapsed = 0 end
+		self.elapsed = self.elapsed + ticks * 500
+		if (self.elapsed >= 10000) then
+			if (self.inactive) then
+				OS.SwitchScreen("sleep")
+				self.inactive = nil
+				self.elapsed = nil
+			else
+				self.inactive = true
+				self.elapsed = 0
+			end
+		end
+		BC1X = BC1X + ticks * 64
+		BC2X = BC2X + ticks * 64
+		if (BC1X >= ScrW) then BC1X = -ScrW end
+		if (BC2X >= ScrW) then BC2X = -ScrW end
+	end,
+	Touched = function(self)
+		DWMTouched()
+		self.inactive = false
+		CheckDesktopShortcuts()
+	end
+}
+OldScr = OS.DefineScreen("main", scr)
+ReloadDesktopEnv = true
+OS.Reboot()
+OS.DefineUninstall("animdesktop", function()
+	AppsMenuChar = nil
+	ReloadDesktopEnv = true
+	ReloadDesktopEnvironment = OldFnc
+	OS.DefineScreen("main", OldScr)
+	OS.Reboot()
+end)
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

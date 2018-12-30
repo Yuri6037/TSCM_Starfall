@@ -1,0 +1,56 @@
+--@name GuiRegistry
+--@author Yuri6037
+
+--Helper function when computing gui variables (New update to lower server CPU usage)
+function RoundNumber(num, idp)
+	local mult = 10^(idp or 0)
+	return math.floor(num * mult + 0.5) / mult
+end
+--Yay again thank you Starfall, next time if you realy want to make low level then please use C ; by your fault I need to add a new function because default lua lib is SHIT !!
+function table.Copy(orig)
+	local orig_type = type(orig)
+	local copy
+	if (orig_type == 'table') then
+		copy = {}
+		for orig_key, orig_value in next, orig, nil do
+			copy[table.Copy(orig_key)] = table.Copy(orig_value)
+		end
+		setmetatable(copy, table.Copy(getmetatable(orig)))
+	else -- number, string, boolean, etc
+		copy = orig
+	end
+	return copy
+end
+
+MainScreenGuis = {}
+
+SecondaryScreenGuis = {}
+
+function RegisterGUI(id, secondaryID1, secondaryID2, str, tbl)
+	if (tbl.CheckInputs == nil) then
+		tbl.CheckInputs = function(x, y) end
+	end
+	if (tbl.Render == nil) then
+		tbl.Render = function(x, y) end
+	end
+
+	if (tbl.OnExit == nil) then
+		tbl.OnExit = function() end
+	end
+	if (tbl.OnShow == nil) then
+		tbl.OnShow = function() end
+	end
+
+	MainScreenGuis[id] = {SecondaryIDS = {Monitor1 = secondaryID1, Monitor2 = secondaryID2}, Name = str, Render = tbl.Render, OnExit = tbl.OnExit, OnShow = tbl.OnShow, CheckInputs = tbl.CheckInputs, ComputeNetStream = tbl.ComputeNetStream}
+end
+function GetGUI(id)
+	return MainScreenGuis[id]
+end
+
+
+function RegisterSecondaryGUI(id, tbl)
+	SecondaryScreenGuis[id] = tbl
+end
+function GetSecondaryGUI(id)
+	return SecondaryScreenGuis[id]
+end

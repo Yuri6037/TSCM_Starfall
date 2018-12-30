@@ -1,0 +1,111 @@
+--@name LanAI_LibProtocol
+--@author Yuri6037
+
+--[[
+	-> Command Database <-
+	INDEX | NICE_NAME
+	0 | GET_NODE
+	1 | GET_SHIP_NAME
+	2 | GET_LANAI_CORE
+]]--
+
+API_CMD_MAP = {
+	[0] = function(args)
+		return Ship.Node
+	end,
+	[1] = function(args)
+		return ShipName
+	end,
+	[2] = function(args)
+		return ents.self()
+	end
+}
+
+local function SendAPIMessage(ent, msg)
+	if (channels.canSend()) then
+		channels.send("LANAI_API_MESSAGE", ent, msg)
+		util.Log("API", LOG_INFO, "Response (", ent, ") : ", msg)
+	end
+end
+
+--Required because Person is a bullshit guy parnoyac of securities at the point of killing the gameplay of everyone
+--Person if you see that, yeah I'm REALLY ANNOYED by your ANNOYING quotas, you do not protect us ! YOU KILL OUR GAMEPLAY !
+local BullshitChannelsQuota = {}
+task.Start(function()
+	local pck = BullshitChannelsQuota[1]
+	if (not(pck == nil) and channels.canSend()) then
+		channels.send("LANAI_API_EVENT", pck.Name, pck.Data)
+		table.remove(BullshitChannelsQuota, 1)
+	end
+end, "LanAI_APIProtocolChannelsQuotaBypass", 1)
+
+function SendAPIEvent(name, ...)
+	local vars = {...}
+	local pck = nil
+	if (#vars > 1) then
+		pck = {Name = name, Data = vars}
+	elseif (#vars == 1) then
+		pck = {Name = name, Data = vars[1]}
+	else
+		pck = {Name = name, Data = nil}
+	end
+	table.insert(BullshitChannelsQuota, pck)
+	util.Log("API", LOG_INFO, "EVENT - ", name)
+end
+
+local CmdNumber = 0
+task.Start(function()
+	CmdNumber = 0
+end, "LanAI_LibProtocol_Updater", 10)
+
+local function DoCommand(cmd, args, p)
+	local var = API_CMD_MAP[cmd](args, p)
+	if (not(var == nil)) then
+		SendAPIEvent("CMD_RESULT", var)
+	end
+end
+
+HookPostLoad(function()
+	SendAPIEvent("LOAD_END")
+
+	channels.listen("LANAI_API_ASK", function(...)
+		local args = {...}
+		if (args[2] == "InitEntity") then
+			if (IsValid(args[1]) and IsValid(args[1]:owner()) and SFAllowedSubEntities[args[1]]) then
+				SendAPIMessage(args[1], "LOAD_END")
+			end
+			return
+		end
+		if (CmdNumber > 5) then
+			SendAPIMessage(ent, "ERROR_API_DISCONNECTED")
+			return
+		end
+		CmdNumber = CmdNumber + 1
+
+		local ent = args[1]
+		local cmd = args[2]
+
+		if (not(IsValid(ent))) then return end
+
+		if (not(IsValid(ent:owner()))) then return end
+
+		if (not(type(cmd) == "number")) then
+			SendAPIMessage(ent:owner(), "ERROR_CMD_NULL")
+			return
+		end
+		if (cmd > 32 or cmd < 0) then
+			SendAPIMessage(ent, "ERROR_MATRIX_EXCEEDED")
+			return
+		end
+		if (API_CMD_MAP[cmd] == nil) then
+			SendAPIMessage(ent, "ERROR_MATRIX_NOCMD")
+			return
+		end
+
+		if (SFAllowedSubEntities[ent:index()]) then
+			DoCommand(cmd, args[3], ent:owner())
+		else
+			SendAPIMessage(ent, "ERROR_ACCESS_DENIED")
+		end
+	end)
+end)

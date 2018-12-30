@@ -1,0 +1,17 @@
+--@name PosPrinter
+--@author Yuri6037
+--@require lanai/libs/screen/gl_lib.txt
+
+local fnt = render.createFont("Arial Black", 24, 900, false, false, false, false, 0)
+
+hook("render", "Render", function()
+	local p = ents.owner()
+	p = p:getPos()
+
+	gl.glBindColor(255, 0, 0)
+	gl.glBindFont(fnt)
+	gl.glText(tostring(p.x) .. ", " .. tostring(p.y) .. ", " .. tostring(p.z), 0, 0)
+
+	local p1 = Vector(-7031.374023, -6354.678711, -15263.968750)
+	gl.glText(tostring(p1.x) .. ", " .. tostring(p1.y) .. ", " .. tostring(p1.z), 0, 64)
+end)

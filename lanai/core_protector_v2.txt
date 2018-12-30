@@ -1,0 +1,193 @@
+--@name LanAI CoreProtector V2
+--@author Yuri6037
+--@autoupdate
+
+local CoverModel = "models/sprops/geometry/fdisc_60.mdl"
+local CoverMaterial = "models/props_combine/com_shield001a"
+local SideModel = "models/sprops/misc/tubes/size_3/tube_36x24.mdl"
+local SideMaterial = "models/shadertest/shader3"
+local Speed = 3.5
+
+wire.createInputs({"Core", "Open"}, {"Entity", "Normal"})
+
+local Core = nil
+local SidePropA = nil
+local HoloSidePropA = nil
+local CoverPropA = nil
+local SidePropB = nil
+local HoloSidePropB = nil
+local CoverPropB = nil
+
+if (globaltables.player.LanAICProtector == nil) then
+	globaltables.player.LanAICProtector = {}
+end
+
+if (not(globaltables.player.LanAICProtector[ents.self():index()] == nil)) then
+	SidePropA = globaltables.player.LanAICProtector[ents.self():index()].SidePropA
+	CoverPropA = globaltables.player.LanAICProtector[ents.self():index()].CoverPropA
+	SidePropB = globaltables.player.LanAICProtector[ents.self():index()].SidePropB
+	CoverPropB = globaltables.player.LanAICProtector[ents.self():index()].CoverPropB
+end
+
+local OpenMultA = -12
+local OpenMultB = 60
+local CloseMultA = 34
+local CloseMultB = 10
+
+local function CreateProps()
+	if (IsValid(CoverPropA)) then CoverPropA:remove() end
+	if (IsValid(SidePropA)) then SidePropA:remove() end
+	if (IsValid(CoverPropB)) then CoverPropB:remove() end
+	if (IsValid(SidePropB)) then SidePropB:remove() end
+	CoverPropA = props.create(CoverModel, Core:pos() + Core:up() * 47, Core:ang() + Angle(0, 0, 90), true)
+	SidePropA = props.create(SideModel, Core:pos() + Core:up() * CloseMultA, Core:ang() + Angle(0, 0, 90), true)
+	CoverPropB = props.create(CoverModel, Core:pos() + Core:up() * 0.2, Core:ang() + Angle(0, 0, 90), true)
+	SidePropB = props.create(SideModel, Core:pos() + Core:up() * CloseMultB, Core:ang() + Angle(0, 0, 90), true)
+	if (not(IsValid(CoverPropA)) or not(IsValid(SidePropA)) or not(IsValid(CoverPropB)) or not(IsValid(SidePropB))) then
+		timer.create("CoreProtector_BypassPropsCreateBug", 1, 1, CreateProps)
+		return
+	end
+	CoverPropA:weldTo(Core)
+	CoverPropA:setMaterial(CoverMaterial)
+	SidePropA:setMaterial(SideMaterial)
+	SidePropA:weldTo(Core)
+	CoverPropB:weldTo(Core)
+	CoverPropB:setMaterial(CoverMaterial)
+	SidePropB:setMaterial(SideMaterial)
+	SidePropB:weldTo(Core)
+	globaltables.player.LanAICProtector[ents.self():index()] = {
+		SidePropA = SidePropA,
+		CoverPropA = CoverPropA,
+		SidePropB = SidePropB,
+		CoverPropB = CoverPropB
+	}
+	HoloSidePropA = holograms.create(Core:pos() + Core:up() * CloseMultA, Core:ang() + Angle(0, 0, 90), SideModel, 1)
+	HoloSidePropB = holograms.create(Core:pos() + Core:up() * CloseMultB, Core:ang() + Angle(0, 0, 90), SideModel, 1)
+	HoloSidePropA:setMaterial(SideMaterial)
+	HoloSidePropB:setMaterial(SideMaterial)
+	HoloSidePropA:setParent(Core)
+	HoloSidePropB:setParent(Core)
+	HoloSidePropA:setNoDraw(true)
+	HoloSidePropB:setNoDraw(true)
+end
+
+if (IsValid(wire.ports["Core"])) then
+	Core = wire.ports["Core"]
+	CreateProps()
+end
+
+hook("PreEntityCopy", "CoreProtector_DupeFixer_Save", function(data)
+	data.CoverPropA = CoverPropA:index()
+	data.SidePropA = SidePropA:index()
+	data.CoverPropB = CoverPropB:index()
+	data.SidePropB = SidePropB:index()
+end)
+
+hook("PostEntityPaste", "CoreProtector_DupeFixer_Load", function(data, enttbl)
+	local coverPropA = enttbl[data.CoverPropA]
+	local sidePropA = enttbl[data.SidePropA]
+	local coverPropB = enttbl[data.CoverPropB]
+	local sidePropB = enttbl[data.SidePropB]
+	if (IsValid(coverPropA)) then
+		coverPropA:remove()
+	end
+	if (IsValid(sidePropA)) then
+		sidePropA:remove()
+	end
+	if (IsValid(coverPropB)) then
+		coverPropB:remove()
+	end
+	if (IsValid(sidePropB)) then
+		sidePropB:remove()
+	end
+end)
+
+local function SetEntPosIndependent(ent, pos)
+	local old = ent:getParent()
+	ent:setParent(nil)
+	ent:setPos(pos)
+	ent:setParent(old)
+end
+
+local function StartOpenAnim()
+	if (timer.exists("CoreProtector_HoloAnimCheck")) then return end
+	SetEntPosIndependent(SidePropA, Core:pos() + Core:up() * OpenMultA)
+	SetEntPosIndependent(SidePropB, Core:pos() + Core:up() * OpenMultB)
+	HoloSidePropA:setNoDraw(false)
+	HoloSidePropB:setNoDraw(false)
+	HoloSidePropA:setVel(Vector(0, 0, Speed))
+	HoloSidePropB:setVel(Vector(0, 0, -Speed))
+	local test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * OpenMultB)
+	local negative = false
+	if (test.Y < 0) then negative = true end
+	timer.create("CoreProtector_HoloAnimCheck", 1, 0, function()
+		test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * OpenMultB)
+		if (negative) then test.Y = -test.Y end
+		if (test.Y <= 0) then
+			HoloSidePropA:setNoDraw(true)
+			HoloSidePropB:setNoDraw(true)
+			HoloSidePropA:setPos(Core:pos() + Core:up() * OpenMultA)
+			HoloSidePropB:setPos(Core:pos() + Core:up() * OpenMultB)
+			HoloSidePropA:setVel(Vector(0, 0, 0))
+			HoloSidePropB:setVel(Vector(0, 0, 0))
+			timer.remove("CoreProtector_HoloAnimCheck")
+		end
+	end)
+end
+
+local function StartCloseAnim()
+	if (timer.exists("CoreProtector_HoloAnimCheck")) then return end
+	HoloSidePropA:setNoDraw(false)
+	HoloSidePropB:setNoDraw(false)
+	HoloSidePropA:setVel(Vector(0, 0, Speed))
+	HoloSidePropB:setVel(Vector(0, 0, -Speed))
+	local test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * CloseMultB)
+	local negative = false
+	if (test.Y < 0) then negative = true end
+	timer.create("CoreProtector_HoloAnimCheck", 1, 0, function()
+		test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * CloseMultB)
+		if (negative) then test.Y = -test.Y end
+		if (test.Y <= 0) then
+			HoloSidePropA:setNoDraw(true)
+			HoloSidePropB:setNoDraw(true)
+			HoloSidePropA:setPos(Core:pos() + Core:up() * CloseMultA)
+			HoloSidePropB:setPos(Core:pos() + Core:up() * CloseMultB)
+			HoloSidePropA:setVel(Vector(0, 0, 0))
+			HoloSidePropB:setVel(Vector(0, 0, 0))
+			SetEntPosIndependent(SidePropA, Core:pos() + Core:up() * CloseMultA)
+			SetEntPosIndependent(SidePropB, Core:pos() + Core:up() * CloseMultB)
+			timer.remove("CoreProtector_HoloAnimCheck")
+		end
+	end)
+end
+
+hook("input", "CoreProtector_Wire", function(inp, var)
+	if (inp == "Core") then
+		Core = var
+		if (IsValid(SidePropA)) then
+			SidePropA:remove()
+			SidePropA = nil
+		end
+		if (IsValid(CoverPropA)) then
+			CoverPropA:remove()
+			CoverPropA = nil
+		end
+		if (IsValid(SidePropB)) then
+			SidePropB:remove()
+			SidePropB = nil
+		end
+		if (IsValid(CoverPropB)) then
+			CoverPropB:remove()
+			CoverPropB = nil
+		end
+		if (IsValid(Core)) then
+			CreateProps()
+		end
+	elseif (inp == "Open" and IsValid(Core)) then
+		if (var == 1) then
+			StartOpenAnim()
+		else
+			StartCloseAnim()
+		end
+	end
+end)

@@ -1,0 +1,294 @@
+--@name StargateControler
+--@author Yuri6037
+--@sharedscreen
+--@class screen
+
+--@requiresv lanai/processor/api/lanai_api.txt
+--@requiresv stargate_controler/stargate_ctrl_cmdlist.txt
+
+--@include lanai/libs/screen/safe_net.txt
+
+--Client include
+--@requirecl stargate_controler/stargate_ctrl_client.txt
+
+require("lanai/libs/screen/safe_net.txt")
+
+function isString(str)
+	return type(str) == "string"
+end
+
+function table.hasValue(tbl, var)
+	for k, v in pairs(tbl) do
+		if (v .. "#" == var) then return true end
+	end
+	return false
+end
+
+function pirateStargateAddressList(list)
+	local piratedList = {}
+	for k, v in pairs(list) do
+		local sb = {Danger = false, Address = nil, Name = nil}
+		local st = string.explode(v, " ", nil)
+		if (st[1] == "1") then
+			sb.Danger = true
+			sb.Address = st[2]
+			table.remove(st, 1)
+			table.remove(st, 1)
+			sb.Name = table.concat(st, " ")
+		else
+			sb.Address = st[1]
+			table.remove(st, 1)
+			sb.Name = table.concat(st, " ")
+		end
+		if (sb.Danger) then
+			table.insert(DangerGates, sb.Address)
+		end
+		table.insert(piratedList, sb)
+	end
+
+	return piratedList
+end
+
+if (SERVER) then
+	Stargate = nil
+	Shield = {Wire = nil, Active = 0}
+	Data = {}
+	ForceSend = false
+	ForceAddsSend = false
+	AddsOld = {}
+	CurGui = 0
+	local CurLock = false
+
+	function isStrTblEqual(tbl, tbl1)
+		if (not(#tbl == #tbl1)) then return false end
+		for k, v in pairs(tbl) do
+			local s = tbl1[k]
+			if (not(v == s)) then return false end
+		end
+		return true
+	end
+
+	function getPlayerFromCode(str)
+		local ss = string.explode(str, "_", nil)
+		local ply = find.byIndex(tonumber(ss[2]))
+		if (IsValid(ply) and ply:isPlayer() and ss[1] == "TRY") then
+			if (faction.getFaction(ply) == faction.getFaction(ents.owner())) then
+				return "ALLOW", ply
+			end
+		end
+		return "DISALLOW", ply
+	end
+
+	function CalculateStargateType()
+		if (Stargate == nil) then return -1 end
+		local c = Stargate:entity():class()
+		if (c == "stargate_universe") then
+			return 0
+		elseif (c == "stargate_atlantis") then
+			return 1
+		elseif (c == "stargate_sg1") then
+			return 2
+		end
+		return -1
+	end
+
+	function ConvertIntToBool(i)
+		if (i == 1) then
+			return true
+		else
+			return false
+		end
+	end
+
+	wire.createInputs({"Stargate", "Shield"}, {"Wirelink", "Wirelink"})
+
+	local Transmited = false
+	hook("think", "StargateControler_RuntimeUpdater", function()
+		--[[if (not(CurLock == LanAI:ScreenLocked())) then
+			CurLock = LanAI:ScreenLocked()
+			if (CurLock) then
+				Shield.Active = 1
+				Data.Shield = true
+				ForceSend = true
+				StartNet(function()
+					net.writeString("LOCK")
+				end)
+			else
+				Shield.Active = 0
+				Data.Shield = false
+				ForceSend = true
+				StartNet(function()
+					net.writeString("UNLOCK")
+				end)
+			end
+		end]]--
+
+		if (not(wire.ports["Shield"] == nil) and Shield.wire == nil) then
+			Shield.Wire = wire.ports["Shield"]
+		end
+		if (not(wire.ports["Stargate"] == nil) and Stargate == nil) then
+			Stargate = wire.ports["Stargate"]
+			Stargate["Disable Menu"] = 0
+		end
+
+		if (Stargate == nil) then return end
+		if (not(ConvertIntToBool(Stargate["Inbound"]) == Data.Inbound)) then
+			Data.Inbound = ConvertIntToBool(Stargate["Inbound"])
+			if (Data.Inbound and Shield.Active == 0) then
+				Shield.Active = 1
+				Data.Shield = true
+				ForceSend = true
+			end
+			ForceSend = true
+		end
+		if (not(ConvertIntToBool(Stargate["Active"]) == Data.Active)) then
+			Data.Active = ConvertIntToBool(Stargate["Active"])
+			ForceSend = true
+		end
+		if (not(ConvertIntToBool(Stargate["Open"]) == Data.Open)) then
+			Data.Open = ConvertIntToBool(Stargate["Open"])
+			ForceSend = true
+		end
+		if (not(Stargate["Dialing Address"] == Data.Address)) then
+			Data.Address = Stargate["Dialing Address"]
+			ForceSend = true
+		end
+		if (not(Stargate["Dialing Symbol"] == Data.Symbol)) then
+			Data.Symbol = Stargate["Dialing Symbol"]
+			ForceSend = true
+		end
+		local t = CalculateStargateType()
+		if (not(t == Data.Type)) then
+			Data.Type = t
+			ForceSend = true
+		end
+		local adds = stargate.addressList(Stargate:entity())
+		if (not(isStrTblEqual(AddsOld, adds))) then
+			AddsOld = adds
+			ForceAddsSend = true
+		end
+		local nm = stargate.name(Stargate:entity())
+		if (not(nm == Data.Name)) then
+			Data.Name = nm
+			ForceSend = true
+		end
+
+		if (ForceSend) then
+			StartNet(function()
+				net.writeString("UPD")
+				net.writeTable(Data)
+			end)
+			ForceSend = false
+		end
+		if (ForceAddsSend) then
+			StartNet(function()
+				net.writeString("UPDST")
+				net.writeTable(AddsOld)
+			end)
+			ForceAddsSend = false
+		end
+
+		if (not(Shield.Wire == nil) and not(Shield.Active == Shield.Wire["Active"])) then
+			Shield.Wire["Activate"] = Shield.Active
+		end
+
+		if (Stargate["Open"] == 1 and Stargate["Inbound"] == 1) then
+			if (not(Transmited)) then
+				Stargate["Transmit"] = "YURI_SG_CTRL_V1"
+				Transmited = true
+			end
+			if (not(Stargate["Received"] == nil) and not(Stargate["Received"] == "")) then
+				local stat, ply = getPlayerFromCode(Stargate["Received"])
+				if (stat == "ALLOW") then
+					chat.tell(ply, Color(0, 255, 0), "You're allowed to enter the Stargate !")
+					chat.botSay("SG", Color(0, 255, 255), "[StargateControler] -> ", Color(0, 0, 255), "Player " .. ply:name() .. " has been authored !")
+					Shield.Active = 0
+					Data.Shield = false
+					ForceSend = true
+				elseif (stat == "DISALLOW") then
+					chat.tell(ply, Color(255, 0, 0), "You're not allowed to enter the Stargate !")
+					chat.botSay("SG", Color(0, 255, 255), "[StargateControler] -> ", Color(0, 0, 255), "Player " .. ply:name() .. " tried to enter the Stargate !")
+					Shield.Active = 1
+					Data.Shield = true
+					ForceSend = true
+				end
+			end
+		else
+			if (Transmited) then
+				Transmited = false
+			end
+		end
+		if (Data.Inbound) then
+			local e = stargate.target(Stargate:entity())
+			if (IsValid(e)) then
+				local n = stargate.name(e)
+				if (not(n == Data.InboundName)) then
+					Data.InboundName = n
+					ForceSend = true
+				end
+			end
+		end
+	end)
+
+	hook("net", "StargateControler", function(len, ply)
+		local cmd = net.readString()
+
+		--[[if (LanAI:ScreenLocked()) then
+			if (cmd == "REBOOT") then --Client reboot
+				Shield.Active = 1
+				Data.Shield = true
+				ForceSend = true
+				ForceAddsSend = true
+				StartNet(function()
+					net.writeString("LOCK")
+				end)
+			end
+			return
+		end]]--
+
+		if (cmd == "C") then --Close stargate
+			Stargate["Close"] = 1
+		elseif (cmd == "S") then --Stargate shield switch
+			if (Shield.Active == 0) then
+				Shield.Active = 1
+				Data.Shield = true
+				ForceSend = true
+			else
+				Shield.Active = 0
+				Data.Shield = false
+				ForceSend = true
+			end
+		elseif (cmd == "REBOOT") then --Client reboot
+			ForceSend = true
+			ForceAddsSend = true
+			StartNet(function()
+				net.writeString("G")
+				net.writeInt(CurGui, 4, true)
+			end)
+		elseif (cmd == "SWGUI") then --Switch gui
+			if (CurGui == 0) then
+				CurGui = 1
+			else
+				CurGui = 0
+			end
+			StartNet(function()
+				net.writeString("G")
+				net.writeInt(CurGui, 4, true)
+			end)
+		elseif (cmd == "COMPOSE") then --Start composing session
+			--Gui switch
+			if (CurGui == 0) then
+				CurGui = 1
+			else
+				CurGui = 0
+			end
+			StartNet(function()
+				net.writeString("G")
+				net.writeInt(CurGui, 4, true)
+			end)
+
+			local ad = net.readString()
+			stargate.dial(Stargate:entity(), ad, 1)
+		end
+	end)
+end

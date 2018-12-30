@@ -1,0 +1,155 @@
+--@name ListBox
+--@author Yuri6037
+
+local tbl = {}
+
+tbl.Name = "ListBox"
+
+local areaContent = {}
+local renderedAreaContent = {}
+local messagesNumber = 0
+local maxLines = 7
+local scrollNumber = 1
+local selectedElement = nil
+
+--Component data
+local compX = 10
+local compY = 0
+local compWidth = 256
+local compHeight = 256
+
+local function updateConsole()
+	renderedAreaContent = {}
+	local done = (maxLines - 1) + 1
+	local parser = scrollNumber
+	--done = done - 1
+	while done > -1 do
+		table.insert(renderedAreaContent, areaContent[parser])
+		parser = parser + 1
+		done = done - 1
+	end
+end
+
+local function scrollUp()
+	if (messagesNumber <= maxLines) then
+		return
+	end
+
+	if (scrollNumber == (messagesNumber - maxLines)) then
+		return
+	end
+	scrollNumber = scrollNumber + 1
+	updateConsole()
+end
+
+local function scrollDown()
+	if (messagesNumber <= maxLines) then
+		return
+	end
+
+	if (scrollNumber == 1) then
+		return
+	end
+	scrollNumber = scrollNumber - 1
+	updateConsole()
+end
+
+--
+-- Adds a line to this console
+--
+local function addLine(line)
+	table.insert(areaContent, line)
+	messagesNumber = messagesNumber + 1
+	if (messagesNumber <= maxLines) then
+		table.insert(renderedAreaContent, line)
+	elseif (messagesNumber > maxLines) then
+		scrollNumber = messagesNumber - maxLines
+		updateConsole()
+	end
+end
+
+local function CheckScrollInputs()
+	if (Screen:IsMouseInRect(compX + compWidth - 32, compY, 32, 32)) then
+		scrollDown()
+	elseif (Screen:IsMouseInRect(compX + compWidth - 32, (compY + compHeight) - 32, 32, 32)) then
+		scrollUp()
+	end
+end
+
+function tbl:OnRender(x, y, w, h, tbl)
+	gl.glBindColor(0, 0, 255, 170)
+	gl.glRect(compX, compY, compWidth, compHeight)
+
+	local j = 5
+	for k, v in pairs(renderedAreaContent) do
+		local current = v
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(Screen.StandardFont)
+		gl.glText(current, compX + 5, (compY + j))
+
+		if (not(selectedElement == nil) and selectedElement == current) then
+			gl.glBindColor(255, 0, 0)
+			gl.glUnfilledRect(compX, (compY + j), compWidth - 32, 32, 4)
+		end
+
+		if (Screen:IsMouseInRect(compX, (compY + j), compWidth - 32, 32)) then
+			if (Screen:KeyUse()) then
+				selectedElement = current
+				if (not(tbl.OnSelect == nil)) then
+					for k1, v1 in pairs(areaContent) do
+						if (v1 == selectedElement) then
+							tbl.OnSelect(k1, selectedElement)
+							break
+						end
+					end
+				end
+			end
+			gl.glBindColor(255, 255, 0)
+			gl.glUnfilledRect(compX, (compY + j), compWidth - 32, 32, 4)
+		end
+		j = j + 32
+	end
+
+	--Rendering scroll buttons
+	--Up
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(compX + compWidth - 32, compY, 32, 32)) then
+		gl.glBindColor(0, 255, 0)
+	end
+	gl.glRect(compX + compWidth - 32, compY, 32, 32)
+	--Down
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(compX + compWidth - 32, (compY + compHeight) - 32, 32, 32)) then
+		gl.glBindColor(0, 255, 0)
+	end
+	gl.glRect(compX + compWidth - 32, (compY + compHeight) - 32, 32, 32)
+end
+
+function tbl:OnTouched(x, y, tbl)
+	CheckScrollInputs()
+end
+
+function tbl:OnInsert(x, y, w, h, tbl)
+	tbl.x = x
+	tbl.y = y
+	tbl.w = w
+	tbl.h = h
+
+	compX = x
+	compY = y
+	compWidth = w
+	compHeight = h
+
+	areaContent = {}
+	renderedAreaContent = {}
+	selectedElement = nil
+	messagesNumber = 0
+
+	maxLines = math.floor(compHeight / 32) - 1
+
+	for k, v in pairs(tbl.Data) do
+		addLine(v)
+	end
+end
+
+Screen:RegisterControl(tbl)

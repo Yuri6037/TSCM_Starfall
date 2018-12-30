@@ -1,0 +1,232 @@
+--@name LanAI X
+--@author Yuri6037
+--@class processor
+--@autoupdate
+--@model models/bidonstoragedest.mdl
+
+permissions.register(permissions.REMOVE_ENTITY)
+permissions.register(permissions.SPAWN_ENTITY)
+
+--For dynamic beams push wire GPS ~105 units to the bottom
+
+--SUPER SECURITY ULTRA SECRET CODE
+--[[local tbl = faction.getOnlinePlayers("Lanteans")
+local ok = false
+for k, v in pairs(tbl) do
+	if (v == ents.owner()) then
+		ok = true
+	end
+end
+if (not(ok)) then
+	for k, v in pairs(find.byClass("ship_core", function(ent) return ent:owner() == ents.self():owner() end)) do
+		v:getWirelink()["Self Destruct"] = 1
+	end
+	ents.self():remove()
+end]]--
+--END
+
+--LanAI Constants
+--@require lanai/constants.txt
+
+--Including server libs
+--@require lanai/libs/processor/lanaifiles.txt
+--@require lanai/libs/processor/string_lib.txt
+--@require lanai/libs/processor/math_lib.txt
+--@require lanai/libs/bypass.txt
+--@require lanai/libs/processor/ship_sensor_hacker.txt
+--@require lanai/libs/tasks.txt
+--@require lanai/libs/logging.txt
+
+--Including the LanAI loading process
+--@include lanai/processor/internal/lanai_loader.txt
+
+--Utilities
+--@require lanai/processor/internal/utilities.txt
+util.SetLogLevel(0)
+util.AddLogHandler(function(msg)
+	printConsole("LanAI> " .. msg)
+end)
+util.CreateHook("PreLoad")
+--@require lanai/processor/internal/ai_utils.txt
+
+--The AI files
+----@require lanai/processor/ai/ai_decoder.txt
+
+--The transmission protocol
+--@require lanai/processor/internal/protocol.txt
+--@require lanai/processor/internal/basic_packets.txt
+
+--The processor files
+ProcessorFiles = {
+	Drivers = {
+		"basics",
+		"beam",
+		"props",
+		"timer",
+		"valve",
+		"warp",
+		"weapons",
+		"lanteansos",
+		"sensor",
+		"doors",
+		"engines",
+		"stargate",
+		"torpedomatrix",
+		"atlantisshield"
+	},
+	Systems = {
+		"permissions",
+		"multitarget", --Important system commands and combat system depends on it
+		"ai_decoder",
+		"ai_answer",
+		"ai_listener",
+		"ship_auto_load",
+		"automatic_mode",
+		"combat",
+		"points_manager",
+		"internal_security",
+		"plan_gen",
+		"jailmanager",
+		"dangeridentifier",
+
+		--Extensions
+		"weapon_debugger"
+	},
+	OSApps = {
+	    "resource",
+	    "status",
+	    "warp",
+	    "beam",
+	    "tactical",
+	    "shieldpower",
+	    "env",
+	    "valve",
+	    "doorsview",
+	    "sgstatus",
+	    "sgdial"
+	}
+}
+
+--@includedir lanai/processor/systems/
+--@includedir lanai/processor/drivers/
+
+--The LanAI API
+--@include lanai/processor/api/lib_protocol.txt
+
+wire.createInputs({"ShipName"}, {"String"})
+if (not(wire.ports["ShipName"] == nil) and not(wire.ports["ShipName"] == "")) then
+	ShipName = wire.ports["ShipName"]
+end
+hook("input", "LanAI_AssignShipName", function(inp, val)
+	if (inp == "ShipName" and not(val == nil) and not(val == "")) then
+		ShipName = val
+	end
+end)
+
+wire.createOutputs({"ShipName", "TasksNum"}, {"String", "Normal"})
+wire.ports["ShipName"] = ShipName
+wire.ports["TasksNum"] = 0
+
+--Init task system
+TaskError = nil
+task.SetErrorCallback(function(id, err)
+	util.Log("Tasks", LOG_ERR, "Task '", id, "' : ", err)
+end)
+
+--Are we loading LanAI
+Loading = true
+
+--The ship vars
+Ship = {}
+EvacuationBeam = nil
+Lockdown = false
+Evacuation = false
+SelfDestruct = false
+
+--Targetting system
+Target = {Player = nil, Entity = nil, Node = nil}
+
+--Find players inside the ship so that we can later use aiSay
+PlayersInsideShip = {}
+PlayersInsideShipList = {}
+local function GetPlayerFeetsProp(ply)
+	local p = ply:getPos()
+	p:Add(Vector(0, 0, -200))
+	local tr = trace.trace(ply:getPos(), p, {ply}, trace.MASK_SOLID, false)
+	if (IsValid(tr.Entity)) then
+		return true, tr.Entity
+	end
+	return false, nil
+end
+local function GetPlayerHeadProp(ply)
+	local p = ply:getPos()
+	p:Add(Vector(0, 0, 999))
+	local tr = trace.trace(ply:getPos(), p, {ply}, trace.MASK_SOLID, false)
+	if (IsValid(tr.Entity)) then
+		return true, tr.Entity
+	end
+	return false, nil
+end
+for k, v in pairs(find.allPlayers()) do
+	local b, e = GetPlayerHeadProp(v)
+	local b1, e1 = GetPlayerFeetsProp(v)
+	if (b and b1) then
+		if (e:owner() == ents.owner() and e1:owner() == ents.owner()) then
+			table.insert(PlayersInsideShipList, v)
+			PlayersInsideShip[v] = true
+		end
+	end
+end
+--End
+
+util.Log("Main", LOG_INFO, "ConstraintsRetriever V", VERSION_PLOADER)
+util.Log("Main", LOG_INFO, "LanAI ", VERSION_AI)
+aiSay("Retrieving all constrained entities...")
+
+--Entity listing vars
+SFAllowedSubEntities = {}
+SHIP_PARTS_BOOL = {}
+SHIP_PARTS = {}
+
+--The preload thread
+local Thread = nil
+SendPacket("PRELOAD", "START")
+ents.self():setSubMaterial(0, "glow/yellow_light")
+ents.self():setSubMaterial(1, "Boba_Fett/textures/destiny")
+
+function MasterBoot()
+	Thread = bypass.StartConstraintsRetriever(ents.self(), function(fuck, num)
+		util.Log("Main", LOG_INFO, "Found ship with ", #fuck, " entities.")
+		aiSay("Initializing Systems...")
+		SendPacket("PRELOAD", "END")
+
+		SHIP_PARTS = fuck
+		SHIP_PARTS_BOOL = bypass.GetRetrievedConstraintsBool()
+
+		util.RunHook("PreLoad")
+		require("lanai/processor/internal/lanai_loader.txt")
+		require("lanai/processor/api/lib_protocol.txt")
+
+		timer.remove("LanAI_AttemptConstraintsGetWait")
+	end, function(fuck, num, err)
+		if (err == "StoppedWorking") then
+			SendPacket("PRELOAD", "UPD", "FAILURE")
+			ents.self():setSubMaterial(0, "phoenix_storms/pack2/redlight")
+
+			util.Log("Main", LOG_ERR, "ConstraintsRetriever stopped working after ", #fuck, " loaded entities")
+		else
+			SendPacket("PRELOAD", "UPD", "FAILURE")
+			ents.self():setSubMaterial(0, "phoenix_storms/pack2/redlight")
+
+			util.Log("Main", LOG_ERR, "ConstraintsRetriever crashed after ", #fuck, " loaded entities")
+			util.Log("Main", LOG_ERR, "Error : ", ErrorString)
+		end
+	end)
+end
+
+--Run master boot (getConstraints replacement thread)
+if (starfall.isSpawnedFromDuplicator()) then
+	timer.create("LanAI_ForceWaitAdvDupe2", 35, 1, MasterBoot)
+else
+	MasterBoot()
+end

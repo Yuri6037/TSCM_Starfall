@@ -1,0 +1,54 @@
+--@name MisenleciousCommands
+--@author Yuri6037
+
+AIRegisterCommand("steamid", function(args, ply)
+	local p = args[1]
+	if (not(IsValid(p))) then return Command.INVALID_ARGUMENT, "1 (player)" end
+	return Command.PASSING, p:name() .. " SteamID's is " .. p:steamID64()
+end, {"Finds the SteamID of someone.", "<command> <player>"}, {"player"})
+
+AIRegisterCommand("setevabeam", function(args, ply)
+	if (GetBeamPointFromName(args[1]) == nil) then
+		return Command.INVALID_ARGUMENT, "beam point does not exist"
+	end
+	EvacuationBeam = args[1]
+	return Command.PASSING, "Evacuation beam point set to " .. args[1] .. "."
+end, {"Sets the evacuation beam.", "<command> <name>"}, {"string"}, {"setevacuation", "setevapoint"}, 1)
+
+
+AIRegisterCommand("yes", function(args, ply)
+	local b, t = aiGetAction()
+	if (b) then
+		aiAcceptAction(ply)
+		return Command.PASSING, "You allowed me to " .. t .. "."
+	else
+		return Command.PASSING, "I don't want anything currently !"
+	end
+end, {"Allows AI to make what it wants !", "<command>"}, {}, {"y"})
+AIRegisterCommand("no", function(args, ply)
+	local b, t = aiGetAction()
+	if (b) then
+		aiRejectAction(ply)
+		return Command.PASSING, "My wish is now deleted !"
+	else
+		return Command.PASSING, "I don't want anything currently !"
+	end
+end, {"Disallows AI to make what it wants !", "<command>"}, {}, {"n"})
+
+AIRegisterCommand("engines", function(args, ply)
+	if (args[1] == "on") then
+		StartEngines()
+		return Command.PASSING, "Starting engines..."
+	elseif (args[1] == "off") then
+		StopEngines()
+		return Command.PASSING, "Stopping engines..."
+	end
+	return Command.ERROR_GENERIC
+end, {"Enable/Disable engines !", "<command> <option on/off>"}, {"string"}, {}, 1)
+
+AIRegisterCommand("officercode", function(args, ply)
+	if (not(args[1]:len() == 8)) then
+		return Command.ERROR_GENERIC
+	end
+	OFFICER_CODE = args[1]
+end, {"Set the officer code (use only shivers, max length 8)", "<command>"}, {"string"}, {}, 1)

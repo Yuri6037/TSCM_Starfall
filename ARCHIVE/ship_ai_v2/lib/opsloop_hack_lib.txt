@@ -1,0 +1,21 @@
+--@name OPSLoop PirateLib
+--@author Yuri6037
+
+OPSLoopHackLib = {}
+OPSLoopHackLib.Iterators = {}
+function OPSLoopHackLib.PirateLoop(id, tbl, iterateFunc, endFunc)
+	OPSLoopHackLib.Iterators[id] = 1
+	timer.create("LoopHacker_" .. id, 0.01, 0, function()
+		local v = tbl[OPSLoopHackLib.Iterators[id]]
+		iterateFunc(v, OPSLoopHackLib.Iterators[id])
+		OPSLoopHackLib.Iterators[id] = OPSLoopHackLib.Iterators[id] + 1
+
+		if (OPSLoopHackLib.Iterators[id] >= #tbl) then
+			if (not(endFunc == nil)) then
+				endFunc()
+			end
+			timer.remove("LoopHacker_" .. id)
+			return
+		end
+	end)
+end

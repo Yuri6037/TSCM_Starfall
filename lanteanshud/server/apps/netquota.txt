@@ -1,0 +1,11 @@
+--@name NetQuotaViewApp (SERVER)
+--@author Yuri6037
+
+local app = {
+	Update = function(ply)
+		local n = math.round(net.quotaUsed() / net.quotaMax(), 2)
+		CheckVar("Quota", n)
+	end
+}
+
+HUD.DefineApp("NetQuotaInfo", app)

@@ -1,0 +1,37 @@
+--@name WindowAL
+--@author Yuri6037
+
+Screen:RegisterWindow("AL", "Alerts", 256, 256, function()
+	--Open func
+end, function()
+	--Close func
+end, function(x, y)
+	local i = 0
+	for k, v in pairs(Alerts) do
+		gl.glBindColor(255, 0, 0, v.Alpha)
+		gl.glRect(10, 80 + (i * 32), 200, 32)
+		gl.glBindColor(255, 255, 255)
+		gl.glText(v.Text, 10, 80 + (i * 32))
+		i = i + 1
+	end
+
+	gl.glPushMatrix()
+		gl.glTranslate(0, 0)
+		if (UI.Button("++", x + 96, y, 64, 32)) then
+			StartNet(function()
+				net.writeString("Alert")
+				net.writeInt(CurAlertLevel, 4, true)
+			end)
+			CurAlertLevel = CurAlertLevel - 1
+		end
+		if (UI.Button("Kill", x + 96, y + 32, 64, 32)) then
+			StartNet(function()
+				net.writeString("Alert")
+				net.writeInt(3, 4, true)
+			end)
+			CurAlertLevel = 2
+		end
+	gl.glPopMatrix()
+end, function()
+
+end)

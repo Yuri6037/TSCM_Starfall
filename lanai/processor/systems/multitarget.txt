@@ -1,0 +1,94 @@
+--@name MultiTargetingSystem
+--@author Yuri6037
+
+TargetType = {
+	NODE = 1,
+	ENTITY = 2,
+	CORE = 3,
+	PLAYER = 4
+}
+
+local TargetsBool = {}
+local Targets = {}
+
+local function ReAttributePrimaryTarget()
+	local tg = Targets[#Targets]
+	if (not(tg == nil) and IsValid(tg.Value)) then
+		if (tg.Type == TargetType.NODE) then
+			Target.Node = tg.Value
+			Target.Player = nil
+			Target.Entity = nil
+		elseif (tg.Type == TargetType.ENTITY) then
+			Target.Node = nil
+			Target.Player = nil
+			Target.Entity = tg.Value
+		elseif (tg.Type == TargetType.CORE) then
+			Target.Node = nil
+			Target.Player = nil
+			Target.Entity = tg.Value
+		elseif (tg.Type == TargetType.PLAYER) then
+			Target.Node = nil
+			Target.Player = tg.Value
+			Target.Entity = nil
+		end
+	else
+		Target.Node = nil
+		Target.Player = nil
+		Target.Entity = nil
+	end
+end
+
+function PopTargets(nbr)
+	local tgs = {}
+	local num = nbr
+	while (num > 0 and #Targets > 0) do
+		if (IsValid(Targets[#Targets].Value)) then
+			table.insert(tgs, Targets[#Targets].Value)
+			RemoveTarget()
+		end
+	end
+	return (tgs)
+end
+
+function TargetList()
+	return Targets
+end
+
+--Adds a target and set it as primary
+function AddTarget(type, value)
+	if (not(IsValid(value)) or TargetsBool[value]) then
+		if (TargetsBool[value]) then
+			util.Log("Systems", LOG_WARN, "Target '", value, "' already exists")
+		else
+			util.Log("Systems", LOG_WARN, "Tried to add a NULL target !")
+		end
+		return false
+	end
+	local tg = {Type = type, Value = value}
+	table.insert(Targets, tg)
+	TargetsBool[value] = true
+	ReAttributePrimaryTarget()
+	return true
+end
+
+task.Start(function()
+	if (#Targets > 0 and not(IsValid(Targets[#Targets].Value))) then
+		RemoveTarget()
+	end
+end, "LanAI_MultiTargetNULLDetector", 1)
+
+--Removes primary target
+function RemoveTarget()
+	if (#Targets == 0) then return false end
+	local tg = Targets[#Targets]
+	TargetsBool[tg.Value] = nil
+	table.remove(Targets, #Targets)
+	ReAttributePrimaryTarget()
+	return true
+end
+
+function ClearTargets()
+	Targets = {}
+	TargetsBool = {}
+	ReAttributePrimaryTarget()
+end

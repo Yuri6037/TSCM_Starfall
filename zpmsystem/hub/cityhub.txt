@@ -1,0 +1,74 @@
+--@name AtlantisHub
+--@author Yuri6037
+--@class processor
+--@model models/pg_props/pg_zpm/pg_zpm_hub.mdl
+--@autoupdate
+
+--@require zpmsystem/hub/hublib.txt
+
+local Starts = {
+	function(self)
+		return self:obbCenterW() + self:right() * -10.5 + self:forward() * 8.7 + self:up() * 22, self:ang()
+	end,
+	function(self)
+		return self:obbCenterW() + self:forward() * 8.7 + self:right() * 10.5 + self:up() * 22, self:ang()
+	end,
+	function(self)
+		return self:obbCenterW() + self:forward() * -9.7 + self:up() * 22, self:ang()
+	end
+}
+
+local Ends = {
+	function(self)
+		return self:obbCenterW() + self:right() * -10.5 + self:forward() * 8.7 + self:up() * 17, self:ang()
+	end,
+	function(self)
+		return self:obbCenterW() + self:forward() * 8.7 + self:right() * 10.5 + self:up() * 17, self:ang()
+	end,
+	function(self)
+		return self:obbCenterW() + self:forward() * -9.7 + self:up() * 17, self:ang()
+	end
+}
+
+local ZPMSlots = {}
+
+local hub = {
+	Model = "models/pg_props/pg_zpm/pg_zpm_hub.mdl",
+	ZPMModel = "models/pg_props/pg_zpm/pg_zpm.mdl",
+	ZPMCount = 3,
+	GetZPMStart = function(self, zpm)
+		local lnks = hubs.GetLinkedZPMs()
+		local p, a = Starts[1](self)
+		ZPMSlots[zpm] = 1
+		for i = 2, 3 do
+			local p1, a1 = Starts[i](self)
+			local b = true
+			for k, v in pairs(lnks) do
+				if (k:pos():DistToSqr(p1) < 0.1) then
+					b = false
+				end
+			end
+			if (zpm:pos():Distance(p1) < zpm:pos():Distance(p) and b) then
+				p = p1
+				a = a1
+				ZPMSlots[zpm] = i
+			end
+		end
+		return p, a
+	end,
+	GetZPMEnd = function(self, zpm)
+		local slot = ZPMSlots[zpm]
+		ZPMSlots[zpm] = nil
+		return Ends[slot](self)
+	end,
+	OnSpawned = function(self)
+		self:setSkin(1)
+	end,
+	OnActivated = function(self)
+		self:setSkin(0)
+	end,
+	OnDeactivated = function(self)
+		self:setSkin(1)
+	end
+}
+hubs.Define(hub)

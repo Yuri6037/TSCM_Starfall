@@ -1,0 +1,159 @@
+--@name ShipAI_V2
+--@author Yuri6037
+--@sharedscreen
+--@widescreen
+
+--WARNING : This file ONLY works with a screen
+
+--Client include
+--Screens
+--@include ship_ai_v2/client/screens/main.txt
+--@include ship_ai_v2/client/screens/lockdown.txt
+--@include ship_ai_v2/client/screens/autodestruct.txt
+--@include ship_ai_v2/client/screens/load.txt
+--Guis
+--@include ship_ai_v2/client/guis/combat.txt
+--@include ship_ai_v2/client/guis/info.txt
+--@include ship_ai_v2/client/guis/radar.txt
+--@include ship_ai_v2/client/guis/resources.txt
+--@include ship_ai_v2/client/guis/status.txt
+--@include ship_ai_v2/client/guis/warp.txt
+--@requirecl ship_ai_v2/lib/screen_engine.txt
+--@requirecl ship_ai_v2/client/shipai_v2_client.txt
+--Libs includes
+--@requiresv ship_ai_v2/lib/permissions_lib.txt
+--@include ship_ai_v2/lib/safe_net.txt
+--@include ship_ai_v2/lib/boolean_invert_hacker.txt
+--@requiresv ship_ai_v2/lib/opsloop_hack_lib.txt
+--@include ship_ai_v2/lib/string_lib.txt
+--Server includes
+--@requiresv ship_ai_v2/server/common.txt
+--@requiresv ship_ai_v2/server/net_hooks.txt
+--@requiresv ship_ai_v2/server/protocol.txt
+--@requiresv ship_ai_v2/server/lib_protocol.txt
+--@requiresv ship_ai_v2/server/guis/combat.txt
+--@requiresv ship_ai_v2/server/guis/resources.txt
+--@requiresv ship_ai_v2/server/guis/status.txt
+--AI
+--@requiresv ship_ai_v2/server/ai/ai_decoder.txt
+--Constants
+--@include ship_ai_v2/constants.txt
+
+--Require libs
+require("ship_ai_v2/lib/safe_net.txt")
+require("ship_ai_v2/lib/boolean_invert_hacker.txt")
+require("ship_ai_v2/lib/string_lib.txt")
+
+if (SERVER) then
+	EvacuationBeam = nil
+
+	--Special alerts booleans
+	Evacuation = false
+	SelfDestruct = false
+
+	--The current selected GUI
+	CurGUI = 0
+
+	--The ship vars
+	Ship = {}
+	Ship.Core = nil
+	Ship.LS = nil
+	Ship.Weaps = {}
+	Ship.Weaps.TSCM = {}
+	Ship.Weaps.STAR = {}
+	Ship.Weaps.ANGLE = {}
+	Ship.Warp = nil
+	Ship.Node = nil
+	Ship.Shield = nil
+	Ship.EnergyGen = nil
+	Ship.GazGen = nil
+	Ship.Cloak = nil
+	Ship.Sensor = nil
+	Ship.Probe = nil
+	Ship.TP = nil
+
+	--Sounds
+	Ship.EvaProps = {}
+	Ship.GuiChangeSound = sounds.create(ents.self(), "items/battery_pickup.wav")
+
+	--The target vars
+	Target = {}
+	Target.Player = nil
+	Target.Entity = nil
+
+	--The protocol upd vars
+	ShipVars = {}
+	TargetVars = {}
+
+	--Initializes the script
+	local tbl = ents.self():getConstraints()
+	Loading = true
+	aiSay("Initializing systems, please wait...")
+	OPSLoopHackLib.PirateLoop("ShipAI_II_Init", tbl, function(v, cur)
+		if (IsValid(v)) then
+			if (v:class() == "prop_physics") then
+				if (StringStartWith(v:model(), "models/cerus/modbridge/core/")) then
+					for k1, v1 in pairs(v:getMaterials()) do
+						local idL = -255
+						local idM = -255
+						if (v1 == "cmats/light") then
+							idL = k1 - 1
+						elseif (v1 == "cmats/base_metal_light") then
+							idM = k1 - 1
+						end
+						table.insert(Ship.EvaProps, {Prop = v, ID_METAL = idM, ID_LIGHT = idL, Emitter = sounds.create(v, "ambient/alarms/alarm_citizen_loop1.wav")})
+					end
+				end
+			elseif (v:class() == "ship_core") then
+				Ship.Core = v:getWirelink()
+				Ship.Core["Enable Plating"] = 1
+			elseif (v:class() == "stargazer_ls_core") then
+				Ship.LS = v:getWirelink()
+				Ship.LS["Disable Use"] = 1
+				Ship.LS["Disable Noclip"] = 1
+			elseif (v:class() == "stargazer_energy_core") then
+				Ship.EnergyGen = v:getWirelink()
+				Ship.EnergyGen["Disable Use"] = 1
+			elseif (v:class() == "stargazer_refinement_core") then
+				Ship.GazGen = v:getWirelink()
+				Ship.GazGen["Disable Use"] = 1
+			elseif (v:class() == "st_shield_emitter") then
+				Ship.Shield = v:getWirelink()
+			elseif (v:class() == "ship_drive" or v:class() == "quantum_slipstream_drive") then
+				Ship.Warp = v:getWirelink()
+			elseif (v:class() == "st_cloaking_device") then
+				Ship.Cloak = v:getWirelink()
+			elseif (v:class() == "stargazer_node") then
+				Ship.Node = v:getWirelink()
+			elseif (v:class() == "ori_beam_cannon" or v:class() == "asgard_beam") then
+				table.insert(Ship.Weaps.STAR, v:getWirelink())
+			elseif (v:class() == "ship_turret_base" or v:class() == "ship_laser" or v:class() == "pulse_phaser_emitter") then
+				table.insert(Ship.Weaps.TSCM, v:getWirelink())
+			elseif (v:class() == "ship_cannon" or v:class() == "keeper_emitter" or v:class() == "cruise_missile_launcher") then
+				table.insert(Ship.Weaps.ANGLE, v)
+			elseif (v:class() == "sensor_array") then
+				Ship.Sensor = v:getWirelink()
+			elseif (v:class() == "stargazer_probe") then
+				Ship.Probe = v:getWirelink()
+			elseif (v:class() == "transporter_pad") then
+				Ship.TP = v:getWirelink()
+			end
+		end
+
+		StartNet(function()
+			net.writeString("LOAD.UPD")
+			net.writeString(cur .. "/" .. #tbl)
+		end, ply)
+	end, function()
+		StartNet(function()
+			net.writeString("LOAD.END")
+		end, ply)
+
+		Loading = false
+
+		aiSay("Done loading ! Welcome to " .. ShipName .. ", type !ai help for help !")
+	end)
+
+	--Initialize ai decoder
+	require("ship_ai_v2/constants.txt")
+end

@@ -1,0 +1,40 @@
+--@name Lanteans OS AppCard (Notepad)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "stickynote"
+AppCode = [[
+local app = {}
+function app:Init()
+	self:SetSize(256, 74)
+	self:SetTitle("Sticky Note")
+	local txt = self:AddComponent("textfield", 10, 32)
+	txt:SetSize(236, 32)
+	self:AddPullDownMenu("File")
+	self:AddPullDownMenuItem("Save", function(app)
+		OS.Dialog("savefile", "Save sticky note", function(app)
+			local fle = app:GetFile()
+			FS.FileWrite(fle, txt:GetText())
+			app:Exit()
+		end)
+	end)
+	self:AddKeyboard()
+end
+OS.DefineApp("stickynote", app)
+OS.AddAppMenuItem("stickynote", "SNote", "Office")
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

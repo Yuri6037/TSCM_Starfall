@@ -1,0 +1,10 @@
+--@name Scales
+--@author Yuri6037
+
+--1.33 Y => Convert a 3 wide to a 4 wide
+
+--2 Y => Convert a 3 wide to a 6 wide
+
+--1.67 Y => Convert a 3 wide to a 5 wide
+
+--0.33 Y => Convert a 3 wide to a 1 wide

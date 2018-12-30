@@ -1,0 +1,131 @@
+--@name IntelliHUD II Lib
+--@author Yuri6037
+
+NameRewrites = {
+	["weapon_physcannon"] = "Gravity Gun",
+	["weapon_physgun"] = "Physics Gun"
+}
+
+AMMOWeapons = {
+	["weapon_asura"] = true,
+	["weapon_hand_device"] = true,
+	["ori_staff_weapon"] = true,
+	["weapon_dexgun"] = true,
+	["weapon_staff"] = true,
+	["weapon_wraith"] = true,
+	["wraith_blaster"] = true,
+	["weapon_zat"] = true
+}
+
+NORMWeapons = {
+	["weapon_357"] = true,
+	["weapon_alyxgun"] = true,
+	["weapon_annabelle"] = true,
+	["weapon_ar2"] = true,
+	["weapon_brickbat"] = true,
+	["weapon_bugbait"] = true,
+	["weapon_crossbow"] = true,
+	["weapon_crowbar"] = true,
+	["weapon_frag"] = true,
+	["weapon_pistol"] = true,
+	["weapon_rpg"] = true,
+	["weapon_shotgun"] = true,
+	["weapon_smg1"] = true,
+	["weapon_striderbuster"] = true,
+	["weapon_stunstick"] = true,
+	["fnp90"] = true
+}
+
+SG_CTRL_VERSIONS = {
+	["YURI_SG_CTRL_V1"] = function(ply)
+		return "TRY_" .. ply:index() --Returns the string to transmit to lower shield
+	end,
+	["YURI_SG_SCR"] = function(ply)
+		return tostring(ply:index())
+	end
+}
+
+function PlayerInBox(ply, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = ply:getPos().x
+	local cY = ply:getPos().y
+	local cZ = ply:getPos().z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+function GetSignal(gate)
+	if (stargate.getSignal(gate) == nil or stargate.getSignal(gate) == "") then
+		if (stargate.inbound(gate)) then
+			return "INBOUND"
+		end
+		local to = stargate.target(gate)
+		if (IsValid(to)) then
+			local ir = stargate.iris(to)
+			if (IsValid(ir) and stargate.irisActive(ir)) then
+				return "IRIS"
+			else
+				return "NONE"
+			end
+		else
+			return "ERROR"
+		end
+	end
+	return stargate.getSignal(gate)
+end
+
+function TryOpenIris(ply)
+	local ent = ply:eyeTrace().Entity
+	if (IsValid(ent)) then
+		if (ent:class() == "stargate_atlantis" or ent:class() == "stargate_universe" or ent:class() == "stargate_sg1") then
+			if (stargate.open(ent)) then
+				local s = stargate.getSignal(ent)
+				if (not(SG_CTRL_VERSIONS[s] == nil) and not(timer.exists("IntelliHUD_StopTransmit"))) then
+					local str = SG_CTRL_VERSIONS[s](ply)
+					stargate.transmit(ent, str)
+					timer.create("IntelliHUD_StopTransmit", 1, 1, function()
+						stargate.transmit(ent, "")
+					end)
+				end
+			end
+		end
+	end
+end
+
+function IsSGEnt(e)
+	return e:class() == "stargate_sg1" or e:class() == "stargate_atlantis" or e:class() == "stargate_universe"
+end
+
+function GetPlayerMaxHealth(ply)
+	if (ply:health() > ply:maxHealth()) then
+		return ply:health()
+	end
+	return ply:maxHealth()
+end
+
+function GetGalaxy(ply)
+	if (PlayerInBox(ply, Universe.Min, Universe.Max)) then
+		return "Universe"
+	elseif (PlayerInBox(ply, Pegasus.Min, Pegasus.Max)) then
+		return "Pegasus"
+	elseif (PlayerInBox(ply, Milkyway.Min, Milkyway.Max)) then
+		return "Milkyway"
+	else
+		return "Unknown"
+	end
+end

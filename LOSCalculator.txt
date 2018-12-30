@@ -1,0 +1,91 @@
+--@name Lanteans OS AppCard (Calculator)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "calculator"
+AppCode = [[
+local Numpad = {
+	{"7", "8", "9", "/", "SIN"},
+	{"4", "5", "6", "*", "COS"},
+	{"1", "2", "3", "-", "SQT"},
+	{"0", ".", "+", "C", ""}
+}
+
+local app = {}
+function app:Init()
+	self:SetSize(146, 166)
+	self:SetTitle("Calculator")
+
+	local CurNb = self:AddComponent("label", 10, 32)
+	CurNb:SetText("0")
+	local StNb = self:AddComponent("label", 30, 42)
+	StNb:SetText("")
+	local StOp = self:AddComponent("label", 10, 42)
+	StOp:SetText("")
+	local dot = false
+	for k, v in pairs(Numpad) do
+		for k1, v1 in pairs(v) do
+			local b = self:AddComponent("button", 10 + (k1 - 1) * 26, 62 + (k - 1) * 26, v1, function(app)
+				--TODO : Implement buttons (math.round(10))
+				if (v1 >= "0" and v1 <= "9" and string.len(CurNb.Text) < 11) then
+					if (CurNb.Text == "0") then CurNb.Text = "" end
+					CurNb.Text = CurNb.Text .. v1
+				elseif (v1 == "." and not(dot)) then
+					CurNb.Text = CurNb.Text .. v1
+					dot = true
+				elseif (v1 == "/" or v1 == "*" or v1 == "-" or v1 == "+") then
+					StNb:SetText(CurNb.Text)
+					StOp:SetText(v1)
+					CurNb:SetText("0")
+				elseif (v1 == "C") then
+					CurNb:SetText("0")
+					StNb:SetText("")
+					StOp:SetText("")
+					dot = false
+				elseif (v1 == "") then
+					local n = tonumber(StNb.Text)
+					local n1 = tonumber(CurNb.Text)
+					local res = 0
+					if (StOp.Text == "/") then res = n / n1
+					elseif (StOp.Text == "*") then res = n * n1
+					elseif (StOp.Text == "-") then res = n - n1
+					elseif (StOp.Text == "+") then res = n + n1 end
+					CurNb:SetText(tostring(res))
+					StNb:SetText("")
+					StOp:SetText("")
+				elseif (v1 == "COS") then
+					local n1 = tonumber(CurNb.Text)
+					CurNb.Text = tostring(math.cos(n1))
+				elseif (v1 == "SIN") then
+					local n1 = tonumber(CurNb.Text)
+					CurNb.Text = tostring(math.sin(n1))
+				elseif (v1 == "SQT") then
+					local n1 = tonumber(CurNb.Text)
+					CurNb.Text = tostring(math.sqrt(n1))
+				end
+			end)
+			b:SetSize(16, 16)
+		end
+	end
+end
+function app:PreRender()
+	GUI.ColoredRect(10, 32, 126, 26, COLOR(255, 255, 255))
+end
+OS.DefineApp("calculator", app)
+OS.AddAppMenuItem("calculator", "Calculator", "Office")
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

@@ -1,0 +1,11 @@
+--@name Lanteans OS PersonalEdition
+--@author Yuri6037
+--@class screen
+--@autoupdate
+--@widescreen
+--@sharedscreen
+
+Edition = "personal"
+
+--Eventualy run initializer for dynamic includes
+--@require lanteansos/lanteans_os.txt

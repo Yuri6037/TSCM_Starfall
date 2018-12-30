@@ -1,0 +1,85 @@
+--@name Ship AI II Lib
+--@author Yuri6037
+
+--NOTE : This is ServerLibrary ; can not be used on a client instance !
+
+if (CLIENT) then return end
+
+AI2Lib = {}
+
+ShipVars = {BackWarp = nil}
+local OldBackWarp = nil
+
+LoadCallback = nil
+
+Loaded = false
+
+hook("think", "AI2Lib_Updater", function()
+	if (AI2Lib:Initialized() and not(LoadCallback == nil) and not(Loaded)) then
+		LoadCallback()
+		Loaded = true
+	end
+
+	if (not(ShipVars.BackWarp == OldBackWarp)) then
+		OldBackWarp = ShipVars.BackWarp
+		channels.sendPrivate("BackWarpSet", OldBackWarp)
+	end
+end)
+
+local curVar = nil
+
+channels.listenPrivate(function(ent, ...)
+	local arg = {...}
+	if (type(arg[1]) == "string") then return end
+	curVar = arg[1]
+end)
+
+
+function AI2Lib:ScreenLocked()
+	channels.sendPrivate("IsLocked")
+	return curVar
+end
+function AI2Lib:GetShipCore()
+	channels.sendPrivate("GetCore")
+	return curVar
+end
+function AI2Lib:GetShipShield()
+	channels.sendPrivate("GetShield")
+	return curVar
+end
+function AI2Lib:GetShipPad()
+	channels.sendPrivate("GetPad")
+	return curVar
+end
+function AI2Lib:GetShipNode()
+	channels.sendPrivate("GetNode")
+	return curVar
+end
+function AI2Lib:GetShipWarp()
+	channels.sendPrivate("GetWarp")
+	return curVar
+end
+function AI2Lib:RegisterFunction(name, func, help)
+	channels.sendPrivate("RegFunc", {Name = name, Func = func, Help = help})
+end
+function AI2Lib:AISay(msg)
+	channels.sendPrivate("AISay", msg)
+end
+function AI2Lib:AISayGuest(msg)
+	channels.sendPrivate("AISayGuest", msg)
+end
+function AI2Lib:Initialized()
+	channels.sendPrivate("IsLoaded")
+	return curVar
+end
+function AI2Lib:SetLoadCallback(func)
+	LoadCallback = func
+end
+
+function aiSay(msg)
+	AI2Lib:AISay(msg)
+end
+
+function aiSayGuest(msg)
+	AI2Lib:AISayGuest(msg)
+end

@@ -1,0 +1,105 @@
+--@name AI_Decoder
+--@author Yuri6037
+
+--Functions file
+--@include ship_ai_v2/server/ai/ai_functions.txt
+
+--The lib used in string parsing
+require("ship_ai_v2/lib/string_lib.txt")
+
+AIErrorMessages = {
+	"I don't know what to do !",
+	"I'm not programmed to answer these questions...",
+	"I can't find what does this means...",
+	"Sorry, haven't found anything to do..."
+}
+
+AIFunctions = {}
+
+AIFunctions.Disabled = false
+
+function RegisterFunction(name, func, help)
+	table.insert(AIFunctions, {Name = name, Func = func, Help = help})
+end
+
+function aiSay(msg)
+	--for k, v in pairs(FindFactionsMembers()) do
+		--chat.tell(v, Color(0, 0, 255), "[ShipAI II] -> ", Color(255, 128, 0), msg)
+	--end
+	chat.say(Color(0, 0, 255), "[ShipAI II] -> ", Color(255, 128, 0), msg)
+end
+
+function aiSayGuest(ply, msg)
+	chat.tell(ply, Color(0, 0, 255), "[ShipAI II] -> ", Color(255, 0, 0), msg)
+end
+
+hook("playerinitialspawn", "AI_II_DecoderBinder", function(ply)
+	if (IsPlayerInFaction(ply)) then
+		chat.listen(function(msg)
+			if (StringStartWith(msg, "!ai") or StringStartWith(msg, "!ai2")) then
+				if (Loading) then
+					aiSay("Ship AI II is still initializing, please wait...")
+					return true
+				end
+				local str = ""
+				if (StringStartWith(msg, "!ai2")) then
+					str = StringReplace(msg, "!ai2 ", "")
+				else
+					str = StringReplace(msg, "!ai ", "")
+				end
+				for k1, v1 in pairs(AIFunctions) do
+					if (type(v1) == "table") then
+						if (AreStringsSimilar(str, v1.Name)) then
+							if (AIFunctions.Disabled and not(StringStartWith(str, "enable"))) then return end
+							local b, m = v1.Func(StringReplace(str, v1.Name, ""), v)
+							if (not(b)) then
+								aiSay(m)
+							end
+							return true
+						end
+					end
+				end
+				if (not(AIFunctions.Disabled)) then
+					aiSay(AIErrorMessages[math.random(#AIErrorMessages)])
+					return true
+				end
+			end
+		end, v)
+	end
+end)
+
+for k, v in pairs(FindFactionsMembers()) do
+	chat.listen(function(msg)
+		if (StringStartWith(msg, "!ai") or StringStartWith(msg, "!ai2")) then
+			if (Loading) then
+				aiSay("Ship AI II is still initializing, please wait...")
+				return true
+			end
+			local str = ""
+			if (StringStartWith(msg, "!ai2")) then
+				str = StringReplace(msg, "!ai2 ", "")
+			else
+				str = StringReplace(msg, "!ai ", "")
+			end
+			for k1, v1 in pairs(AIFunctions) do
+				if (type(v1) == "table") then
+					if (AreStringsSimilar(str, v1.Name)) then
+						if (AIFunctions.Disabled and not(StringStartWith(str, "enable"))) then return end
+						local b, m = v1.Func(StringReplace(str, v1.Name, ""), v)
+						if (not(b)) then
+							aiSay(m)
+						end
+						return true
+					end
+				end
+			end
+			if (not(AIFunctions.Disabled)) then
+				aiSay(AIErrorMessages[math.random(#AIErrorMessages)])
+				return true
+			end
+		end
+	end, v)
+end
+
+--The functions require
+require("ship_ai_v2/server/ai/ai_functions.txt")

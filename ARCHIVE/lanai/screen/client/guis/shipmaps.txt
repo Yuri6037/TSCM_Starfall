@@ -1,0 +1,108 @@
+--@name ShipMapsGui
+--@author Yuri6037
+
+local gui = {}
+
+local FloorNum = 1
+local PlyNum = 1
+
+local Models = {}
+
+function gui.OnShow()
+	for k, v in pairs(ShipPlans) do
+		if (Models[k] == nil) then
+			local mdl, a = render.createClientModel(v.Model, render.RENDERGROUP_OPAQUE)
+			Models[k] = mdl
+		end
+	end
+	print(#Models)
+	--Floors.CamPos.z = 9000
+end
+
+function gui.OnExit()
+	--for k, v in pairs(Models) do
+	--	v:remove()
+	--end
+	--Models = {}
+end
+
+local colMat = Material("color")
+
+hook("playerbindpress", "LanAI_PlanNavigator", function(ply, key, p)
+	if (ply == ents.player() and not(PlayerList == nil) and CurGUI == 7) then
+		if (key == "+attack2") then
+			PlyNum = PlyNum + 1
+			if (PlyNum > #PlayerList) then
+				PlyNum = 1
+			end
+		end
+		if (key == "invprev") then
+			FloorNum = FloorNum + 1
+		elseif (key == "invnext") then
+			FloorNum = FloorNum - 1
+			if (FloorNum < 0) then
+				FloorNum = 0
+			end
+		end
+	end
+end)
+
+function gui.Render(x1, y1)
+	if (input.isKeyDown(input.KEY_LEFT)) then
+		Floors.CamPos.x = Floors.CamPos.x - 1
+	elseif (input.isKeyDown(input.KEY_RIGHT)) then
+		Floors.CamPos.x = Floors.CamPos.x + 1
+	elseif (input.isKeyDown(input.KEY_UP)) then
+		Floors.CamPos.y = Floors.CamPos.y + 1
+	elseif (input.isKeyDown(input.KEY_DOWN)) then
+		Floors.CamPos.y = Floors.CamPos.y - 1
+	end
+
+	if (IsValid(PlayerList[PlyNum]) and IsValid(Floors.Origin)) then
+		local p = Floors.Origin:worldToLocal(PlayerList[PlyNum]:getPos())
+		p.z = Floors.CamPos.z
+		Floors.CamPos = p
+	end
+
+	--Floors.CamPos
+	render.clearDepth()
+	render.start3D(Floors.CamPos, Angle(90, 0, 90), 75, x1, y1, 984, 310, 1, 2048)
+		render.suppressEngineLighting(true)
+		render.setLightingOrigin(Vector(0,0,0))
+		render.resetModelLighting(1,1,1)
+		render.setColorModulation(1,1,1)
+		render.setBlend(1)
+
+		for i = 0, 5 do
+			render.setModelLighting(i,1,1,1)
+		end
+
+		for k, v in pairs(Models) do
+			local t = ShipPlans[k]
+			if (t.Floor == FloorNum) then
+				v:drawModel()
+				v:setAng(t.Angles)
+				v:setPos(t.Pos)
+			end
+		end
+
+		render.ignoreZ(true)
+		if (not(PlayerList == nil) and #PlayerList > 0 and IsValid(Floors.Origin)) then
+			for k, v in pairs(PlayerList) do
+				local p = Floors.Origin:worldToLocal(v:getPos())
+				render.setMaterial(colMat)
+				render.drawSphere(p, 8, 20, 20, Color(255, 0, 0))
+				render.start3D2D(p, Angle(0, 180, 0), 0.8)
+					gl.glBindColor(255, 255, 255)
+					gl.glBindFont(Screen.StandardFont)
+					gl.glText(v:name(), 0, -130)
+				render.end3D2D()
+			end
+		end
+		render.ignoreZ(false)
+
+		render.suppressEngineLighting(false)
+	render.end3D()
+end
+
+RegisterGUI(7, -1, -1, "Ship Maps", gui)

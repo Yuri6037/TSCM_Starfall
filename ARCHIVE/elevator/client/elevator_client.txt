@@ -1,0 +1,85 @@
+--@name ElevatorSystem_Client
+--@author Yuri6037
+
+--The engine used to display/manage screens
+--@include lanai/libs/screen/screen_engine.txt
+require("lanai/libs/screen/screen_engine.txt")
+
+local FloorNumber = 0
+local CurFloor = 0
+
+local mainScreen = {}
+mainScreen.Name = "Main"
+local id = render.getTextureID("sprops/textures/sprops_metal5")
+function mainScreen:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	if (Screen:IsMouseInRect(8, 8, 504, 504)) then
+		gl.glBindColor(0, 0, 255)
+	else
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("Elevator")
+	gl.glText("Elevator", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Floor - " .. CurFloor
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+end
+function mainScreen:OnShow()
+	for i = 0, FloorNumber - 1 do
+		Screen:AddControl("Button", 256 - 128, 128 + i * 40, 256, 32, {Text = "Floor " .. i + 1, Func = function()
+			net.start(ents.self(), "ElevatorSystem")
+			net.writeString("FLOOR_SEND")
+			net.writeInt(i + 1, 4, true)
+			net.sendToServer()
+		end})
+	end
+end
+function mainScreen:OnExit()
+end
+function mainScreen:OnTouched(mouseX, mouseY)
+
+end
+
+Screen:Register(mainScreen)
+
+net.start(ents.self(), "ElevatorSystem")
+net.writeString("GET_NUM")
+net.sendToServer()
+
+hook("net", "ElevatorSystem_Receive", function(len)
+	local cmd = net.readString()
+	if (cmd == "SEND_NUM") then
+		FloorNumber = net.readInt(4, true)
+
+		Screen:Display("Main")
+	elseif (cmd == "FLOOR_GET") then
+		CurFloor = net.readInt(4, true)
+	end
+end)

@@ -1,0 +1,429 @@
+--@name GL_Lib
+--@author Yuri6037
+
+GL_CRYPT = 0
+GL_POWERSAVE = 1
+GL_SCISSOR = 2
+GL_BLEND = 3
+GL_TEXT_SHADOW = 4
+GL_TEXT_OUTLINE = 5
+
+gl = {}
+local usingColor = false
+local R = 0
+local G = 0
+local B = 0
+local A = 0
+local usingTexture = false
+local font = nil
+local fonts = {}
+local matrix = nil
+local scissor = nil
+local crypt = false
+local blendEnabled = false
+local powerSave = false
+local textShadow = false
+local textSubline = false
+local curVertices = {}
+local cryptedTexts = {}
+
+--Enable/Disable functions
+function gl.glEnable(opt)
+	if (opt == GL_CRYPT) then
+		crypt = true
+	elseif (opt == GL_POWERSAVE) then
+		powerSave = true
+	elseif (opt == GL_SCISSOR) then
+		scissor = {W = 0, H = 0}
+	elseif (opt == GL_BLEND) then
+		blendEnabled = true
+	elseif (opt == GL_TEXT_SHADOW) then
+		--font = fonts[id].S
+		textShadow = true
+		textSubline = false
+	elseif (opt == GL_TEXT_SUBLINE) then
+		--font = fonts[id].O
+		textShadow = false
+		textSubline = true
+	end
+end
+function gl.glDisable(opt)
+	if (opt == GL_CRYPT) then
+		crypt = false
+	elseif (opt == GL_POWERSAVE) then
+		powerSave = false
+	elseif (opt == GL_SCISSOR) then
+		scissor = nil
+	elseif (opt == GL_BLEND) then
+		blendEnabled = false
+	elseif (opt == GL_TEXT_SHADOW) then
+		font = fonts[id].N
+		textShadow = false
+		textSubline = false
+	elseif (opt == GL_TEXT_SUBLINE) then
+		font = fonts[id].N
+		textSubline = false
+		textShadow = false
+	end
+end
+
+--ID generation
+function gl.glGenTextures(str)
+	return render.getTextureID(str)
+end
+function gl.glGenFonts(family, bold, size)
+	local id = #fonts + 1
+	local weight = 500
+	if (bold) then
+		weight = 900
+	end
+	fonts[id] = {N = render.createFont(family, size, weight, true, false, false, false, false), S = render.createFont(family, size, weight, true, false, true, false, false), O = render.createFont(family, size, weight, true, false, false, true, false)}
+	return id
+end
+--End
+
+--GL Bind funtcions
+function gl.glBindColor(r, g, b, a)
+	usingTexture = false
+	usingColor = true
+	if (a == nil or powerSave) then
+		R = r
+		G = g
+		B = b
+		A = 255
+		return
+	end
+	if (not(blendEnabled)) then
+		if (a > 128) then
+			a = 255
+		else
+			a = 0
+		end
+	end
+	R = r
+	G = g
+	B = b
+	A = a
+end
+function gl.glBindTexture(id)
+	if (not(powerSave)) then
+		render.setTexture(id)
+		usingTexture = true
+		usingColor = false
+	else
+		usingTexture = false
+		usingColor = true
+		R = 0
+		G = 0
+		B = 0
+		A = 255
+	end
+end
+function gl.glBindFont(id)
+	if (fonts[id] == nil) then return end
+	if (textShadow) then
+		font = fonts[id].S
+	elseif (textSubline) then
+		font = fonts[id].O
+	else
+		font = fonts[id].N
+	end
+end
+
+--Text size functions
+function gl.glTextWidth(str)
+	if (not(font == nil)) then
+		local w,_ = render.getTextSize(font, str)
+		return w
+	end
+	return -1
+end
+function gl.glTextHeight(str)
+	if (not(font == nil)) then
+		local _,h = render.getTextSize(font, str)
+		return h
+	end
+	return -1
+end
+
+--Drawing functions
+function gl.glRect(x, y, width, height)
+	if (gl.glIsMatrix()) then
+		x = x + matrix.TranslationX
+		y = y + matrix.TranslationY
+		width = width * matrix.ScaleX
+		height = height * matrix.ScaleY
+
+		--The scissoring rect has coords
+		if (not(scissor == nil)) then
+			if (x < matrix.TranslationX) then
+				x = matrix.TranslationX
+			end
+			if (y < matrix.TranslationY) then
+				y = matrix.TranslationY
+			end
+		end
+	end
+
+	--The scissoring rect
+	if (not(scissor == nil)) then
+		if (x + width > x + scissor.W) then
+			width = scissor.W
+		end
+		if (y + height > y + scissor.H) then
+			height = scissor.H
+		end
+	end
+	--End
+
+	if (usingTexture) then
+		render.setColor(R, G, B, A)
+		render.drawTexturedRect(x, y, width, height)
+	elseif (usingColor) then
+		render.setColor(R, G, B, A)
+		render.drawRect(x, y, width, height)
+	end
+end
+function gl.glRoundedRect(x, y, w, h, r)
+	if (gl.glIsMatrix()) then
+		x = x + matrix.TranslationX
+		y = y + matrix.TranslationY
+		w = w * matrix.ScaleX
+		h = h * matrix.ScaleY
+
+		--The scissoring rect has coords
+		if (not(scissor == nil)) then
+			if (x < matrix.TranslationX) then
+				x = matrix.TranslationX
+			end
+			if (y < matrix.TranslationY) then
+				y = matrix.TranslationY
+			end
+		end
+	end
+
+	--The scissoring rect
+	if (not(scissor == nil)) then
+		if (x + w > x + scissor.W) then
+			w = scissor.W
+		end
+		if (y + h > y + scissor.H) then
+			h = scissor.H
+		end
+	end
+	--End
+
+	render.setColor(R, G, B, A)
+	if (powerSave) then
+		gl.glRect(x, y, w, h)
+	else
+		render.drawRoundedRect(r, x, y, w, h)
+	end
+end
+function gl.glUnfilledRect(x, y, width, height, stroke)
+	gl.glRect(x, y, width, stroke)
+	gl.glRect((x + width) - stroke, y, stroke, height)
+	gl.glRect(x, y, stroke, height)
+	gl.glRect(x, (y + height) - stroke, width, stroke)
+end
+function gl.glText(str, x, y)
+	if (gl.glIsMatrix()) then
+		x = x + matrix.TranslationX
+		y = y + matrix.TranslationY
+
+		--The scissoring rect has coords
+		if (not(scissor == nil)) then
+			if (x < matrix.TranslationX) then
+				x = matrix.TranslationX
+			end
+			if (y < matrix.TranslationY) then
+				y = matrix.TranslationY
+			end
+		end
+	end
+
+	--The scissoring rect (Person, please stop making so I can't do what I want !)
+	--[[if (not(scissor == nil)) then
+		local w = gl.glTextWidth(str)
+		local h = gl.glTextHeight(str)
+		if (x + w > x + scissor.W) then
+			local rmW = w - scissor.W
+			local charNum = rmW * font.size
+			str = str:sub(0, string.len(str) - charNum)
+		end
+		if (y + h > y + scissor.H) then
+			error("GL_Lib : GL_TEXT_OUT_OF_SCISSOR.H !")
+			return
+		end
+	end]]--
+	--End
+
+	if (not(font == nil)) then
+		if (usingColor) then
+			render.setColor(R, G, B, A)
+		end
+		if (crypt) then
+			if (not(cryptedTexts[str] == nil)) then
+				str = cryptedTexts[str]
+			else
+				local cr = ""
+				for i = 1, string.len(str) do
+					local b = string.byte(str:sub(i, i)) --Convert to lua byte
+					local flag = math.random(0, 5)
+					if (flag == 1) then
+						b = 0
+						cr = cr .. string.char(b)
+					else
+						b = b - math.random(0, 9)
+						b = math.clamp(b, 0, 255)
+						cr = cr .. string.char(b)
+					end
+				end
+				cryptedTexts[str] = cr
+				str = cr
+			end
+			render.drawText(font, x, y, str, TEXT_ALIGN_LEFT)
+		else
+			render.drawText(font, x, y, str, TEXT_ALIGN_LEFT)
+		end
+	end
+end
+
+function gl.glPushMatrix()
+	matrix = {TranslationX = 0, TranslationY = 0, ScaleX = 1, ScaleY = 1}
+end
+function gl.glTranslate(x, y)
+	matrix.TranslationX = x
+	matrix.TranslationY = y
+end
+function gl.glScale(x, y)
+	matrix.ScaleX = x
+	matrix.ScaleY = y
+end
+function gl.glIsMatrix()
+	return not(matrix == nil)
+end
+function gl.glPopMatrix()
+	matrix = nil
+end
+function gl.glScissor(width, height)
+	if (scissor == nil) then
+		return
+	end
+	scissor = {W = width, H = height}
+end
+
+--Poly draw ->Complex Drawing entrance<-
+local function glScaleVertices(tblVertices, iScaleX, iScaleY)
+	for k, v in pairs(tblVertices) do
+		v.x = v.x * iScaleX
+		v.y = v.y * iScaleY
+	end
+end
+local function glOffsetVertices(tblVertices, iOffsetX, iOffsetY)
+	for k, v in pairs(tblVertices) do
+		v.x = v.x + iOffsetX
+		v.y = v.y + iOffsetY
+	end
+end
+function gl.glVertex(xx, yy, uu, vv)
+	if (uu == nil) then uu = 0 end
+	if (vv == nil) then vv = 0 end
+	table.insert(curVertices, {x = xx, y = yy, u = uu, v = vv})
+end
+function gl.glDraw(x, y)
+	glOffsetVertices(curVertices, x, y)
+	if (gl.glIsMatrix()) then
+		--The scissoring rect has coords
+		if (not(scissor == nil)) then
+			if (matrix.TranslationX + x < matrix.TranslationX) then
+				x = matrix.TranslationX
+			end
+			if (matrix.TranslationY + y < matrix.TranslationY) then
+				y = matrix.TranslationY
+			end
+		end
+
+		glOffsetVertices(curVertices, matrix.TranslationX, matrix.TranslationY)
+		if (not(matrix.ScaleX == 1) or not(matrix.ScaleY == 1)) then
+			glScaleVertices(curVertices, matrix.ScaleX, matrix.ScaleY)
+		end
+	end
+
+	if (usingColor) then
+		render.setColor(R, G, B, A)
+		render.setTexture(nil)
+		render.drawPoly(curVertices)
+	end
+
+	curVertices = {}
+end
+
+local sin,cos,rad = math.sin,math.cos,math.rad;
+function GenerateCircle(radius, angle, quality)
+	local circle = {}
+	local tmp = 0
+	for i = 1, quality do
+		tmp = rad(i * angle) / quality
+		circle[i] = {x = cos(tmp) * radius, y = sin(tmp) * radius}
+	end
+	return circle
+end
+function gl.glCircle(x, y, rad1, ang, quality, startAngle)
+	if (quality == nil) then quality = 100 end
+	if (startAngle == nil) then startAngle = 0 end
+	if (ang == nil) then ang = 360 end
+
+	local radX = rad1
+	local radY = rad1 / 1.5
+
+	local tmp = 0
+	if (not(ang == 360)) then
+		gl.glVertex(0, 0, 0, 0)
+	end
+	for i = startAngle, startAngle + ang do
+		tmp = rad(i)
+		gl.glVertex(cos(tmp) * radX, sin(tmp) * radY, 1, 1)
+	end
+	gl.glDraw(x, y)
+end
+
+function gl.glPregenCircle(x, y, rad1, ang, quality, startAngle)
+    if (quality == nil) then quality = 100 end
+    if (startAngle == nil) then startAngle = 0 end
+    if (ang == nil) then ang = 360 end
+
+    local radX = rad1
+    local radY = rad1 --/ 1.5
+
+    local verts = {}
+    curVertices = verts
+
+    local tmp = 0
+    if (not(ang == 360)) then
+        gl.glVertex(0, 0, 0, 0)
+    end
+    for i = startAngle, startAngle + ang do
+        tmp = rad(i)
+        gl.glVertex(x + cos(tmp) * radX, y + sin(tmp) * radY, 1, 1)
+    end
+    curVertices = {}
+    return verts
+end
+
+function gl.glUnfilledCircle(x, y, rad1, ang, quality)
+	if (quality == nil) then quality = 100 end
+
+	local radX = rad1
+	local radY = rad1 / 1.5
+
+	local circle = {}
+	local tmp = 0
+	for i = 1, quality do
+		tmp = rad(i * ang) / quality
+		gl.glVertex(cos(tmp) * radX, sin(tmp) * radY, 1, 1)
+		gl.glVertex(cos(tmp) * (radX - 1), sin(tmp) * (radY - 1), 1, 1)
+	end
+	gl.glDraw(x, y)
+end
+-- ->Complex Drawing exit<-

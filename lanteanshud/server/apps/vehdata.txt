@@ -1,0 +1,21 @@
+--@name VehicleDataApp (SERVER)
+--@author Yuri6037
+
+local app = {
+	Update = function(ply)
+		if (ply:inVehicle() and not(globaltables.global.IntelliHUD == nil)) then
+			local veh = ply:vehicle()
+			if (IsValid(veh) and not(globaltables.global.IntelliHUD[veh:index()] == nil)) then
+				local data = globaltables.global.IntelliHUD[veh:index()]
+				if (IsValid(data.ZPM) and data.ZPM:class() == "starfall_processor") then
+					CheckVar("Name", data.Name)
+					CheckVar("Energy", data.ZPM:getWirelink()["P"])
+					return
+				end
+			end
+		end
+		CheckVar("Name", nil)
+	end
+}
+
+HUD.DefineApp("VehicleData", app, true)

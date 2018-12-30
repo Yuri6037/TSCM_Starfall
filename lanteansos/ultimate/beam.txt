@@ -1,0 +1,83 @@
+--@name BeamApp
+--@author Yuri6037
+
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+	self:SetTitle("Beam Manager")
+	self:SetSize(630, 256)
+	self:SetPos(LOCATION_CENTER)
+
+	self.Lst1 = self:AddComponent("listbox", 10, 32)
+	self.Lst1:SetSize(300, 170)
+	self.Lst1:SetMaxLines(9)
+	local data = {}
+	self.PLst = find.allPlayers()
+	for k, v in pairs(self.PLst) do
+		table.insert(data, v:name())
+	end
+	self.Lst1:SetData(data)
+
+	self.Lst2 = self:AddComponent("listbox", 320, 32)
+	self.Lst2:SetSize(300, 170)
+	self.Lst2:SetMaxLines(9)
+
+	local bback = self:AddComponent("button", 10, 207, "Beam back", function()
+		local id, str = self.Lst1:GetSelected()
+		if (str == nil) then
+			OS.Dialog("msg", "Beam Manager", nil, "Please specify a player on the first list !")
+			return
+		end
+		AIRunFunc("BeamBack", self.PLst[id])
+	end)
+	bback:SetSize(140, 20)
+	local bpad = self:AddComponent("button", 170, 207, "Beam to pad", function()
+		local id, str = self.Lst1:GetSelected()
+		if (str == nil) then
+			OS.Dialog("msg", "Beam Manager", nil, "Please specify a player on the first list !")
+			return
+		end
+		AIRunFunc("BeamToPad", self.PLst[id])
+	end)
+	bpad:SetSize(140, 20)
+	local bplayer = self:AddComponent("button", 10, 230, "Beam to player", function()
+		local id, str = self.Lst1:GetSelected()
+		if (str == nil) then
+			OS.Dialog("msg", "Beam Manager", nil, "Please specify a player on the first list !")
+			return
+		end
+		AIRunFunc("BeamToPlayer", self.PLst[id])
+	end)
+	bplayer:SetSize(300, 20)
+
+	local bpt = self:AddComponent("button", 320, 207, "Beam to point", function()
+		local id, str = self.Lst2:GetSelected()
+		if (str == nil) then
+			OS.Dialog("msg", "Beam Manager", nil, "Please specify a point on the second list !")
+			return
+		end
+		AIRunFunc("BeamToPoint", str)
+	end)
+	bpt:SetSize(300, 20)
+	local bplayerpt = self:AddComponent("button", 320, 230, "Beam player to point", function()
+		local id, str = self.Lst1:GetSelected()
+		if (str == nil) then
+			OS.Dialog("msg", "Beam Manager", nil, "Please specify a player on the first list !")
+			return
+		end
+		local id2, str2 = self.Lst2:GetSelected()
+		if (str2 == nil) then
+			OS.Dialog("msg", "Beam Manager", nil, "Please specify a point on the second list !")
+			return
+		end
+		AIRunFunc("BeamPlayerToPoint", {self.PLst[id], str2})
+	end)
+	bplayerpt:SetSize(300, 20)
+end
+
+function app:OnDataReceived(data)
+	self.Lst2:SetData(data)
+end
+
+OS.DefineApp("beam", app)
+OS.AddAppMenuItem("beam", "Beam", "Transport")

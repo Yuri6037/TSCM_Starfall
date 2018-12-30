@@ -1,0 +1,22 @@
+--@name WindowCS
+--@author Yuri6037
+
+Screen:RegisterWindow("CS", "Console", 512, 400, function()
+	--Open func
+end, function()
+	--Close func
+end, function()
+	--Render func
+	gl.glBindColor(133, 133, 133)
+	gl.glRect(0, 0, 512, 350)
+	gl.glBindColor(255, 255, 255)
+	local num = 0
+	for i = #ScreenLogs, 1, -1 do
+		if (num > 10) then return end
+		local v = ScreenLogs[i]
+		gl.glText(v, 0, num * 32)
+		num = num + 1
+	end
+end, function()
+	--Touch func
+end)

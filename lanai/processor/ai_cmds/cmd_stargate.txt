@@ -1,0 +1,76 @@
+--@name StargateCommands
+--@author Yuri6037
+
+local SearchingOwner = nil
+
+local function SGSearcher(gate)
+	if (SearchingOwner == nil) then return end
+	if (gate:owner() == SearchingOwner) then
+		print(gate)
+		print(stargate.name(gate))
+		DialGate(stargate.address(gate))
+		SearchingOwner = nil
+	end
+end
+
+AIRegisterCommand("stargate", function(cmd, ply)
+	if (Ship.Stargate == nil) then
+		return Command.ERROR_CUSTOM, "no gate found"
+	end
+	if (cmd[1] == "info") then
+		local addr, owner, name = GetGateTarget()
+		if (addr == nil) then
+			return Command.PASSING, "Not target gate found."
+		end
+		return Command.PASSING, "You are being dialed by " .. name .. ", belonging to " .. owner .. " (" .. addr .. ")"
+	elseif (cmd[1] == "dial") then
+		if (cmd[2] == nil) then
+			return Command.INVALID_ARGUMENT, "2 (address/name/player)"
+		end
+		if (IsValid(cmd[2])) then
+			SearchingOwner = cmd[2]
+			find.byClass("stargate_atlantis", SGSearcher)
+			if (not(SearchingOwner == nil)) then
+				find.byClass("stargate_universe", SGSearcher)
+				if (not(SearchingOwner == nil)) then
+					find.byClass("stargate_sg1", SGSearcher)
+					if (SearchingOwner == nil) then
+						return Command.PASSING, "Dialing " .. cmd[2]:name() .. "'s gate..."
+					else
+						return Command.PASSING, cmd[2]:name() .. " does not have any compatible gate..."
+					end
+				else
+					return Command.PASSING, "Dialing " .. cmd[2]:name() .. "'s gate..."
+				end
+			else
+				return Command.PASSING, "Dialing " .. cmd[2]:name() .. "'s gate..."
+			end
+		else
+			local namelst, dangerlst, addrlst = GetGateAddrList()
+			for k, v in pairs(namelst) do
+				if (string.find(string.upper(v), string.upper(cmd[2]))) then
+					DialGate(addrlst[k])
+					return Command.PASSING, "Dialing '" .. v .. "' (" .. addrlst[k] .. ")..."
+				end
+			end
+		end
+		DialGate(cmd[2])
+		return Command.PASSING, "Dialing " .. cmd[2] .. "..."
+	elseif (cmd[1] == "iris") then
+		if (cmd[2] == nil or (not(cmd[2] == "on") and not(cmd[2] == "off"))) then
+			return Command.INVALID_ARGUMENT, "2 (on/off)"
+		end
+		if (Ship.Stargate.Iris == nil) then return Command.ERROR_CUSTOM, "no iris on the gate" end
+		if (cmd[2] == "on") then
+			Ship.Stargate.Iris["Activate"] = 1
+			return Command.PASSING, "Activated gate iris !"
+		else
+			Ship.Stargate.Iris["Activate"] = 0
+			return Command.PASSING, "Deactivated gate iris !"
+		end
+	elseif (cmd[1] == "close" or cmd[1] == "off") then
+		CloseGate()
+		return Command.PASSING, "Closed gate !"
+	end
+	return Command.INVALID_ARGUMENT, "1 (info/dial/iris/close)"
+end, {"Creates a warp/beam point.", "<command> <option> [arg]", "Option : info, dial, iris, close"}, {"string", "player:string"}, {}, 1)

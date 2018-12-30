@@ -1,0 +1,79 @@
+--@name Lanteans OS CardLoader
+--@author Yuri6037
+
+local BUFFER_SIZE = 1024
+local EnumCardSendState = {
+	BEGIN = 0,
+	BUFFER = 1,
+	END = 2
+}
+
+if (CLIENT) then
+	local CurInstaller = -1
+	local CurAppBuffer = ""
+	net.RegPacket(255, "CARD_DL", function(args)
+		if (not(OS.IsOnDesktop())) then return end
+		--Read
+		local type = net.readUInt(4)
+		if (type == EnumCardSendState.BEGIN) then
+			local name = net.readString()
+			CurInstaller = OS.StartApp("installer")
+			local app = OS.GetApp(CurInstaller)
+			if (app == nil) then return end
+			app.AppName = name
+			app:SetTitle("Installer - " .. name)
+			CurAppBuffer = ""
+			OS.SwitchScreen("main")
+		elseif (type == EnumCardSendState.BUFFER) then
+			CurAppBuffer = CurAppBuffer .. net.readString()
+		elseif (type == EnumCardSendState.END) then
+			if (OS.ValidHandle(CurInstaller)) then
+				local app = OS.GetApp(CurInstaller)
+				app:DownloadEnd(CurAppBuffer)
+			end
+		end
+	end, nil, true)
+elseif (SERVER) then
+	PushDriver("CardHeader", "String", "CardData", "String")
+	local Card = {}
+	hook("input", "LanteansOS_CardChanged", function(inn, out)
+		if (inn == "CardHeader") then
+			Card.Header = out
+			if (not(Card.Header == nil) and not(Card.Data == nil)) then
+				BroadcastAppCard(Card.Header, Card.Data)
+				Card.Header = nil
+				Card.Data = nil
+			end
+		elseif (inn == "CardData") then
+			Card.Data = out
+			if (not(Card.Header == nil) and not(Card.Data == nil)) then
+				BroadcastAppCard(Card.Header, Card.Data)
+				Card.Header = nil
+				Card.Data = nil
+			end
+		end
+	end)
+	net.RegPacket(255, "CARD_DL", nil, function(args)
+		--Write
+		net.writeUInt(4, args[1])
+		if (args[1] == EnumCardSendState.BUFFER or args[1] == EnumCardSendState.BEGIN) then
+			net.writeString(args[2])
+		end
+	end, true)
+	function BroadcastAppCard(header, data)
+		if (string.StartsWith(header, "app") and not(timer.exists("LanteansOS_CardDL"))) then
+			net.Broadcast("CARD_DL", EnumCardSendState.BEGIN, header)
+			timer.create("LanteansOS_CardDL", 1, 0, function()
+				if (not(data == nil) and not(data == "")) then
+					local buf = data:sub(0, BUFFER_SIZE)
+					data = data:sub(BUFFER_SIZE + 1)
+					net.Broadcast("CARD_DL", EnumCardSendState.BUFFER, buf)
+				else
+					net.Broadcast("CARD_DL", EnumCardSendState.END)
+					timer.remove("LanteansOS_CardDL")
+				end
+			end)
+		end
+	end
+	PopDriver()
+end

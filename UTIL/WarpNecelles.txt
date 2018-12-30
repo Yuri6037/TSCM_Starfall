@@ -1,0 +1,112 @@
+--@name Warp Nacelles
+--@author 4N0NYM & Yuri6037
+--@class processor
+--@autoupdate
+
+--@require lanai/processor/api/lanai_api.txt
+
+wire.createInputs({"Button", "Entity1", "Entity2", "Entity3", "Entity4", "Entity5", "Entity6", "Entity7", "Entity8"}, {"Normal", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity"})
+
+local A = 0
+
+local MaxRetract = 185
+
+--Wiremod
+local Button = wire.ports["Button"]
+local Entity1 = wire.ports["Entity1"]
+local Entity2 = wire.ports["Entity2"]
+local Entity3 = wire.ports["Entity3"]
+local Entity4 = wire.ports["Entity4"]
+local Entity5 = wire.ports["Entity5"]
+local Entity6 = wire.ports["Entity6"]
+local Entity7 = wire.ports["Entity7"]
+local Entity8 = wire.ports["Entity8"]
+
+--Initial poses
+local E5Pos = Vector(0, 0, 0)
+local E6Pos = Vector(0, 0, 0)
+local E7Pos = Vector(0, 0, 0)
+local E8Pos = Vector(0, 0, 0)
+local function UpdateInitialPos()
+	if (IsValid(Entity5)) then
+		E5Pos = Entity5:pos()
+	end
+	if (IsValid(Entity6)) then
+		E6Pos = Entity6:pos()
+	end
+	if (IsValid(Entity7)) then
+		E7Pos = Entity7:pos()
+	end
+	if (IsValid(Entity8)) then
+		E8Pos = Entity8:pos()
+	end
+end
+UpdateInitialPos()
+
+local function Update()
+	-----now we move stuff
+	if (Button == 1 and A < MaxRetract) then
+		A = A + 1
+	elseif (Button == 0 and A > 1) then
+		A = A - 1
+	end
+	if (Button == 0 and A == 1) then timer.remove("WarpNacelles") end
+	if (Button == 1 and A == MaxRetract) then timer.remove("WarpNacelles") end
+
+	--Top
+	if (IsValid(Entity1)) then
+		Entity1:setPos(Entity5:localToWorld(Vector(-A, 0, 180 - A)))
+	end
+	if (IsValid(Entity4)) then
+		Entity4:setPos(Entity8:localToWorld(Vector(-A, 0, 180 - A)))
+	end
+
+	--Bottom
+	if (IsValid(Entity2)) then
+		Entity2:setPos(Entity6:localToWorld(Vector(180 - A, 0, -A)))
+	end
+	if (IsValid(Entity3)) then
+		Entity3:setPos(Entity7:localToWorld(Vector(-180 + (MaxRetract - A), 0, (MaxRetract - A))))
+	end
+end
+
+hook("input", "WarpNacelles", function(inp, val)
+	if (inp == "Button") then
+		Button = val
+		timer.create("WarpNacelles", 0.01, 0, Update)
+	elseif (inp == "Entity1") then
+		Entity1 = val
+	elseif (inp == "Entity2") then
+		Entity2 = val
+	elseif (inp == "Entity3") then
+		Entity3 = val
+	elseif (inp == "Entity4") then
+		Entity4 = val
+	elseif (inp == "Entity5") then
+		Entity5 = val
+	elseif (inp == "Entity6") then
+		Entity6 = val
+	elseif (inp == "Entity7") then
+		Entity7 = val
+	elseif (inp == "Entity8") then
+		Entity8 = val
+	end
+	UpdateInitialPos()
+end)
+
+hook("PreEntityCopy", "WarpNacelles", function(data)
+	data.Button = Button
+end)
+hook("PostEntityPaste", "WarpNacelles", function(data)
+	Button = data.Button
+end)
+
+LanAI:EventHook(Events.ENGINES_ENABLED, function()
+	Button = 0
+	timer.create("WarpNacelles", 0.01, 0, Update)
+end)
+
+LanAI:EventHook(Events.ENGINES_DISABLED, function()
+	Button = 1
+	timer.create("WarpNacelles", 0.01, 0, Update)
+end)

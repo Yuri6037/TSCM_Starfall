@@ -1,0 +1,105 @@
+--@name FilesApp
+--@author Yuri6037
+
+--Equivalence of the MacOS X Finder (using Lanteans OS FileSystem (LOFS))
+
+local app = {}
+function app:DispFileInfos(lst)
+	local id, str = lst:GetSelected()
+	if (id == nil) then return end
+	local err, size = FS.FileSize(self.CurDir .. "/" .. str)
+	if (err == FS.ERR_SYNCING) then
+		FS.RequestFile(self.CurDir .. "/" .. str, function()
+			self:DispFileInfos(lst)
+		end)
+		return
+	end
+	if (not(err == FS.ERR_NONE)) then
+		OS.Dialog("msg", "FileSystem", nil, "Could not read file infos : " .. FS.ErrorString[err])
+		return
+	end
+	local msg = "File size : " .. size .. " | File ext : '" .. FS.FileExtension(str) .. "'"
+	if (FS.IsDirectory(str)) then
+		msg = msg .. " | Directory"
+	end
+	OS.Dialog("msg", "FileSystem", nil, msg)
+end
+function app:ListFiles()
+	local finder = FS.NewFinder()
+	finder:SetAll()
+	local tbl = FS.ListFiles(self.CurDir, finder)
+	if (not(self.CurDir == "/")) then
+		table.insert(tbl, 1, "..")
+	end
+	return tbl
+end
+function app:Init()
+	self:SetTitle("Files")
+	self:SetSize(300, 150)
+	self:SetPos(LOCATION_CENTER)
+
+	self.CurDir = "/"
+	local lst = self:AddComponent("listbox", 10, 32)
+	lst:SetSize(280, 90)
+	lst:SetMaxLines(5)
+	lst:SetData(self:ListFiles())
+	local b = self:AddComponent("button", 10, 130, "Open", function()
+		local id, str = lst:GetSelected()
+		if (id == nil) then return end
+		if (str == "..") then
+			local id = string.GetLastIndexOfChar(self.CurDir, "/")
+			self.CurDir = self.CurDir:sub(1, id - 1)
+			lst:SetData(self:ListFiles())
+		elseif (FS.IsDirectory(str)) then
+			self.CurDir = self.CurDir .. "/" .. str
+			lst:SetData(self:ListFiles())
+		else
+			local appid = FS.GetFileAssociation(FS.FileExtension(str))
+			if (appid == nil) then
+				OS.Dialog("msg", "Lanteans OS", nil, "No application found to open file type '" .. FS.FileExtension(str) .. "'")
+				return
+			end
+			OS.StartApp(appid, self.CurDir .. "/" .. str, true)
+		end
+	end)
+	b:SetSize(64, 16)
+	self:AddPullDownMenu("        File        ")
+	self:AddPullDownMenuItem("Infos", function()
+		self:DispFileInfos(lst)
+	end)
+	self:AddPullDownMenuItem("New Directory", function()
+		OS.Dialog("savefile", "Please specify new directory name", function(str)
+			if (string.find(str, "/", 1, true) or string.find(str, ".", 1, true)) then
+				OS.Dialog("msg", "FileSystem", nil, "Invalid given directory name")
+				return
+			end
+			local err = FS.CreateDirectory(self.CurDir .. "/" .. str)
+			if (not(err == FS.ERR_NONE)) then
+				OS.Dialog("msg", "FileSystem", nil, "Unable to create directory : " .. FS.ErrorString[err])
+				return
+			end
+			lst:SetData(self:ListFiles())
+		end)
+	end)
+	self:AddPullDownMenuItem("Delete", function()
+		local id, str = lst:GetSelected()
+		if (id == nil) then return end
+		local err = FS.ERR_NONE
+		if (FS.IsDirectory(str)) then
+			err = FS.DeleteDirectory(self.CurDir .. "/" .. str)
+		else
+			err = FS.DeleteFile(self.CurDir .. "/" .. str)
+		end
+		if (not(err == FS.ERR_NONE)) then
+			OS.Dialog("msg", "FileSystem", nil, "Could not delete file : " .. FS.ErrorString[err])
+			return
+		end
+		lst:SetData(self:ListFiles())
+	end)
+	self:AddPullDownMenuItem("Close", function()
+		self:Close()
+	end)
+end
+
+OS.DefineApp("files", app)
+OS.AddAppMenuItem("files", "Files", "MISC")

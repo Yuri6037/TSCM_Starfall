@@ -1,0 +1,164 @@
+--@name NET_HOOKS_CL
+--@author Yuri6037
+
+ScreenLogs = {}
+function Log(msg)
+	if (#ScreenLogs >= 13) then
+		table.remove(ScreenLogs, 1)
+	end
+	table.insert(ScreenLogs, msg)
+end
+
+hook("net", "LanAI_CL", function(len)
+	local c = net.readString()
+
+	if (string.find(c, "LOAD.")) then
+		CurGUI = 0
+		if (c == "PRELOAD.START") then
+			Screen:Display("ConstraintsRetriever")
+		elseif (c == "PRELOAD.END") then
+			Screen:Display("Load")
+		elseif (c == "PRELOAD.UPD") then
+			ConstraintsRetrieverStr = net.readString()
+		elseif (c == "LOAD.END") then
+			Screen:Display("Main")
+		elseif (c == "LOAD.START") then
+			Screen:Display("Load")
+		elseif (c == "LOAD.UPD") then
+			LoadingStr = net.readInt(8, true)
+		end
+		return
+	end
+
+	if (c == "G") then --Server wants to change GUI
+		CurGUI = net.readInt(4, true)
+	elseif (c == "GW") then
+		CurGUI = 5
+		UpdateWarpRegistry(net.readTable())
+	elseif (c == "L") then --Server wants lockdown
+		Screen:Display("Lockdown")
+		BroadcastTripleScreenPacket("FUNC", "LOCK")
+	elseif (c == "U") then --Server wants unlock
+		Screen:Display("Main")
+		BroadcastTripleScreenPacket("FUNC", "UNLOCK")
+	elseif (c == "A") then --Alerts
+		local id = net.readInt(4, true)
+		if (id == 0) then
+			for k, v in pairs(Alerts) do
+				if (v.Text == "HIGH ALERT") then
+					table.remove(Alerts, k)
+				end
+			end
+			table.insert(Alerts, {Alpha = 255, Text = "HIGH ALERT"})
+		elseif (id == 1) then
+			for k, v in pairs(Alerts) do
+				if (v.Text == "NORMAL ALERT") then
+					table.remove(Alerts, k)
+				end
+			end
+			table.insert(Alerts, {Alpha = 200, Text = "NORMAL ALERT"})
+		elseif (id == 2) then
+			for k, v in pairs(Alerts) do
+				if (v.Text == "LOW ALERT") then
+					table.remove(Alerts, k)
+				end
+			end
+			table.insert(Alerts, {Alpha = 128, Text = "LOW ALERT"})
+		elseif (id == 3) then
+			table.remove(Alerts, 1)
+			table.remove(Alerts, 1)
+			table.remove(Alerts, 1)
+		end
+	elseif (c == "D") then --Autodestruction toggle
+		SelfDestruct = not(SelfDestruct)
+		if (SelfDestruct) then
+			Screen:Display("Autodestruct")
+			timer.remove("Ship_AI_DestroyTimer")
+			timer.create("Ship_AI_DestroyTimer", 1, 60, function()
+				SelfDestructDispTimer = SelfDestructDispTimer - 1
+				if (SelfDestructDispTimer < 0) then
+					SelfDestructDispTimer = 0
+				end
+			end)
+		else
+			Screen:Display("Main")
+			timer.remove("Ship_AI_DestroyTimer")
+			SelfDestructDispTimer = 60
+		end
+	elseif (c == "RI") then
+		local tbl = net.readTable()
+		ProcessorInfo.CPU = tbl.CPUUsage
+		ProcessorInfo.OPS = tbl.OPSUsage
+		ProcessorInfo.CrashNum = tbl.CrashNumber
+		ProcessorInfo.LastUpdated = time.realTime()
+	elseif (c == "W") then
+		local CurWindow = net.readInt(4, true)
+		if (CurWindow == 0) then
+			Screen:ShowWindow("RI")
+		elseif (CurWindow == 1) then
+			Screen:ShowWindow("CS")
+		elseif (CurWindow == 2) then
+			Screen:ShowWindow("NB")
+		elseif (CurWindow == 3) then
+			Screen:ShowWindow("AL")
+		end
+	elseif (c == "WK") then
+		local CurWindow = net.readInt(4, true)
+		if (not(Screen.Windows[CurWindow] == nil)) then
+			Screen.Windows[CurWindow]:Close()
+		end
+	elseif (c == "WR") then
+		local CurWindow = net.readInt(4, true)
+		if (not(Screen.Windows[CurWindow] == nil)) then
+			Screen.Windows[CurWindow]:Reduce(false)
+		end
+	elseif (c == "WD") then
+		local CurWindow = net.readInt(4, true)
+		if (not(Screen.Windows[CurWindow] == nil)) then
+			Screen.Windows[CurWindow]:Reduce(true)
+		end
+	elseif (c == "KEY" and ListeningKeyboard) then
+		KeyboardListener(net.readInt(8, true))
+	elseif (c == "LG") then
+		Log(net.readString())
+	elseif (c == "PROC.START") then
+		BackgroundProcess.Name = net.readString()
+		BackgroundProcess.Percentage = 0
+	elseif (c == "PROC.END") then
+		BackgroundProcess.Name = ""
+		BackgroundProcess.Percentage = 0
+	elseif (c == "PROC.UPD") then
+		BackgroundProcess.Percentage = net.readInt(8, true)
+	elseif (c == "MB") then
+		local t = net.readInt(4, true)
+		local s = net.readString()
+		Screen:MessageBox(s, t)
+	elseif (c == "SI.U") then
+		print("Received info")
+		SubInfos[net.readString()] = net.readType(net.readUInt(8))
+	elseif (c == "SI.A") then
+		SubInfos = net.readTable()
+	elseif (c == "PS") then
+		if (ShipPlans == nil) then error("Screen not loaded !") end
+		local type = net.readInt(4, true)
+		local tbl = net.readTable()
+		if (type == 0) then
+			table.insert(ShipPlans, tbl)
+		elseif (type == 1) then
+			Floors = tbl
+		end
+	elseif (c == "PL") then
+		PlayerList = net.readTable()
+	else
+		Net = net.readTable()
+
+		local temp = Net
+
+		local gui = GetGUI(CurGUI)
+		if (not(gui == nil) and not(gui.ComputeNetStream == nil)) then
+			Net = gui.ComputeNetStream(Net)
+		end
+
+		BroadcastTripleScreenPacket("DATA", temp)
+	end
+end)

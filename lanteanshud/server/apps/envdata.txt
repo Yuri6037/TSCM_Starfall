@@ -1,0 +1,24 @@
+--@name EnvironmentDataApp (SERVER)
+--@author Yuri6037
+
+local app = {
+	Update = function(ply)
+		local env = ply:getEnvironmentData()
+		if (env.name == nil) then env.name = "Undefined" end
+		local air = (env.air.Oxygen + env.air.Nitrogen + env.air.Hydrogen) / 100
+		CheckVar("EnvAir", math.round(air, 2))
+		CheckVar("EnvGrav", env.gravity)
+		CheckVar("EnvName", env.name)
+		if (PlayerInBox(ply, Universe.Min, Universe.Max)) then
+			CheckVar("GalaxyName", "Universe")
+		elseif (PlayerInBox(ply, Pegasus.Min, Pegasus.Max)) then
+			CheckVar("GalaxyName", "Pegasus")
+		elseif (PlayerInBox(ply, Milkyway.Min, Milkyway.Max)) then
+			CheckVar("GalaxyName", "Milkyway")
+		else
+			CheckVar("GalaxyName", "Unknown")
+		end
+	end
+}
+
+HUD.DefineApp("EnvironmentData", app)

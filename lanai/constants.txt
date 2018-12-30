@@ -1,0 +1,39 @@
+--@name Constants
+--@author Yuri6037
+
+--Galaxies defines
+Pegasus = {
+	Min = Vector( -16000, -16000, 30 ), --Width X : 32 000
+	Max = Vector( 16000, 0, 16000 ) --Width Y : 16 000
+}
+Universe = {
+	Min = Vector( -16384, -16384, -14013 ), --Width X : 32 768
+	Max = Vector( 16384, 16384, -1 ) --Width Y : 32 768
+}
+Milkyway = {
+	Min = Vector( -16000, 30, 30 ), --Width X : 32 000
+	Max = Vector( 16000, 16000, 16000 ) --Width Y : 15 970
+}
+
+WaterLakes = {
+    ["Shakuras"] = Vector(-7584, -6834, 6744),
+    ["Hiigara"] = Vector(7342, 8019, -6261),
+    ["Earth"] = Vector(-114, 8162, 7800)
+}
+
+--Close timings for some doors
+DoorTimingMap = {
+	["models/cerus/modbridge/misc/doors/door11a.mdl"] = 5,
+	["models/cerus/modbridge/misc/doors/door12a.mdl"] = 4,
+	Default = 1
+}
+
+VERSION_AI = "X"
+VERSION_LIBS = "3.0"
+VERSION_PLOADER = "1.0"
+
+--[[ This Ship Name ]]--
+ShipName = "Undefined"
+--[[ End ]]--
+
+EnableLegacyChat = true

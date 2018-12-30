@@ -1,0 +1,108 @@
+--@name ElevatorEngineUnknownProp
+--@author Yuri6037
+
+local ElevatorSpeed = 29.43
+local ElevatorCorrectStrength = 50
+local MaxFloors = 0
+local ElevatorPos = {}
+local MovingProp = wire.ports["MovingProp"]
+local CurFloor = 1
+local InitialPos = Vector(0, 0, 0)
+
+-- Please make sure to save and repaste this chip with the elevator prop at the relative position "0"
+-- Floor 1 must be the "0" position
+-- All positions are relative to the initial elevator prop position
+
+local function CreateFloors()
+	if (not(IsValid(MovingProp))) then
+		print("No moving prop found !")
+		return
+	end
+	InitialPos = ents.self():worldToLocal(MovingProp:pos())
+	--ElevatorPos[1] = 0 -- The moving prop should be hidden at this position
+	--ElevatorPos[2] = -334.1 -- The moving prop should be on the bottom floor at this position
+	--ElevatorPos[3] = 90 -- The moving prop should be on top of the ship at this position
+	ElevatorPos[1] = 0
+	ElevatorPos[2] = 90
+	MaxFloors = #ElevatorPos
+end
+
+local function InitEngine()
+	wire.createInputs({"MovingProp", "GoFloor"}, {"Entity", "Normal"})
+	wire.createOutputs({"CurFloor"}, {"Normal"})
+	wire.ports["CurFloor"] = 1
+	CreateFloors()
+end
+
+--Round 2 AdvDupe You're gonna dupe correctly my proc you FUCK
+hook("PreEntityCopy", "ElevatorEngine", function(data)
+	data.MovingProp = MovingProp:index()
+end)
+hook("PostEntityPaste", "ElevatorEngine", function(data, ent)
+	MovingProp = ent[data.MovingProp]
+	MaxFloors = 0
+	CreateFloors()
+end)
+--End
+
+InitEngine()
+
+local function GoToFloor(id)
+	if (id <= 0 or id > MaxFloors) then
+		print("Floor ID can not exist => WireMod problem probably ignore")
+		return
+	end
+	if (not(IsValid(MovingProp))) then
+		print("No moving prop found !")
+		return
+	end
+	local init = ents.self():localToWorld(InitialPos)
+	local ang = MovingProp:getAngles()
+	local localendpos = -MovingProp:up() * ElevatorPos[id]
+	local endpos = init + localendpos
+	local test = MovingProp:worldToLocal(endpos)
+	local negative = false
+	if (test.Z < 0) then
+		negative = true
+		test.Z = -test.Z
+	end
+	if (CurFloor == id or test.Z <= 0) then
+		print("Elevator is already there")
+		return
+	end
+	wire.ports["CurFloor"] = 0
+	local phys = MovingProp:getPhysicsObject()
+	local cnstforce = endpos - MovingProp:pos()
+	cnstforce:Normalize()
+	local force = cnstforce * phys:getMass() * ElevatorSpeed
+	phys:enableMotion(true)
+	phys:enableGravity(false)
+	timer.create("ElevatorEngine", 0.1, 0, function()
+		local test = MovingProp:worldToLocal(endpos)
+		if (negative) then test.Z = -test.Z end
+		if (test.Z <= 0) then
+			timer.remove("ElevatorEngine")
+			MovingProp:setPos(endpos)
+			phys:enableMotion(false)
+			CurFloor = id
+			wire.ports["CurFloor"] = CurFloor
+			print("Reached floor " .. CurFloor)
+			return
+		end
+		MovingProp:setAngles(ang)
+		--local targetcorrect = init - Vector(math.abs((MovingProp:up() * init).X), math.abs((MovingProp:up() * init).Y), math.abs((MovingProp:up() * init).Z))
+		--local correctforce = ((targetcorrect + MovingProp:up() * MovingProp:pos()) - MovingProp:pos()) * phys:getMass() * ElevatorCorrectStrength
+		local correctforce = ((MovingProp:forward() * init + MovingProp:right() * init) - (MovingProp:forward() * MovingProp:pos() + MovingProp:right() * MovingProp:pos())) * phys:getMass() * ElevatorCorrectStrength
+		print(correctforce)
+		phys:applyForceCenter(force)
+	end)
+end
+
+hook("input", "ElevatorEngine", function(input, val)
+	if (input == "MovingProp") then
+		MovingProp = val
+		CreateFloors()
+	elseif (input == "GoFloor") then
+		GoToFloor(val)
+	end
+end)

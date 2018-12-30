@@ -1,0 +1,31 @@
+--@name Lanteans OS FullScreen APP
+--@author Yuri6037
+
+local scr = {
+	Init = function(self)
+		if (not(OS.ValidHandle(CurWindowHdl))) then OS.SwitchScreen("main") return end
+		self.CurHdl = CurWindowHdl
+		local app = OS.GetApp(self.CurHdl)
+		app:SetPos(0, 0)
+	end,
+	Render = function(self)
+		if (not(CurWindowHdl == self.CurHdl) or not(OS.ValidHandle(self.CurHdl))) then OS.SwitchScreen("main") return end
+		local app = OS.GetApp(self.CurHdl)
+		app:Render()
+		if (not(CurWindowHdl == self.CurHdl) or not(OS.ValidHandle(self.CurHdl))) then OS.SwitchScreen("main") return end
+	end,
+	Update = function(self, ticks)
+		if (not(CurWindowHdl == self.CurHdl) or not(OS.ValidHandle(self.CurHdl))) then OS.SwitchScreen("main") return end
+		local app = OS.GetApp(self.CurHdl)
+		if (app.ShouldUpdate) then app:Update(ticks) end
+		if (not(CurWindowHdl == self.CurHdl) or not(OS.ValidHandle(self.CurHdl))) then OS.SwitchScreen("main") return end
+	end,
+	Touched = function(self)
+		if (not(CurWindowHdl == self.CurHdl) or not(OS.ValidHandle(self.CurHdl))) then OS.SwitchScreen("main") return end
+		local app = OS.GetApp(self.CurHdl)
+		app:Touched(OS.MousePos())
+		if (not(CurWindowHdl == self.CurHdl) or not(OS.ValidHandle(self.CurHdl))) then OS.SwitchScreen("main") return end
+	end
+}
+
+OS.DefineScreen("fullscreen", scr)

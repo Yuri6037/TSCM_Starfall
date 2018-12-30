@@ -1,0 +1,73 @@
+--@name EnginesDeviceManager
+--@author Yuri6037
+
+Ship.Engines = {}
+
+local EngineOnMt = "spacebuild/fusion4"
+local EngineOffMt = "cmats/base_metal_light"
+
+local ActiveEngs = false
+
+local function StartLargeEngine(ent, b)
+	if (b) then
+		ent:setMaterial(EngineOnMt)
+		ent:setColor(Color(255, 255, 255))
+	else
+		ent:setMaterial(EngineOffMt)
+		ent:setColor(Color(255, 144, 0))
+	end
+end
+local function StartSmallEngine(ent, b, ids)
+	if (b) then
+		for k, v in pairs(ids) do
+			ent:setSubMaterial(v, EngineOnMt)
+		end
+	else
+		for k, v in pairs(ids) do
+			ent:setSubMaterial(v, EngineOffMt)
+		end
+	end
+end
+
+function StartEngines()
+	for k, v in pairs(Ship.Engines) do
+		v.Func(v.Prop, true, v.Var)
+	end
+	ActiveEngs = true
+	SendAPIEvent("ENGINES_ON")
+end
+function StopEngines()
+	for k, v in pairs(Ship.Engines) do
+		v.Func(v.Prop, false, v.Var)
+	end
+	ActiveEngs = false
+	SendAPIEvent("ENGINES_OFF")
+end
+
+function EnginesActive()
+	return ActiveEngs
+end
+
+RegisterDriver({"prop_physics"}, function(ent)
+	if (ent:model() == "models/props_phx/construct/metal_dome360.mdl" and ent:material() == "cmats/base_metal_light") then
+		table.insert(Ship.Engines, {Prop = ent, Func = StartLargeEngine})
+		return true
+	elseif (ent:model() == "models/cerus/modbridge/misc/engines/eng_p31.mdl"
+			or ent:model() == "models/cerus/modbridge/misc/engines/eng_sq11b.mdl"
+			or ent:model() == "models/cerus/modbridge/plate/flat/wd11.mdl"
+			or ent:model() == "models/cerus/modbridge/plate/flat/wd21.mdl"
+			or ent:model() == "models/cerus/modbridge/plate/flat/wd31.mdl"
+			or ent:model() == "models/cerus/modbridge/plate/flat/wdc11b.mdl") then
+		local ids = {}
+		for k, v in pairs(ent:getMaterials()) do
+			if (v == "cmats/light" or v == "cmats/base_metal_light") then
+				table.insert(ids, k - 1)
+			end
+		end
+		table.insert(Ship.Engines, {Prop = ent, Func = StartSmallEngine, Var = ids})
+		return true
+	end
+	return false
+end)
+
+HookPostLoad(StartEngines)

@@ -1,0 +1,43 @@
+--@name SFEntityDetector (SERVER)
+--@author Yuri6037
+
+local BlackList = {
+	["stargate_atlantis"] = true,
+	["stargate_universe"] = true,
+	["stargate_tollan"] = true,
+	["stargate_sg1"] = true
+}
+
+local UsePlys = {}
+local PlysCurEnt = {}
+
+hook("keypress", "LanteansHUD_EntityInfo", function(ply, key)
+	if (UsePlys[ply] and key == input.IN_WALK and IsValid(ply:activeWeapon()) and ply:activeWeapon():class() == "kinoremote" and IsValid(ply:eyeTrace().Entity) and not(BlackList[ply:eyeTrace().Entity:class()])) then
+		PlysCurEnt[ply] = ply:eyeTrace().Entity
+	end
+end)
+
+hook("keyrelease", "LanteansHUD_EntityInfo", function(ply, key)
+	if (UsePlys[ply] and key == input.IN_WALK) then
+		PlysCurEnt[ply] = nil
+	end
+end)
+
+local app = {
+	OnActivated = function(ply)
+		UsePlys[ply] = true
+	end,
+	OnDeactivated = function(ply)
+		UsePlys[ply] = nil
+	end,
+	Update = function(ply)
+		CheckVar("Entity", PlysCurEnt[ply])
+		if (IsValid(PlysCurEnt[ply]) and PlysCurEnt[ply]:class() == "starfall_processor") then
+			CheckVar("EntityName", starfall.getName(PlysCurEnt[ply]))
+			CheckVar("EntityAuthor", starfall.getAuthor(PlysCurEnt[ply]))
+		end
+	end
+}
+
+HUD.DefineApp("EntityInfo", app, true)
+

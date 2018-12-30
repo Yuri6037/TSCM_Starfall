@@ -1,0 +1,25 @@
+--@name AncientBattery
+--@author Yuri6037
+--@class processor
+--@model models/lt_c/sci_fi/dm_container_small.mdl
+
+--@require zpmsystem/zpm/zpmlib.txt
+
+--Actual code
+local tbl = {
+	MaxEnergyValue = 1024,
+	OnConnected = function()
+		self:setColor(Color(255, 255, 255))
+	end,
+	OnDisconnected = function()
+		self:setColor(Color(20, 20, 20))
+	end,
+	OnPumpedEnergy = function(amount)
+	end,
+	OnEntitySaved = function()
+	end,
+	OnEntitySpawned = function()
+		self:setColor(Color(20, 20, 20))
+	end
+}
+zpms.Define(tbl)

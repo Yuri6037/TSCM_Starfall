@@ -1,0 +1,7 @@
+--@name WarpUpdater
+--@author Yuri6037
+
+RegisterGuiUpdater(5, function()
+end, function()
+	SendPacket("WARPGUI")
+end)

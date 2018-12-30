@@ -1,0 +1,65 @@
+--@name PointsCommands
+--@author Yuri6037
+
+AIRegisterCommand("create", function(cmd, ply)
+	local o = cmd[1]
+	if (o == "warp") then
+		SavePoint("WARP", cmd[2], ply:getPos())
+		return Command.PASSING, "Saved warp point with name " .. cmd[2] .. "."
+	elseif (o == "beam") then
+		SavePoint("BEAM", cmd[2], ply:getPos())
+		return Command.PASSING, "Saved beam point with name " .. cmd[2] .. "."
+	end
+	return Command.INVALID_ARGUMENT, "1 (option warp/beam)"
+end, {"Creates a warp/beam point.", "<command> <option> <name>", "Option : warp, beam"}, {"string", "string"}, {}, 2)
+
+AIRegisterCommand("delete", function(cmd, ply)
+	local o = cmd[1]
+	if (o == "warp") then
+		DeletePoint("WARP", cmd[2])
+		return Command.PASSING, "Deleted warp point with name " .. cmd[2] .. "."
+	elseif (o == "beam") then
+		DeletePoint("BEAM", cmd[2])
+		return Command.PASSING, "Deleted beam point with name " .. cmd[2] .. "."
+	end
+	return Command.INVALID_ARGUMENT, "1 (option warp/beam)"
+end, {"Deletes a warp/beam point.", "<command> <option> <name>", "Option : warp, beam"}, {"string", "string"}, {}, 2)
+
+AIRegisterCommand("points", function(cmd, ply)
+	if (cmd[1] == "warp") then
+		local str = "Warps : "
+		for k, v in pairs(Points.WarpList) do
+			if (k > 1) then
+				str = str .. ", "
+			end
+			str = str .. v
+		end
+		return Command.PASSING, str
+	elseif (cmd[1] == "beam") then
+		local str = "Beams : "
+		for k, v in pairs(Points.BeamList) do
+			if (k > 1) then
+				str = str .. ", "
+			end
+			str = str .. v
+		end
+		return Command.PASSING, str
+	end
+	return Command.INVALID_ARGUMENT, "1 (option warps/beams)"
+end, {"Lists all points of a given type.", "<command> <option>", "Option : warp, beam"}, {"string"}, {}, 1)
+
+AIRegisterCommand("clear", function(cmd, ply)
+	local o = cmd[1]
+	if (o == "warps") then
+		aifiles.Delete("warps")
+		Points.Warp = {}
+		Points.WarpList = {}
+		return Command.PASSING, "Cleared warp list !"
+	elseif (o == "beams") then
+		aifiles.Delete("beams")
+		Points.Beam = {}
+		Points.BeamList = {}
+		return Command.PASSING, "Cleared beam list !"
+	end
+	return Command.INVALID_ARGUMENT, "1 (option warps/beams)"
+end, {"Clears all the warps/beams, deletes all warp files/beams. WARNING : Can't be undone !", "<command> <option>", "Option : warps, beams"}, {}, {"deletall"}, 1)

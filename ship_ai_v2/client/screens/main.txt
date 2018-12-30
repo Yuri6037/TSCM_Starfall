@@ -1,0 +1,215 @@
+--@name MainScreen
+--@author Yuri6037
+
+--The current gui
+curGUI = 0
+
+R = 0
+G = 0
+B = 0
+IR = false
+IG = false
+IB = false
+
+hook("think", "MainScreen_AnimationRunner", function()
+	if (R <= 117) then
+		IR = true
+		R = 117
+	elseif (R >= 255) then
+		R = 255
+		IR = false
+	end
+	if (IR) then
+		R = R + 1
+	else
+		R = R - 1
+	end
+
+	if (G <= 0) then
+		IG = true
+		G = 0
+	elseif (G >= 209) then
+		G = 209
+		IG = false
+	end
+	if (IG) then
+		G = G + 1
+	else
+		G = G - 1
+	end
+
+	if (B <= 0) then
+		IB = true
+		B = 0
+	elseif (B >= 255) then
+		B = 255
+		IB = false
+	end
+	if (IB) then
+		B = B + 1
+	else
+		B = B - 1
+	end
+end)
+
+local mainScreen = {}
+mainScreen.Name = "Main"
+local id = render.getTextureID("phoenix_storms/wire/pcb_blue")
+function mainScreen:OnRender()
+	--render.setColor(117, 209, 255)
+	render.setColor(R, G, B)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 1024, 512)
+
+	if (Screen:IsMouseInRect(8, 8, 1016, 504)) then
+		gl.glBindColor(0, 0, 255)
+	else
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRect(0, 0, 1024, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 1024, 8)
+	gl.glRect(1016, 0, 8, 512)
+
+	if (Evacuation) then
+		gl.glBindColor(255, 0, 0)
+	else
+		gl.glBindColor(255, 255, 0)
+	end
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("ShipAI II")
+	gl.glText("ShipAI II", 512 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+	local i = 0
+	for k, v in pairs(Alerts) do
+		gl.glBindColor(255, 0, 0, v.Alpha)
+		gl.glRect(10, 10 + (i * 32), 200, 32)
+		gl.glBindColor(255, 255, 255)
+		gl.glText(v.Text, 10, 10 + (i * 32))
+		i = i + 1
+	end
+
+	if (#Alerts > 0) then
+		gl.glBindColor(255, 255, 255)
+		gl.glRect(220, 42, 32, 32)
+		gl.glBindColor(255, 0, 0)
+		gl.glText("X", 225, 42)
+	end
+
+	if (Evacuation) then
+		gl.glBindColor(255, 0, 0)
+		local w1 = gl.glTextWidth("WARNING : SHIP EVACUATION ENGAGED !")
+		gl.glText("WARNING : SHIP EVACUATION ENGAGED !", 512 - w1 / 2, 100)
+	end
+
+	--The display area
+	gl.glBindColor(133, 133, 133, 128)
+	gl.glRect(20, 128, 984, 310)
+	if (not(curGUI == -1)) then
+		local str = ""
+		if (curGUI == 0) then
+			str = "Informations"
+			RenderInfoGUI(20, 160)
+		elseif (curGUI == 1) then
+			str = "Status"
+			RenderStatusGUI(20, 160)
+		elseif (curGUI == 2) then
+			str = "Resources"
+			RenderResourcesGUI(20, 160)
+		elseif (curGUI == 3) then
+			str = "Combat Commands"
+			RenderCombatGUI(20, 160)
+		elseif (curGUI == 4) then
+			str = "Radar"
+			RenderRadarGUI(20, 160)
+		elseif (curGUI == 5) then
+			str = "Warp Menu"
+			RenderWarpGUI(20, 160)
+		elseif (curGUI == 6) then
+			str = "BeamManager Menu"
+			RenderBeamGUI(20, 160)
+		end
+
+		gl.glBindFont(Screen.StandardFont)
+		gl.glBindColor(255, 0, 0)
+		local w1 = gl.glTextWidth(str)
+		gl.glText(str, (1004 / 2) - w1 / 2, 128)
+	end
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 824, 20)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 824, 50)
+end
+function mainScreen:OnShow()
+	Screen:AddControl("Button", 75, 455, 128, 32, {Text = "Info", Func = function()
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(0, 4, true)
+		end)
+	end})
+	Screen:AddControl("Button", 223, 455, 128, 32, {Text = "Status", Func = function()
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(1, 4, true)
+		end)
+	end})
+	Screen:AddControl("Button", 371, 455, 128, 32, {Text = "Resources", Func = function()
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(2, 4, true)
+		end)
+	end})
+	Screen:AddControl("Button", 519, 455, 128, 32, {Text = "Combat", Func = function()
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(3, 4, true)
+		end)
+	end})
+	Screen:AddControl("Button", 667, 455, 128, 32, {Text = "Radar", Func = function()
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(4, 4, true)
+		end)
+	end})
+	Screen:AddControl("Button", 815, 455, 128, 32, {Text = "Warp", Func = function()
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(5, 4, true)
+		end)
+	end})
+end
+function mainScreen:OnExit()
+end
+function mainScreen:OnTouched(mouseX, mouseY)
+	if ((#Alerts > 0) and (Screen:IsMouseInRect(220, 42, 32, 32))) then
+		StartNet(function()
+			net.writeString("Alert")
+			net.writeInt(3, 4, true)
+		end)
+	end
+
+	local x = 20
+	local y = 160
+	if (curGUI == 0) then
+		CheckInfoInputs(x, y)
+	elseif (curGUI == 1) then
+		CheckStatusInputs(x, y)
+	elseif (curGUI == 2) then
+		CheckResourcesInputs(x, y)
+	elseif (curGUI == 5) then
+		CheckWarpInputs(x, y)
+	elseif (curGUI == 6) then
+		CheckBeamInputs(x, y)
+	end
+end
+
+Screen:Register(mainScreen)

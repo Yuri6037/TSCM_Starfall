@@ -1,0 +1,359 @@
+--@name MainScreen
+--@author Yuri6037
+
+--The dropdown menus
+local usingPowerSave = false
+Dropdowns = {
+	["Look"] = {
+		{
+			Text = "Normal",
+			Func = function()
+				usingPowerSave = false
+				gl.glDisable(GL_POWERSAVE)
+
+				BroadcastTripleScreenPacket("FUNC", "POWERSAVE", false)
+			end
+		},
+		{
+			Text = "Compress",
+			Func = function()
+				usingPowerSave = true
+				gl.glEnable(GL_POWERSAVE)
+
+				BroadcastTripleScreenPacket("FUNC", "POWERSAVE", true)
+			end
+		}
+	},
+	["Tools"] = {
+		{
+			Text = "Stats",
+			Func = function()
+				StartNet(function()
+					net.writeString("WindowChange")
+					net.writeInt(0, 4, true)
+				end)
+			end
+		},
+		{
+			Text = "Console",
+			Func = function()
+				StartNet(function()
+					net.writeString("WindowChange")
+					net.writeInt(1, 4, true)
+				end)
+			end
+		},
+		{
+			Text = "Lockdown",
+			Func = function()
+				StartNet(function()
+					net.writeString("Lock")
+				end)
+			end
+		},
+		{
+			Text = "Alerts",
+			Func = function()
+				StartNet(function()
+					net.writeString("WindowChange")
+					net.writeInt(3, 4, true)
+				end)
+			end
+		}
+	},
+	["Apps"] = {
+		{
+			Text = "Notes",
+			Func = function()
+				StartNet(function()
+					net.writeString("WindowChange")
+					net.writeInt(2, 4, true)
+				end)
+			end
+		},
+		{
+			Text = "Perms",
+			Func = function()
+				--StartNet(function()
+				--	net.writeString("WindowChange")
+				--	net.writeInt(1, 4, true)
+				--end)
+			end
+		}
+	},
+	["Lang"] = {
+		{
+			Text = "English",
+			Func = function()
+				Screen.StandardFont = gl.glGenFonts("Arial Black", true, 32)
+				Screen.TitleFont = gl.glGenFonts("federation", true, 100)
+			end
+		},
+		{
+			Text = "Ancient",
+			Func = function()
+				Screen.StandardFont = gl.glGenFonts("Anquietas", true, 32)
+				Screen.TitleFont = gl.glGenFonts("Anquietas", true, 100)
+			end
+		}
+	}
+}
+
+local function DrawBackgroundProcess()
+	gl.glBindColor(0, 0, 0)
+	local txt = "Ready..."
+	if (not(BackgroundProcess.Name == "")) then
+		txt = BackgroundProcess.Name
+	end
+	gl.glText(txt, 10, 480)
+
+	local p = BackgroundProcess.Percentage
+	gl.glText(p .. "%", 800, 480)
+	local w = gl.glTextWidth(p .. "%")
+	local barW = BackgroundProcess.Percentage * 128 / 100
+	gl.glRoundedRect(820 + w, 484, 128, 24, 16)
+	gl.glBindColor(0, 255, 0)
+	gl.glRoundedRect(820 + w, 484, barW, 24, 16)
+end
+
+local R = 0
+local G = 0
+local B = 0
+local IR = false
+local IG = false
+local IB = false
+
+local OpeningGuiW = 0
+local OpeningGuiH = 0
+local OldGui = -1
+local DrawGuiChangeAnim = false
+
+local mainScreen = {}
+mainScreen.Name = "Main"
+local selectedDropdown = ""
+local id = render.getTextureID("phoenix_storms/wire/pcb_blue")
+function mainScreen:Animate(cur)
+	if (R <= 117) then
+		IR = true
+		R = 117
+	elseif (R >= 255) then
+		R = 255
+		IR = false
+	end
+	if (IR) then
+		R = R + cur * 100
+	else
+		R = R + cur * 100
+	end
+
+	if (G <= 0) then
+		IG = true
+		G = 0
+	elseif (G >= 209) then
+		G = 209
+		IG = false
+	end
+	if (IG) then
+		G = G + cur * 100
+	else
+		G = G - cur * 100
+	end
+
+	if (B <= 0) then
+		IB = true
+		B = 0
+	elseif (B >= 255) then
+		B = 255
+		IB = false
+	end
+	if (IB) then
+		B = B + cur * 100
+	else
+		B = B - cur * 100
+	end
+
+	if (DrawGuiChangeAnim) then
+		OpeningGuiW = OpeningGuiW + time.frameTime() * 2000
+		OpeningGuiH = OpeningGuiH + time.frameTime() * 1000
+		if (OpeningGuiW >= 984) then
+			OpeningGuiW = 984
+		end
+		if (OpeningGuiH >= 310) then
+			OpeningGuiH = 310
+		end
+		if (OpeningGuiW >= 984 and OpeningGuiH >= 310) then
+			OpeningGuiW = 0
+			OpeningGuiH = 0
+			DrawGuiChangeAnim = false
+			BroadcastTripleScreenGuiChanged(CurGUI)
+
+			--Upgrade : added gui.OnShow()
+			local g = GetGUI(CurGUI)
+			g.OnShow()
+		end
+	end
+end
+function mainScreen:OnRender()
+	if (not(usingPowerSave)) then
+		gl.glBindColor(R, G, B)
+		gl.glBindTexture(id)
+		gl.glRect(0, 0, 1024, 512)
+	end
+
+	-->Status bar<--
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(0, 0, 1024, 32)
+
+	--Render time info
+	gl.glBindColor(0, 0, 0)
+	gl.glText(os.date("%X"), 900, 0)
+
+	-->StartMenu bar<--
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(0, 480, 1024, 32)
+	if (CurGUI == 0) then
+		gl.glBindColor(133, 133, 133)
+	else
+		gl.glBindColor(0, 0, 0)
+	end
+	gl.glRect(382, 482, 128, 28)
+	if (CurGUI == 6) then
+		gl.glBindColor(133, 133, 133)
+	else
+		gl.glBindColor(0, 0, 0)
+	end
+	gl.glRect(514, 482, 128, 28)
+
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Info", 382 + 42, 480)
+	gl.glText("Menu", 514 + 32, 480)
+
+	DrawBackgroundProcess()
+	-->End bars render<--
+
+	if (SubInfos["EVAC"]) then
+		gl.glBindColor(255, 200, 200)
+	else
+		gl.glBindColor(200, 200, 200)
+	end
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("LanAI Next", 724, 0)
+
+	--The display area
+	if (DrawGuiChangeAnim) then
+		if (not(usingPowerSave)) then
+			render.setTexture(nil)
+			render.setColor(133, 133, 133, 128)
+			render.drawTexturedRectRotated((984 / 2) + 20, (310 / 2) + 128, OpeningGuiW, OpeningGuiH, 0)
+		else
+			DrawGuiChangeAnim = false
+		end
+	else
+		gl.glBindColor(133, 133, 133, 128)
+		gl.glRoundedRect(20, 128, 984, 310, 8)
+	end
+	if (not(CurGUI == -1)) then
+		local str = ""
+		if (not(OldGui == CurGUI)) then
+			--Upgrade : added gui.OnExit()
+			if (not(OldGui == -1)) then
+				local g = GetGUI(OldGui)
+				g.OnExit()
+			end
+
+			DrawGuiChangeAnim = true
+			OldGui = CurGUI
+		elseif (not(DrawGuiChangeAnim)) then
+			local gui = GetGUI(CurGUI)
+			str = gui.Name
+			gl.glPushMatrix()
+				gl.glTranslate(20, 128)
+				gui.Render(20, 128)
+			gl.glPopMatrix()
+		end
+
+		gl.glBindFont(Screen.StandardFont)
+		gl.glBindColor(255, 0, 0)
+		local w1 = gl.glTextWidth(str)
+		gl.glText(str, 502 - w1 / 2, 70)
+	end
+	--End
+
+	if (SubInfos["TIMER"]) then
+		local w1 = gl.glTextWidth("WARNING : Timed warp engaged")
+		gl.glText("WARNING : Timed warp engaged", 502 - w1 / 2, 40)
+	end
+	if (SubInfos["AUTOMODE"]) then
+		local w1 = gl.glTextWidth("WARNING : Automatic mode enabled !")
+		gl.glText("WARNING : Automatic mode enabled !", 502 - w1 / 2, 102)
+	end
+
+	--Render dropdown menus (upgrade so we can see all menus in the foreground
+	local num = 0
+	for k, v in pairs(Dropdowns) do
+		if (selectedDropdown == k) then
+			gl.glBindColor(133, 133, 133)
+		else
+			gl.glBindColor(0, 0, 0)
+		end
+
+		gl.glRect(num * 128, 0, 128, 32)
+		gl.glBindColor(255, 255, 255)
+		gl.glUnfilledRect(num * 128, 0, 128, 32, 2)
+		local w = gl.glTextWidth(k)
+		gl.glText(k, (num * 128 + 64) - w / 2, 0)
+		if (selectedDropdown == k) then
+			gl.glRect(num * 128, 32, 128, #v * 32)
+			for k1, v1 in pairs(v) do
+				gl.glBindColor(0, 0, 0)
+				if (Screen:IsMouseInRect(num * 128, 32 + (k1 - 1) * 32, 128, 32)) then
+					gl.glUnfilledRect(num * 128, 32 + (k1 - 1) * 32, 128, 32, 3)
+				end
+				gl.glText(v1.Text, num * 128, 32 + (k1 - 1) * 32)
+			end
+		end
+		num = num + 1
+	end
+	--End
+end
+function mainScreen:OnShow()
+end
+function mainScreen:OnExit()
+end
+function mainScreen:OnTouched(mouseX, mouseY)
+	if (not(CurGUI == -1)) then
+		local gui = GetGUI(CurGUI)
+		gui.CheckInputs(20, 128)
+	end
+
+	local num = 0
+	for k, v in pairs(Dropdowns) do
+		if (selectedDropdown == k and Screen:IsMouseInRect(num * 128, 0, 128, 32)) then
+			selectedDropdown = ""
+		elseif (selectedDropdown == k) then
+			for k1, v1 in pairs(v) do
+				if (Screen:IsMouseInRect(num * 128, 32 + (k1 - 1) * 32, 128, 32)) then
+					v1.Func()
+					selectedDropdown = ""
+				end
+			end
+		elseif (Screen:IsMouseInRect(num * 128, 0, 128, 32)) then
+			selectedDropdown = k
+		end
+		num = num + 1
+	end
+
+	if (Screen:IsMouseInRect(382, 482, 128, 28)) then
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(0, 4, true)
+		end)
+	elseif (Screen:IsMouseInRect(514, 482, 128, 28)) then
+		StartNet(function()
+			net.writeString("GuiChange")
+			net.writeInt(6, 4, true)
+		end)
+	end
+end
+
+Screen:Register(mainScreen)

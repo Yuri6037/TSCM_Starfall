@@ -1,0 +1,60 @@
+--@name SF_HUDKernelExtension
+--@author Yuri6037
+
+--Mouse handling vars
+local FrameMsX = nil
+local FrameMsY = nil
+local prevX = 0
+local prevY = 0
+
+local KernelVars = OS.GetKernelVars()
+
+if (OS.IsHUD()) then
+	ScrW = 1024
+	ScrH = 1024
+
+	local SW, SH = render.getScreenRes()
+
+	function OS.MousePos()
+		return FrameMsX, FrameMsY
+	end
+
+	local MainRT = nil
+	local PrevScreen = nil
+	function CreateRTs()
+		if (timer.exists("LanteansOS_BuggySFHUDVGUIFixer")) then timer.remove("LanteansOS_BuggySFHUDVGUIFixer") end
+		MainRT = rendertarget.create(false, ScrW, ScrH)
+		if (KernelVars.CurScreenID == nil) then
+			OS.SwitchScreen(PrevScreen)
+		end
+		ReloadDesktopEnv = true
+		net.SendPacket("CONNECT")
+	end
+	function DestroyRTs()
+		PrevScreen = KernelVars.CurScreenID
+		MainRT:freeRT()
+		timer.create("LanteansOS_BuggySFHUDVGUIFixer", 0.1, 1, function()
+			OS.SwitchScreen(nil)
+		end)
+		net.SendPacket("DISCONNECT")
+	end
+	local function DrawRT()
+		KernelVars.CurScreen:Render()
+		KernelVars.CurScreen:Update(time.frameTime())
+	end
+	function KernelDraw(x, y)
+		if (KernelVars.KillRender) then return end
+		FrameMsX, FrameMsY = x, y
+		if (FrameMsX == nil or FrameMsY == nil) then
+			FrameMsX, FrameMsY = prevX, prevY
+			KernelVars.IsOnScr = false
+		else
+			prevX, prevY = FrameMsX, FrameMsY
+			KernelVars.IsOnScr = true
+		end
+		if (not(KernelVars.CurScreen == nil)) then
+			MainRT:drawToTexture(DrawRT)
+		end
+		MainRT:draw(SW / 2 - 512, SH / 2 - 512, 1024, 1024)
+	end
+end

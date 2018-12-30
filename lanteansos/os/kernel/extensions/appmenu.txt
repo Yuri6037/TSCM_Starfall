@@ -1,0 +1,20 @@
+--@name AppMenuKernelExtension
+--@author Yuri6037
+
+AppMenu = {Header = {}, Content = {}}
+AppMenuHeight = 0
+
+function OS.AddAppMenuItem(appid, appname, category, icon16)
+	if (icon16 == nil) then icon16 = Icon16None end
+	if (OS.AppExists(appid)) then
+		if (AppMenu.Header[category] == nil) then
+			AppMenu.Header[category] = #AppMenu.Content + 1
+			AppMenu.Content[AppMenu.Header[category]] = {Name = category, Content = {}}
+			AppMenuHeight = AppMenuHeight + 32
+		end
+		table.insert(AppMenu.Content[AppMenu.Header[category]].Content, {ID = appid, Name = appname, Icon = icon16})
+		table.sort(AppMenu.Content[AppMenu.Header[category]].Content, function(a, b)
+			return a.Name < b.Name
+		end)
+	end
+end

@@ -1,0 +1,24 @@
+--@name CustomUISkins
+--@author Yuri6037
+
+--The Yellow/Orrange skin
+UI.AddSkin(1, {
+	Font = Screen.StandardFont,
+	TextColor = {Basic = Color(0, 0, 0), Hover = Color(0, 0, 0), Clicked = Color(0, 0, 0)},
+	BackgroundColor = {Basic = Color(0, 128, 255, 255), Hover = Color(255, 128, 0, 255), Clicked = Color(255, 0, 0, 255)},
+	RoundedBorders = true
+})
+
+UI.AddSkin(2, {
+	Font = Screen.StandardFont,
+	TextColor = {Basic = Color(0, 0, 0), Hover = Color(0, 0, 0), Clicked = Color(0, 0, 0)},
+	BackgroundColor = {Basic = Color(133, 133, 133, 255), Hover = Color(150, 150, 150, 255), Clicked = Color(90, 90, 90, 255)},
+	RoundedBorders = false
+})
+
+UI.AddSkin(3, {
+	Font = Screen.StandardFont,
+	TextColor = {Basic = Color(0, 0, 0), Hover = Color(0, 0, 0), Clicked = Color(0, 0, 0)},
+	BackgroundColor = {Basic = Color(0, 128, 255, 255), Hover = Color(255, 128, 0, 255), Clicked = Color(255, 0, 0, 255)},
+	RoundedBorders = false
+})

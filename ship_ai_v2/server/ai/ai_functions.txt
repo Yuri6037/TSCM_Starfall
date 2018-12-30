@@ -1,0 +1,526 @@
+--@name AI_Functions
+--@author Yuri6037
+
+RegisterFunction("are you here ?", function()
+	return false, "Yes, I am."
+end, "AI internal test")
+RegisterFunction("how are you ?", function()
+	return false, "I'm fine thanks. Ready to listen to you !"
+end, "Check if AI has any problems with the current ship")
+RegisterFunction("__version", function()
+	return false, "My version is currently " .. VERSION_AI .. " !"
+end, "Internal command")
+RegisterFunction("warp", function(s, v)
+	if (string.find(s, "owner")) then
+		if (WarpToPlayer(ents.owner())) then
+			return false, "Warping to owner !"
+		end
+		return true
+	elseif (string.find(s, "me")) then
+		if (WarpToPlayer(v)) then
+			return false, "Warping to you !"
+		end
+		return true
+	elseif (string.find(s, "vector_")) then
+		if (not(permissions.CheckOfficer(ply))) then return true end
+
+		ShipVars.BackWarp = ents.self():getPos()
+
+		local s1 = StringReplace(s, "vector_", "")
+		local v = StringSplit(s1, " ")
+
+		local x = v[1]
+		local y = v[2]
+		local z = v[3]
+		local vec = Vector(tonumber(x), tonumber(y), tonumber(z))
+
+		WarpToVector(vec)
+
+		return false, "Warping to Vector(" .. x .. ", " .. y .. ", " .. z .. ")."
+	elseif (string.find(s, "direct_")) then
+		if (not(permissions.CheckOfficer(ply))) then return true end
+
+		local s1 = StringReplace(s, "direct_", "")
+		local v = StringSplit(s1, " ")
+
+		local x = v[1]
+		local y = v[2]
+		local z = v[3]
+		local vec = Angle(tonumber(x), tonumber(y), tonumber(z))
+
+		WarpToAngle(vec)
+
+		return false, "Warping to Direction(" .. x .. ", " .. y .. ", " .. z .. ")."
+	else
+		WarpToDefinedDirection(StringReplace(s, " ", ""))
+	end
+
+	return true
+end, "Warp command. Usage : warp [pointName]/back/owner/me/vector/direct [vector_x y z/direct_x y z]")
+RegisterFunction("target", function(s)
+	local ent = nil
+	if (string.find(s, "off")) then
+		if (not(Ship.Sensor == nil)) then
+			Ship.Sensor["Target"] = nil
+		end
+		Target.Entity = nil
+		Target.Player = nil
+		ForceSend = true
+		return false, "Target deleted !"
+	elseif (string.find(s, "core")) then
+		local name = StringReplace(s, "core", "")
+		local s1 = StringReplace(string.upper(name), " ", "")
+		for k, v in pairs(find.byClass("ship_core")) do
+			local s2 = StringReplace(string.upper(v:owner():name()), " ", "")
+			if (string.find(s1, s2) or s1 == s2) then
+				ent = v
+				break
+			end
+		end
+	elseif (string.find(s, "shuttle")) then
+		local name = StringReplace(s, "shuttle", "")
+		local s1 = StringReplace(string.upper(name), " ", "")
+		for k, v in pairs(find.byClass("st_shuttle_type11")) do
+			local s2 = StringReplace(string.upper(v:owner():name()), " ", "")
+			if (string.find(s1, s2) or s1 == s2) then
+				ent = v
+				break
+			end
+		end
+		if (ent == nil) then
+			for k, v in pairs(find.byClass("puddle_jumper")) do
+				local s2 = StringReplace(string.upper(v:owner():name()), " ", "")
+				if (string.find(s1, s2) or s1 == s2) then
+					ent = v
+					break
+				end
+			end
+		end
+		if (ent == nil) then
+			for k, v in pairs(find.byClass("sg_vehicle_shuttle")) do
+				local s2 = StringReplace(string.upper(v:owner():name()), " ", "")
+				if (string.find(s1, s2) or s1 == s2) then
+					ent = v
+					break
+				end
+			end
+		end
+	elseif (string.find(s, "player")) then
+		local name = StringReplace(s, "player", "")
+		local s1 = StringReplace(string.upper(name), " ", "")
+		for k, v in pairs(find.allPlayers()) do
+			local s2 = StringReplace(string.upper(v:name()), " ", "")
+			if (string.find(s1, s2) or s1 == s2) then
+				ent = v
+				break
+			end
+		end
+	end
+
+	if (not(ent == nil) and ent:isValid()) then
+		if (ent:isPlayer()) then
+			Target.Entity = nil
+			Target.Player = ent
+		else
+			if (Ship.Sensor == nil) then
+				return false, "Your ship has no sensors, can't target cores neither shuttles !"
+			end
+			Ship.Sensor["Target"] = ent
+			Target.Entity = ent
+			Target.Player = nil
+		end
+		return false, "Target aquired : " .. ent:class() .. " !"
+	end
+
+	return false, "No target to aquire."
+end, "Target the entity for combats. Usage target core/shuttle/player/off [playerName]")
+RegisterFunction("fire", function(s)
+	if (Target.Entity == nil and Target.Player == nil) then
+		return false, "No target in memory"
+	end
+	if (string.find(s, "beams")) then
+		timer.create("ShipAI_BeamsFire", 1, 0, function()
+			for k, v in pairs(Ship.Weaps.STAR) do
+				if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+					v["Vector"] = Target.Entity:getPos()
+					v["Active"] = 1
+					v["Fire"] = 1
+				elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+					v["Vector"] = Target.Player:getPos()
+					v["Active"] = 1
+					v["Fire"] = 1
+				end
+			end
+		end)
+		return false, "Firing with beams..."
+	elseif (string.find(s, "cannons")) then
+		timer.create("ShipAI_CannonsFire", 1, 0, function()
+			for k, v in pairs(Ship.Weaps.TSCM) do
+				if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+					v["Target"] = Target.Entity:getPos()
+					v["Fire"] = 1
+				elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+					v["Target"] = Target.Player:getPos()
+					v["Fire"] = 1
+				end
+			end
+		end)
+		return false, "Firing with cannons..."
+	elseif (string.find(s, "damagers")) then
+		timer.create("ShipAI_DamagersFire", 0.000001, 0, function()
+			for k, v in pairs(Ship.Weaps.ANGLE) do
+				if (v:model() == "models/jaanus/wiretool/wiretool_siren.mdl") then
+					if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+						v:setAngles(((Target.Entity:getPos() - v:getPos()):Angle()) + Angle(90, 0, 0))
+						v:getWirelink()["Fire"] = 1
+					elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+						v:setAngles(((Target.Player:getPos() - v:getPos()):Angle()) + Angle(90, 0, 0))
+						v:getWirelink()["Fire"] = 1
+					end
+				else
+					if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+						v:setAngles((Target.Entity:getPos() - v:getPos()):Angle())
+						v:getWirelink()["Fire"] = 1
+					elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+						v:setAngles((Target.Player:getPos() - v:getPos()):Angle())
+						v:getWirelink()["Fire"] = 1
+					end
+				end
+			end
+		end)
+		return false, "Firing with damagers..."
+	elseif (string.find(s, "repair")) then
+		if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+			Ship.Core["Repair Target"] = Target.Entity
+			Ship.Core["Fire Repair Beam"] = 1
+		end
+		return false, "Repairing ship..."
+	elseif (string.find(s, "off")) then
+		if (timer.exists("ShipAI_BeamsFire")) then
+			timer.remove("ShipAI_BeamsFire")
+			for k, v in pairs(Ship.Weaps.STAR) do
+				v["Active"] = 0
+				v["Fire"] = 0
+			end
+		end
+		if (timer.exists("ShipAI_CannonsFire")) then
+			timer.remove("ShipAI_CannonsFire")
+			for k, v in pairs(Ship.Weaps.TSCM) do
+				v["Fire"] = 0
+			end
+		end
+		if (timer.exists("ShipAI_DamagersFire")) then
+			timer.remove("ShipAI_DamagersFire")
+			for k, v in pairs(Ship.Weaps.ANGLE) do
+				v:setAngles(Angle(0, 0, 0))
+				v:getWirelink()["Fire"] = 0
+			end
+		end
+
+		Ship.Core["Repair Target"] = nil
+		Ship.Core["Fire Repair Beam"] = 0
+
+		return false, "Weapons are now off."
+	end
+end, "Fire with given weapon name. Usage fire beams/damagers/cannons/repair/off")
+RegisterFunction("lock", function(s)
+	screenLocked = true
+	StartNet(function()
+		net.writeString("L")
+	end)
+	return false, "Screen locked down !"
+end, "Screen lockdown")
+RegisterFunction("unlock", function(s)
+	screenLocked = false
+	StartNet(function()
+		net.writeString("U")
+	end)
+	return false, "Screen unlocked !"
+end, "Screen lockdown")
+RegisterFunction("disable", function(s)
+	AIFunctions.Disabled = true
+	return false, "I'm now no longer listening you..."
+end, "Disables AI")
+RegisterFunction("enable", function(s)
+	AIFunctions.Disabled = false
+	return false, "I'm now re-activated..."
+end, "Enables AI")
+RegisterFunction("shields", function(s)
+	if (string.find(s, "on")) then
+		Ship.Shield["Activate"] = 1
+		return false, "Shields are now up !"
+	elseif (string.find(s, "off")) then
+		Ship.Shield["Activate"] = 0
+		return false, "Shields are now down !"
+	end
+	return false, "Don't know what to do. Do you want shields on or off ?"
+end, "Swhich shields. Usage shields on/off")
+RegisterFunction("cloak", function(s)
+	if (Ship.Cloak == nil) then
+		return false, "Your ship has no cloaks !"
+	end
+	if (string.find(s, "on")) then
+		Ship.Cloak["Activate"] = 1
+		return false, "Cloak is now activated !"
+	elseif (string.find(s, "off")) then
+		Ship.Cloak["Activate"] = 0
+		return false, "Cloak is now desactivated !"
+	end
+	return false, "Don't know what to do. Do you want cloak on or off ?"
+end, "Swhich cloak. Usage cloak on/off")
+
+RegisterFunction("setevabeam", function(s, v)
+	if (Ship.TP == nil) then
+		return false, "Your ship has no transporter pads, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	local str = StringSplit(s, " ")
+
+	if (str[1] == nil) then
+		return false, "Invalid number of arguments !"
+	end
+
+	local name = StringReplace(str[1], " ", "")
+	local pos = GetBeamPointFromName(name)
+	if (pos == nil) then
+		return false, "Can't set evacuation beam point : invalid vector !"
+	end
+	EvacuationBeam = name
+	return false, "Evacuation beam point set !"
+end, "Sets the evacuation beam point")
+
+RegisterFunction("beam", function(s, v)
+	if (Ship.TP == nil) then
+		return false, "Your ship has no transporter pads to interface with !"
+	end
+
+	if (string.find(s, "back")) then
+		if (BeamPlayer(v)) then
+			return false, "Beaming you back to pad !"
+		end
+		return true
+	elseif (string.find(s, "player")) then
+		local name = StringReplace(s, "player", "")
+		local s1 = StringReplace(string.upper(name), " ", "")
+		for k, v in pairs(find.allPlayers()) do
+			local s2 = StringReplace(string.upper(v:name()), " ", "")
+			if (string.find(s1, s2) or s1 == s2) then
+				if (BeamPlayer(v)) then
+					return false, "Beaming player to pad !"
+				end
+				return true
+			end
+		end
+		return false, "Unable to beam : destination not found !"
+	elseif (string.find(s, "pad")) then
+		local name = StringReplace(s, "pad", "")
+		local s1 = StringReplace(string.upper(name), " ", "")
+		for k, v in pairs(find.byClass("transporter_pad")) do
+			local s2 = StringReplace(string.upper(v:owner():name()), " ", "")
+			if (string.find(s1, s2) or s1 == s2) then
+				if (BeamToPad(v)) then
+					return false, "Beaming to external pad !"
+				end
+				return true
+			end
+		end
+		return false, "Unable to beam : destination not found !"
+	end
+
+	local str = StringSplit(s, " ")
+	if (str[1] == nil) then
+		return false, "Unable to beam : invalid number of arguments !"
+	end
+	local name = StringReplace(str[1], " ", "")
+	if (BeamToPoint(name)) then
+		return false, "Beaming to point !"
+	end
+	return true
+end, "Beam command. Usage beam [pointName]/back/player/pad [if player/pad then playerName]")
+
+--Custom warps
+RegisterFunction("createwarp", function(s, v)
+	if (Ship.Warp == nil) then
+		return false, "Your ship has no warp device, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	local str = StringSplit(s, " ")
+	local name = StringReplace(str[1], " ", "")
+	local pos = v:getPos()
+	SaveWarpPoint(name, pos)
+	if (CurGUI == 5) then
+		StartNet(function()
+			net.writeString("GW")
+			net.writeTable(GetWarpList())
+		end)
+	end
+	return false, "Warp successfully created !"
+end, "Creates a warp point. Usage createwarp [pointName]")
+RegisterFunction("delwarp", function(s, v)
+	if (Ship.Warp == nil) then
+		return false, "Your ship has no warp device, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	local str = StringSplit(s, " ")
+	local name = StringReplace(str[1], " ", "")
+	if (DeleteWarpPoint(name)) then
+		if (CurGUI == 5) then
+			StartNet(function()
+				net.writeString("GW")
+				net.writeTable(GetWarpList())
+			end)
+		end
+		return false, "Warp successfully deleted !"
+	else
+		return false, "An error has occured while deleting warp : " .. name .. " !"
+	end
+end, "Deletes a warp point. Usage delwarp [pointName]")
+RegisterFunction("clearwarps", function(s, v)
+	if (Ship.Warp == nil) then
+		return false, "Your ship has no warp device, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	files.delete("warps.txt", "/ship_ai_v2/")
+	if (CurGUI == 5) then
+		StartNet(function()
+			net.writeString("GW")
+			net.writeTable(GetWarpList())
+		end)
+	end
+	return false, "All warps have been removed !"
+end, "Deletes all the warp points")
+--End
+
+--Beam points
+RegisterFunction("createbeam", function(s, v)
+	if (Ship.TP == nil) then
+		return false, "Your ship has no transporter pads, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	local str = StringSplit(s, " ")
+	local name = StringReplace(str[1], " ", "")
+	local pos = v:getPos()
+	SaveBeamPoint(name, pos)
+	return false, "Beam successfully created !"
+end, "Creates a beam point. Usage createbeam [pointName]")
+RegisterFunction("delbeam", function(s, v)
+	if (Ship.TP == nil) then
+		return false, "Your ship has no transporter pads, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	local str = StringSplit(s, " ")
+	local name = StringReplace(str[1], " ", "")
+	if (DeleteBeamPoint(name)) then
+		return false, "Beam point successfully deleted !"
+	else
+		return false, "An error has occured while deleting beam point : " .. name .. " !"
+	end
+end, "Deletes a beam point. Usage delbeam [pointName]")
+RegisterFunction("clearbeams", function(s, v)
+	if (Ship.TP == nil) then
+		return false, "Your ship has no transporter pads, to interface with !"
+	end
+
+	if (not(permissions.CheckOfficer(v))) then return true end
+
+	files.delete("beams.txt", "/ship_ai_v2/")
+	return false, "All beams have been removed !"
+end, "Deletes all beam points")
+--End
+
+RegisterFunction("help", function(s, v)
+	aiSay("AI II commands list : ")
+	local msgs = {}
+	for k, v in pairs(AIFunctions) do
+		if (type(v) == "table" and not(type(v.Help) == "nil")) then
+			table.insert(msgs, v.Name .. " - " .. v.Help)
+		end
+	end
+	local cur = 0
+	timer.create("AIFunctions_HelpCMD_List", 6.5, #msgs, function()
+		cur = cur + 1
+		aiSay(msgs[cur])
+	end)
+	return true
+end, "The help command of AI")
+RegisterFunction("warplist", function(s, v)
+	local lst = GetWarpList()
+	local strDef = "build, shakurus, earth, desert, hiigara, station, hell."
+
+	aiSay("Default available warp points : " .. strDef)
+	local cur = 0
+	timer.create("AIFunctions_Warp_List", 4, #lst + 1, function()
+		if (cur == 0) then
+			aiSay("Available custom warp points are : ")
+			cur = cur + 1
+			return
+		end
+		aiSay(lst[cur])
+		cur = cur + 1
+	end)
+
+	return true
+end, "The warp list")
+RegisterFunction("beamlist", function(s, v)
+	local lst = GetBeamList()
+	local str = ""
+	for k, v in pairs(lst) do
+		str = str .. v .. ", "
+	end
+	str = string.sub(str, 1, string.len(str) - 2)
+
+	return false, "Available beam points : " .. str .. "."
+end, "The beam list")
+
+RegisterFunction("promote", function(s, v)
+	if (not(permissions.CheckOfficer(v))) then
+		return true
+	end
+
+	local s1 = StringReplace(string.upper(s), " ", "")
+	for k, v in pairs(find.allPlayers()) do
+		local s2 = StringReplace(string.upper(v:name()), " ", "")
+		if (string.find(s1, s2) or s1 == s2) then
+			permissions.Promote(v)
+			return false, "Promoted player : " .. v:name() .. "."
+		end
+	end
+	return false, "Unable to promote : player does not exist !"
+end, "Promote a player")
+
+RegisterFunction("demote", function(s, v)
+	if (not(permissions.CheckOfficer(v))) then
+		return true
+	end
+
+	local s1 = StringReplace(string.upper(s), " ", "")
+	for k, v in pairs(find.allPlayers()) do
+		local s2 = StringReplace(string.upper(v:name()), " ", "")
+		if (string.find(s1, s2) or s1 == s2) then
+			permissions.Demote(v)
+			return false, "Demoted player : " .. v:name() .. "."
+		end
+	end
+	return false, "Unable to demote : player does not exist !"
+end, "Demote a player")
+
+RegisterFunction("__reset", function(s, v)
+	if (not(permissions.CheckOfficer(v))) then
+		return true
+	end
+
+	files.delete("officers.txt", "/ship_ai_v2/")
+	return false, "Finished permission reset !"
+end, "Internal command")

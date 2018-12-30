@@ -1,0 +1,28 @@
+--@name VehicleHorizonApp (CLIENT)
+--@author Yuri6037
+
+local app = {
+	HasNetwork = false,
+	OverrideList = {},
+	Render = function()
+		if (LocalPlayer:inVehicle()) then
+			local veh = LocalPlayer:vehicle()
+			local ang = veh:ang()
+
+			local mat = Matrix()
+			local pos = Vector(0.5, 0.5)
+			local real = Vector(ScrW / 2, 100)
+			mat:translate(pos + real)
+			mat:rotate(Angle(0, ang.Z, 0))
+			mat:scale(Vector(128, 2))
+			mat:translate(-(pos + real))
+			render.pushMatrix(mat)
+			GUI.ColoredRect(pos.X + real.X, pos.Y + real.Y, 1, 1, COLOR(255, 255, 255))
+			render.popMatrix()
+			GUI.ColoredRect(ScrW / 2 - 32, ScrH / 2 + ang.X, 64, 2, COLOR(255, 255, 255))
+			GUI.ColoredRect(ScrW / 2 + ang.Y, ScrH / 2 - 32, 2, 64, COLOR(255, 255, 255))
+		end
+	end
+}
+
+HUD.DefineApp("VehicleHorizon", app, true)

@@ -1,0 +1,28 @@
+--@name AtlantisShieldDeviceManager
+--@author Yuri6037
+
+local Shield = nil
+local ShieldEnt = nil
+
+RegisterDriver({"atlantis_shield_emitter"}, function(ent)
+	Shield = ent:getWirelink()
+	ShieldEnt = ent
+	Ship.Shield = util.ProxyTable(function(self, k, v)
+		if (k == "Activate") then
+			Shield["Activate"] = v
+		end
+	end, function(self, k, v)
+		if (k == "Max Charge") then
+			return (Shield["Max Energy"])
+		elseif (k == "Active") then
+			return (Shield["Active"])
+		elseif (k == "Total Charge") then
+			return (Shield["Current Energy"])
+		else
+			return 0
+		end
+	end)
+	Ship.Shield.entity = function() return (ShieldEnt) end
+	util.Log("Drivers.AtlantisShield", LOG_INFO, "Atlantis shield found and hooked for this ship !")
+	return (true)
+end)

@@ -1,0 +1,26 @@
+--@name WeaponDataApp
+--@author Yuri6037
+
+local function CalcRemainingAmmo()
+	local ammo = LocalPlayer:getAmmoCount(LocalPlayer:activeWeapon():getPrimaryAmmoType())
+	if (ammo > 100) then return 1 else return ammo / 100 end
+end
+
+local app = {
+	OverrideList = {
+		"CHudAmmo"
+	},
+	Render = function()
+		GUI.GradiantRect(ScrW - 512, ScrH - 32, 512, 32, COLOR(0, 0, 0))
+		local weap = LocalPlayer:activeWeapon()
+		if (IsValid(weap)) then
+			local a = CalcRemainingAmmo()
+			GUI.GradiantRect(ScrW - a * 512, ScrH - 32, a * 512, 32, COLOR(128, 128, 0))
+			local txt = weap:getPrintName() .. " - " .. LocalPlayer:getAmmoCount(weap:getPrimaryAmmoType())
+			local w = GUI.TextSize(txt, SmallFont)
+			GUI.Text(txt, ScrW - w - 10, ScrH - 24, SmallFont, COLOR(255, 255, 255))
+		end
+	end
+}
+
+HUD.DefineApp("WeaponData", app, true)

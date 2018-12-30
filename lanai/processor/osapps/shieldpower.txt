@@ -1,0 +1,12 @@
+--@name ShieldPowerAppUpdater
+--@author Yuri6037
+
+DefineOSApp("shieldpower", function()
+	CheckVar("SideMax", Ship.Shield["Max Charge"] / 6)
+	CheckVar("Front", Ship.Shield["Front"])
+	CheckVar("Back", Ship.Shield["Back"])
+	CheckVar("Left", Ship.Shield["Left"])
+	CheckVar("Right", Ship.Shield["Right"])
+	CheckVar("Up", Ship.Shield["Up"])
+	CheckVar("Down", Ship.Shield["Down"])
+end)

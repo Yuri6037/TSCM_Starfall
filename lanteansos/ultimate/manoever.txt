@@ -1,0 +1,124 @@
+--@name ManoeverApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {
+		{
+			Color = COLOR(0, 255, 255),
+			Vertices = GUI.PregenCircle(16, 16, 16)
+		},
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(0, 32),
+				VERTEX(16, 0),
+				VERTEX(16, 16)
+			}
+		},
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(16, 16),
+				VERTEX(16, 0),
+				VERTEX(32, 32)
+			}
+		}
+	},
+	[16] = {
+		{
+			Color = COLOR(0, 255, 255),
+			Vertices = GUI.PregenCircle(8, 8, 8)
+		},
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(0, 16),
+				VERTEX(8, 0),
+				VERTEX(8, 8)
+			}
+		},
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(8, 8),
+				VERTEX(8, 0),
+				VERTEX(16, 16)
+			}
+		}
+	}
+}
+
+local app = {}
+function app:Init()
+	self:SetTitle("Manoever")
+	self:SetSize(472, 166)
+	self:SetIcon32(ico[32])
+	self:SetIcon16(ico[16])
+	self:SetPos(LOCATION_CENTER)
+
+	local b = self:AddComponent("button", 10, 32, "Rotation PI/2", function()
+		AIRunFunc("Rotate", Angle(0, 90, 0))
+	end)
+	b:SetSize(236, 16)
+	local b1 = self:AddComponent("button", 10, 48, "Rotation -PI/2", function()
+		AIRunFunc("Rotate", Angle(0, -90, 0))
+	end)
+	b1:SetSize(236, 16)
+	self.List = self:AddComponent("listbox", 10, 91)
+	self.List:SetData({"X", "Y", "Z"})
+	self.List:SetMaxLines(2)
+	self.List:SetSize(64, 58)
+	self.N = self:AddComponent("numselect", 84, 80)
+	self.N:SetBounds(-180, 180, 0)
+	self.N:SetStep(1)
+	self.N:SetDecorations("", "°")
+	self.N:SetSize(48, 80)
+	local b2 = self:AddComponent("button", 140, 112, "Rotate", function()
+		local id, str = self.List:GetSelected()
+		local val = self.N:GetValue()
+		if (str == nil or val == nil) then return end
+		if (id == 1) then
+			AIRunFunc("Rotate", Angle(val, 0, 0))
+		elseif (id == 2) then
+			AIRunFunc("Rotate", Angle(0, val, 0))
+		elseif (id == 3) then
+			AIRunFunc("Rotate", Angle(0, 0, val))
+		end
+	end)
+	b2:SetSize(100, 16)
+
+	local dir = self:AddComponent("dirselect", 256, 32)
+	dir:SetSize(128, 80)
+	local nsel = self:AddComponent("numselect", 394, 32)
+	nsel:SetSize(64, 80)
+	nsel:SetBounds(0, 5000, 0)
+	nsel:SetStep(100)
+	local bt = self:AddComponent("button", 256, 116, "Move ship", function()
+		local val = nsel:GetValue()
+		local d = dir:GetDir()
+		local str = "F"
+		if (d == EDirection.UP) then
+			str = "MoveUp"
+		elseif (d == EDirection.DOWN) then
+			str = "MoveDown"
+		elseif (d == EDirection.LEFT) then
+			str = "MoveLeft"
+		elseif (d == EDirection.RIGHT) then
+			str = "MoveRight"
+		elseif (d == EDirection.FORWARD) then
+			str = "MoveForward"
+		elseif (d == EDirection.BACKWARD) then
+			str = "MoveBackward"
+		end
+		AIRunFunc(str, val)
+	end)
+	bt:SetSize(200, 16)
+	local bt1 = self:AddComponent("button", 256, 142, "Reset", function()
+		nsel:SetValue(0)
+		self.N:SetValue(0)
+	end)
+	bt1:SetSize(200, 16)
+end
+
+OS.DefineApp("manoever", app)
+OS.AddAppMenuItem("manoever", "Manoever", "Transport", ico[16])

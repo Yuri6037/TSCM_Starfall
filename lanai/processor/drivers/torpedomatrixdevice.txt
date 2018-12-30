@@ -1,0 +1,41 @@
+--@name TorpedoMatrixDeviceManager
+--@author Yuri6037
+
+local oldang = nil
+local TorpedoMatrix = nil
+
+HookPostLoad(function()
+	if (TorpedoMatrix == nil) then
+		util.Log("Drivers.TorpedoMatrix", LOG_ERR, "No TorpedoMatrix found on this ship")
+		return
+	end
+	oldang = TorpedoMatrix:ang()
+	local old = StartAngles
+	function StartAngles()
+		old()
+		local pos = CalcTargetCenter()
+		if (pos == nil) then return end
+		oldang = TorpedoMatrix:ang()
+		TorpedoMatrix:setAngles((pos - TorpedoMatrix:getPos()):Angle() + Angle(90, 0, 0))
+	end
+	local old1 = StopWeapons
+	function StopWeapons()
+		old1()
+		TorpedoMatrix:setAngles(oldang)
+	end
+	task.Start(function()
+		if (not(IsFiring())) then return end
+		local pos = CalcTargetCenter()
+		if (pos == nil) then return end
+		TorpedoMatrix:setAngles((pos - TorpedoMatrix:getPos()):Angle() + Angle(90, 0, 0))
+	end, "LanAI_TorpedoMatrixUpdater", 1)
+end)
+
+RegisterDriver({"prop_physics"}, function(ent)
+	if (ent:model() == "models/cerus/modbridge/plate/flat/b111.mdl"
+		and ent:material() == "models/XQM/LightLinesRed_tool") then
+		TorpedoMatrix = ent
+		return true
+	end
+	return false
+end)

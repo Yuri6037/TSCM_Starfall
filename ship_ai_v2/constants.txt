@@ -1,0 +1,11 @@
+--@name Constants
+--@author Yuri6037
+
+VERSION_AI = "7.0"
+VERSION_GL = "3.0"
+VERSION_SCRENGINE = "4.0"
+VERSION_LIBS = "3.5"
+
+--[[ This Ship Name ]]--
+ShipName = "ICARUS"
+--[[ End ]]--

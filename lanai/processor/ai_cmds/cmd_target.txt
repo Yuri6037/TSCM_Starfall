@@ -1,0 +1,74 @@
+--@name TargetCommands
+--@author Yuri6037
+
+AIRegisterCommand("target", function(args, ply)
+	local opt = args[1]
+	local own = args[2]
+	if (opt == "player") then
+		if (not(IsValid(own))) then
+			return Command.INVALID_ARGUMENT, "1 (player)"
+		end
+		if (AddTarget(TargetType.PLAYER, own)) then
+			return Command.PASSING, "Player target aquired : " .. own:name() .. "."
+		else
+			return Command.ERROR_GENERIC
+		end
+	elseif (opt == "core") then
+		if (not(IsValid(own))) then
+			return Command.INVALID_ARGUMENT, "1 (player)"
+		end
+		local core = GetPlayerShipCore(own)
+		if (IsValid(core)) then
+			if (AddTarget(TargetType.CORE, core)) then
+				return Command.PASSING, "Core target aquired : " .. own:name() .. "."
+			else
+				return Command.ERROR_GENERIC
+			end
+		else
+			return Command.ERROR_CUSTOM, "player does not have any ship core"
+		end
+	elseif (opt == "this") then
+		local ent = ply:eyeTrace().Entity
+		if (not(IsValid(ent))) then
+			return Command.ERROR_CUSTOM, "no valid target found"
+		end
+		if (ent:class() == "ship_core") then
+			if (AddTarget(TargetType.CORE, ent)) then
+				return Command.PASSING, "Core target aquired : " .. ent:owner():name() .. "."
+			else
+				return Command.ERROR_GENERIC
+			end
+		elseif (ent:class() == "player") then
+			if (AddTarget(TargetType.PLAYER, ent)) then
+				return Command.PASSING, "Player target aquired " .. ent:name() .. "."
+			else
+				return Command.ERROR_GENERIC
+			end
+		elseif (ent:class() == "stargazer_node") then
+			if (AddTarget(TargetType.NODE, ent)) then
+				return Command.PASSING, "Node target aquired : " .. ent:owner():name() .. "."
+			else
+				return Command.ERROR_GENERIC
+			end
+		else
+			if (AddTarget(TargetType.ENTITY, ent)) then
+				return Command.PASSING, "Aquired arbitary entity target : " .. ent:class() .. "."
+			else
+				return Command.ERROR_GENERIC
+			end
+		end
+		return Command.ERROR_CUSTOM, "no valid target found"
+	elseif (opt == "off") then
+		ClearTargets()
+		return Command.PASSING, "All targets cleared !"
+	elseif (opt == "pop") then
+		if (RemoveTarget()) then
+			return Command.PASSING, "Popped last target from list !"
+		else
+			return Command.ERROR_GENERIC
+		end
+	elseif (opt == "list") then
+		return Command.PASSING, "Number of targets : " .. #TargetList()
+	end
+	return Command.INVALID_ARGUMENT, "option (player, core, this, off, pop)"
+end, {"Targets something.", "<command> <player/core/this/off/pop> [player if needed]"}, {"string", "player"}, {"take target", "get target"}, 1)

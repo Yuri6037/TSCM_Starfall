@@ -1,0 +1,129 @@
+--@name InternalSecuritySystem
+--@author Yuri6037
+
+local MessageTold = {}
+
+PlayerMsgTbl = {
+	["76561198167816701"] = "Hey 4NONYM, thank you for building me a new development ship !",
+	["76561198092313070"] = "Welcome back master !",
+	["76561198042520202"] = "Hey Kosmos, thank you for helping my master to develop me !",
+	["76561198149481169"] = "You've got to be kidding, damn spy !!!"
+}
+
+local function GetPlayerFeetsProp(ply)
+	local p = ply:getPos()
+	p:Add(Vector(0, 0, -200))
+	local tr = util.TraceLine(ply:getPos(), p, {ply})
+	if (IsValid(tr.Entity)) then
+		return true, tr.Entity
+	end
+	return false, nil
+end
+local function GetPlayerHeadProp(ply)
+	local p = ply:getPos()
+	p:Add(Vector(0, 0, 999))
+	local tr = util.TraceLine(ply:getPos(), p, {ply})
+	if (IsValid(tr.Entity)) then
+		return true, tr.Entity
+	end
+	return false, nil
+end
+
+local PlayerItHooks = {}
+local PlayerItHooksEnd = {}
+function HookPlayerIterator(func, endfunc)
+	table.insert(PlayerItHooks, func)
+	if (not(endfunc == nil)) then
+		table.insert(PlayerItHooksEnd, endfunc)
+	end
+end
+
+local Data = find.allPlayers()
+local ItSeconds = #Data / 2
+local CurT, CurN = time.curTime(), 0
+HookUpdateLoop(function()
+	local need = #Data * math.min((time.curTime() - CurT) / ItSeconds, 1)
+	while (CurN <= need) do
+		for k, v in pairs(PlayerItHooks) do
+			v(Data[CurN])
+		end
+		CurN = CurN + 1
+	end
+	if (CurN == #Data + 1) then
+		CurT, CurN = time.curTime(), 0
+		Data = find.allPlayers()
+		ItSeconds = #Data / 2
+		for k, v in pairs(PlayerItHooksEnd) do
+			v()
+		end
+	end
+end)
+
+local tmp = {}
+HookPlayerIterator(function(v)
+	if (not(IsValid(v))) then return end
+	if (VectorInBox(ents.self():worldToLocal(v:pos()), Ship.Bounds.Min, Ship.Bounds.Max)) then
+		local b, e = GetPlayerHeadProp(v)
+		local b1, e1 = GetPlayerFeetsProp(v)
+		if (b and b1) then
+			if (SHIP_PARTS_BOOL[e] and SHIP_PARTS_BOOL[e1]) then
+				PlayersInsideShip[v] = true
+				table.insert(tmp, v)
+				if (not(PlayerMsgTbl[v:steamID64()] == nil) and not(MessageTold[v])) then
+					aiSayGuest(v, PlayerMsgTbl[v:steamID64()])
+					MessageTold[v] = true
+				end
+			else
+				PlayersInsideShip[v] = false
+			end
+		else
+			PlayersInsideShip[v] = false
+		end
+	else
+		PlayersInsideShip[v] = false
+	end
+end, function()
+	PlayersInsideShipList = tmp
+	tmp = {}
+end)
+
+local Planets = {
+	Vector(11580, -8964, -9120),
+	Vector(1483, 8202, 8368),
+	Vector(-6145, -5620, 7179),
+	Vector(14084, 14122, -15203),
+	Vector(7328, 9624, -5677),
+	Vector(5371, -7552, 8901),
+	Vector(-6797, -6485, -15328),
+	Vector(-233, 115, 16144)
+}
+
+local function GetNearestPlanet(ply)
+	local pos = Planets[1]
+	for k, v in pairs(Planets) do
+		if (ply:pos():Distance(v) < ply:pos():Distance(pos)) then pos = v end
+	end
+	return pos
+end
+
+function KickAllPlayers()
+	if (#PlayersInsideShipList <= 0) then return end
+	local pos = GetNearestPlanet(PlayersInsideShipList[1])
+	local targets = {}
+	for k, v in pairs(PlayersInsideShipList) do
+		if (v:AIGetRank() < RANK_CREWGUEST) then
+			local sub = GetNearestPlanet(v)
+			if (sub:LengthSqr() < pos:LengthSqr()) then
+				pos = sub
+			end
+			targets[#targets + 1] = v
+		end
+	end
+	BeamEntityListToVector(targets, pos)
+end
+
+RegisterPacket("SHIP_PLY_LIST", {
+	WriteData = function(args)
+		return {PlayerList = args[1]}, false
+	end
+})

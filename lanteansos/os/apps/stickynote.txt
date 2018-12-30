@@ -1,0 +1,42 @@
+--@name StickyNoteApp
+--@author Yuri6037
+
+local app = {}
+function app:Init(filename)
+	self:SetSize(256, 74)
+	self:SetTitle("Sticky Note")
+	local txt = self:AddComponent("textfield", 10, 32)
+	txt:SetSize(236, 32)
+	txt:SetMaxChars(28)
+	if (not(filename == nil)) then
+		self:SetModal()
+		local err, data = FS.ReadFile(filename)
+		if (err == FS.ERR_SYNCING) then
+			FS.RequestFile(filename, function()
+				local err, data = FS.ReadFile(filename)
+				if (not(err == FS.ERR_NONE)) then
+					OS.Dialog("msg", "StickyNote", nil, "Could not read file : " .. FS.ErrorString[err])
+				else
+					txt:SetText(data)
+				end
+			end)
+		else
+			txt:SetText(data)
+		end
+	end
+	self:AddPullDownMenu("  File  ")
+	self:AddPullDownMenuItem("Save", function(app)
+		OS.Dialog("savefile", "Save sticky note", function(fle)
+			local err = FS.WriteFile(fle, txt:GetText())
+			if (not(err == FS.ERR_NONE)) then
+				OS.Dialog("msg", "StickyNote", nil, "Could not write file : " .. FS.ErrorString[err])
+			end
+		end)
+	end)
+	self:AddKeyboard()
+end
+
+OS.DefineApp("stickynote", app)
+OS.AddAppMenuItem("stickynote", "SNote", "MISC")
+FS.RegisterFileAssociation("txt", "stickynote")
+FS.RegisterFileAssociation("tx", "stickynote")

@@ -1,0 +1,346 @@
+--@name Lanteans OS DWM
+--@author Yuri6037
+
+Windows = {}
+
+--Window variables
+CurWindowHdl = nil
+local PointedWindowHdl = nil
+local MovingWindowHdl = nil
+local StartX = 0
+local StartY = 0
+local CurXInDock = 0
+
+--Reduced windows
+local Flag = false
+local HoveredReducedWindowHdl = nil
+
+--Dock/MenuBar
+local PointingMenuBar = false
+local PointingDock = false
+local PointingAppMenu = false
+
+--Animation
+local AnimatingWindowHDLs = {}
+
+--Dropdown menus
+local HoveredDropdown = nil
+
+-- -->LEGACY APPLICATION MENU <--
+local CurPointedApp = nil
+local CurPointedCat = {}
+function DrawLegacyApplicationMenu()
+	CurPointedApp = nil
+	GUI.ColoredRect(CurXInDock, ScrH - 60 - AppMenuHeight, 128, AppMenuHeight, COLOR(255, 255, 255))
+	local i = 0
+	for k, v in pairs(AppMenu.Content) do
+		GUI.Text(v.Name .. "  >", CurXInDock, ScrH - 60 - AppMenuHeight + i + 8, SmallFont, COLOR(0, 0, 0))
+		if (GUI.MouseInRect(CurXInDock, ScrH - 60 - AppMenuHeight + i, 128, 32) or k == CurPointedCat[1]) then
+			GUI.OutRect(CurXInDock, ScrH - 60 - AppMenuHeight + i, 128, 32, 2, COLOR(133, 133, 133))
+			GUI.ColoredRect(CurXInDock + 128, ScrH - 60 - AppMenuHeight + i, 128, #v.Content * 32, COLOR(255, 255, 255))
+			if (GUI.MouseInRect(CurXInDock, ScrH - 60 - AppMenuHeight + i, 128, 32)) then
+				CurPointedCat = {k, i, #v.Content}
+			end
+			for k1, v1 in pairs(v.Content) do
+				if (GUI.MouseInRect(CurXInDock + 128, ScrH - 60 - AppMenuHeight + i + (k1 - 1) * 32, 128, 32)) then
+					GUI.ColoredRect(CurXInDock + 128, ScrH - 60 - AppMenuHeight + i + (k1 - 1) * 32, 128, 32, COLOR(128, 128, 255))
+					CurPointedApp = v1.ID
+				end
+				GUI.Text(v1.Name, CurXInDock + 128, ScrH - 60 - AppMenuHeight + i + 8 + (k1 - 1) * 32, SmallFont, COLOR(0, 0, 0))
+			end
+		end
+		i = i + 32
+	end
+	if (not(CurPointedCat[1] == nil) and not(GUI.MouseInRect(CurXInDock, ScrH - 60 - AppMenuHeight + CurPointedCat[2], 128, 32)) and not(GUI.MouseInRect(CurXInDock + 120, ScrH - 60 - AppMenuHeight + CurPointedCat[2], 128, CurPointedCat[3] * 32))) then
+		CurPointedCat = {} --Yeah we need to cheat : cause lua lacks a continue statement yeah I know lua is one of the best shits ever on internet
+		CurPointedApp = nil
+	end
+end
+function UpdateLegacyApplicationMenu()
+	if (not(CurPointedApp == nil)) then
+		OS.StartApp(CurPointedApp)
+		CurPointedCat = {}
+		CurPointedApp = nil
+	end
+end
+-- -->END<--
+
+--Menu bar (top, like Mac OS)
+function DrawMenuBar()
+	if (GUI.MouseInRect(0, 0, ScrW, 32)) then
+		PointingMenuBar = true
+	else
+		PointingMenuBar = false
+	end
+
+	GUI.Text(os.date("%X"), ScrW - 128, 8, SmallFont, COLOR(0, 0, 255))
+
+	--Render menu bar
+	if (OS.ValidHandle(CurWindowHdl)) then
+		local app = OS.GetApp(CurWindowHdl)
+		GUI.Text(app.DisplayName, 10, 8, SmallFont, COLOR(0, 0, 0))
+		if (not(app.Menu == nil)) then
+			local w = GUI.TextSize(app.DisplayName, SmallFont) + 40
+			local curW = 0
+			for k, v in pairs(app.Menu) do
+				local w1 = GUI.TextSize(v.Name, SmallFont)
+				local h = #v.Buttons * 24
+				if (GUI.MouseInRect(w + curW, 5, w1, 27)) then
+					GUI.RoundedRect(w + curW, 5, w1, 27, COLOR(61, 134, 254, 200))
+					if (HoveredDropdown == nil or not(HoveredDropdown.HDL == k)) then
+						HoveredDropdown = {HDL = k, X = w + curW, Y = 0, W = w1, H = 27, InternalH = h, Open = false, But = nil}
+					end
+				end
+				if (not(HoveredDropdown == nil) and HoveredDropdown.Open and GUI.MouseInRect(w + curW, 5, w1, 32 + h)) then
+					GUI.RoundedRect(w + curW, 5, w1, 27, COLOR(200, 134, 254, 200))
+					GUI.RoundedRect(w + curW, 32, w1, h, COLOR(255, 255, 255, 200))
+					for k, v in pairs(v.Buttons) do
+						GUI.Text(v[1], w + curW, 32 + (k - 1) * 24, SmallFont, COLOR(0, 0, 0))
+						if (GUI.MouseInRect(w + curW, 32 + (k - 1) * 22, w1, 22)) then
+							HoveredDropdown.But = v[2]
+							GUI.RoundedRect(w + curW, 32 + (k - 1) * 22, w1, 22, COLOR(61, 134, 254, 200))
+						end
+					end
+				end
+				if (not(HoveredDropdown == nil) and not(HoveredDropdown.But == nil) and not(GUI.MouseInRect(HoveredDropdown.X, HoveredDropdown.Y + 32, HoveredDropdown.W, 32 + HoveredDropdown.InternalH))) then
+					HoveredDropdown.But = nil
+				end
+				if (not(HoveredDropdown == nil) and not(GUI.MouseInRect(HoveredDropdown.X, HoveredDropdown.Y, HoveredDropdown.W, 32 + HoveredDropdown.InternalH))) then
+					HoveredDropdown = nil
+				end
+
+                GUI.Text(v.Name, w + curW, 8, SmallFont, COLOR(0, 0, 0))
+				curW = curW + w1 + 10
+			end
+		end
+    else
+	    GUI.Text("Lanteans OS", 10, 8, SmallFont, COLOR(0, 0, 0))
+	end
+end
+
+--Dock (bottom, like Mac OS)
+function DrawDock()
+    if (GUI.MouseInRect(ScrW / 2 - 256, ScrH - 60, 512, 60)) then
+        PointingDock = true
+    else
+        PointingDock = false
+    end
+	if (GUI.MouseInRect(CurXInDock, ScrH - 46, 32, 32)) then
+	    PointingAppMenu = true
+        GUI.RoundedRect(CurXInDock, ScrH - 46, 32, 32, COLOR(61, 134, 254, 200))
+    else
+        PointingAppMenu = false
+    end
+    if (DrawAppMenu) then
+        DrawApplicationMenu()
+    end
+end
+
+--Non-reduced window
+function DrawWindow(app)
+	--Title bar and body
+	app:DrawTitleBar()
+	--Draw decorations if required
+	if (app.DrawDecos) then
+		--Icon
+		GUI.Icon(app.X, app.Y + 4, app.Icon.Window)
+		--Window reduce button
+		if (GUI.MouseInRect(app.X + app.Width - 38, app.Y + 12, 12, 12)) then
+			GUI.WindowButton(app.X + app.Width - 38, app.Y + 12, COLOR(0, 0, 255))
+		else
+			GUI.WindowButton(app.X + app.Width - 38, app.Y + 12, COLOR(255, 255, 255))
+		end
+		--Window close button
+		if (GUI.MouseInRect(app.X + app.Width - 16, app.Y + 12, 12, 12)) then
+			GUI.WindowButton(app.X + app.Width - 16, app.Y + 12, COLOR(255, 0, 0))
+		else
+			GUI.WindowButton(app.X + app.Width - 16, app.Y + 12, COLOR(255, 255, 255))
+		end
+	end
+end
+
+--Reduced window
+function DrawReducedWindow(app)
+    CurXInDock = CurXInDock + 32
+    GUI.Icon(CurXInDock, ScrH - 46, app.Icon.Dock)
+    if (GUI.MouseInRect(CurXInDock, ScrH - 46, 32, 32)) then
+        GUI.RoundedRect(CurXInDock, ScrH - 46, 32, 32, COLOR(61, 134, 254, 200))
+        HoveredReducedWindowHdl = app.Handle
+        Flag = true
+        local w = GUI.TextSize(app.DisplayName, SmallFont)
+        GUI.Text(app.DisplayName, ScrW / 2 - w / 2, ScrH - 70, SmallFont, COLOR(255, 255, 255))
+    end
+end
+
+function DWMUpdate(ticks)
+	if (OS.ValidHandle(PointedWindowHdl)) then
+		local app = OS.GetApp(PointedWindowHdl)
+		if (not(OS.ValidHandle(MovingWindowHdl)) and OS.MouseDown() and GUI.MouseInRect(app.X, app.Y, app.Width, 26)) then
+			if (CurWindowHdl == PointedWindowHdl) then
+				MovingWindowHdl = PointedWindowHdl
+			end
+			local x, y = OS.MousePos()
+			StartX = x - app.X
+			StartY = y - app.Y
+		elseif (OS.ValidHandle(MovingWindowHdl) and not(OS.MouseDown())) then
+			MovingWindowHdl = nil
+			StartX = 0
+			StartY = 0
+		end
+	end
+	if (OS.ValidHandle(MovingWindowHdl)) then
+		local x, y = OS.MousePos()
+		local app = OS.GetApp(MovingWindowHdl)
+		app:SetPos(x - StartX, y - StartY)
+	end
+end
+
+local function PerformWindowRender()
+	for k, v in pairs(Windows) do
+		if (not(CurWindowHdl == v.Handle) and not(v.Reduced) and not(v.NoCache)) then
+			DrawWindow(v)
+			GUI.SetTranslation(v.X, v.Y)
+			v:Render()
+			GUI.SetTranslation(0, 0)
+		end
+	end
+end
+
+function DWMWinAdded(handle)
+	CurWindowHdl = handle
+	PointedWindowHdl = handle
+	AnimatingWindowHDLs[handle] = {ScaleX = 0, ScaleY = 0}
+	DesktopEnv:DrawToTexture(ReloadDesktopEnvironment)
+	DesktopEnv:DrawToTexture(PerformWindowRender)
+end
+
+function DWMFocusChange(newhdl)
+	CurWindowHdl = newhdl
+	PointedWindowHdl = newhdl
+	DesktopEnv:DrawToTexture(ReloadDesktopEnvironment)
+	DesktopEnv:DrawToTexture(PerformWindowRender)
+end
+
+function DWMResume(hdl)
+	CurWindowHdl = hdl
+	AnimatingWindowHDLs[hdl] = {ScaleX = 0, ScaleY = 0}
+end
+
+function DWMTouched()
+	if (OS.ValidHandle(PointedWindowHdl)) then
+		local app = OS.GetApp(PointedWindowHdl)
+        if (GUI.MouseInRect(app.X, app.Y, app.Width, app.Height)) then
+            local x, y = OS.MousePos()
+            local tx = x - app.X
+            local ty = y - app.Y
+            app:Touched(tx, ty)
+        end
+		if (GUI.MouseInRect(app.X, app.Y, app.Width, app.Height)) then
+			--Only check decorations if drawn
+			if (app.DrawDecos and CurWindowHdl == PointedWindowHdl) then
+				if (GUI.MouseInRect(app.X + app.Width - 38, app.Y + 10, 12, 12)) then
+					--Window reduce button
+					app:Reduce(true)
+				elseif (GUI.MouseInRect(app.X + app.Width - 22, app.Y + 10, 12, 12)) then
+					--Window close button
+					app:Close()
+				end
+			end
+			--We are in the action bar
+			if (not(CurWindowHdl == PointedWindowHdl)) then
+				DWMFocusChange(PointedWindowHdl)
+			end
+		elseif (not(PointingMenuBar) and HoveredDropdown == nil and not(GUI.MouseInRect(app.X, app.Y, app.Width, app.Height))) then
+			DWMFocusChange(nil)
+			if (not(HoveredDropdown == nil)) then
+				HoveredDropdown = nil
+			end
+		end
+	end
+	if (PointingMenuBar and not(HoveredDropdown == nil)) then
+		local app = OS.GetApp(CurWindowHdl)
+		if (GUI.MouseInRect(HoveredDropdown.X, HoveredDropdown.Y, HoveredDropdown.W, HoveredDropdown.H)) then
+			HoveredDropdown.Open = not(HoveredDropdown.Open)
+		end
+	end
+	if (not(HoveredDropdown == nil) and not(HoveredDropdown.But == nil)) then
+		HoveredDropdown.But()
+		HoveredDropdown = nil
+	end
+
+    if (PointingAppMenu) then
+		OS.StartApp("appmenu")
+    end
+    if (OS.ValidHandle(HoveredReducedWindowHdl) and PointingDock) then
+		OS.GetApp(HoveredReducedWindowHdl):Reduce(false)
+		HoveredReducedWindowHdl = nil
+    end
+end
+
+--Core drawing function for all windows/screen except desktop
+function DWMMain()
+	CurXInDock = ScrW / 2 - 256
+	DrawMenuBar()
+    Flag = false
+    local redraw = false
+	for k, v in pairs(Windows) do
+		if (v.Reduced) then
+			DrawReducedWindow(v)
+		else
+			if (not(AnimatingWindowHDLs[v.Handle] == nil)) then
+				local mat = Matrix()
+				mat:translate(Vector(v.X + v.Width / 2, v.Y + v.Height / 2))
+				mat:scale(Vector(AnimatingWindowHDLs[v.Handle].ScaleX, AnimatingWindowHDLs[v.Handle].ScaleY))
+				mat:translate(-Vector(v.X + v.Width / 2, v.Y + v.Height / 2))
+				render.pushMatrix(mat)
+					DrawWindow(v)
+				render.popMatrix()
+				AnimatingWindowHDLs[v.Handle].ScaleX = AnimatingWindowHDLs[v.Handle].ScaleX + 0.2 * time.frameTime() * 20
+				AnimatingWindowHDLs[v.Handle].ScaleY = AnimatingWindowHDLs[v.Handle].ScaleY + 0.2 * time.frameTime() * 20
+				if (AnimatingWindowHDLs[v.Handle].ScaleX >= 1) then
+					AnimatingWindowHDLs[v.Handle] = nil
+				end
+			elseif (v.NoCache and not(v.Handle == CurWindowHdl)) then
+				DrawWindow(v)
+				GUI.SetTranslation(v.X, v.Y)
+				v:Render()
+				GUI.SetTranslation(0, 0)
+			elseif (not(CurWindowHdl == v.Handle) and v.NeedRender) then
+				redraw = true
+				v.NeedRender = false
+			end
+			if (GUI.MouseInRect(v.X, v.Y, v.Width, v.Height)) then
+				PointedWindowHdl = v.Handle
+			end
+			if (v.ShouldUpdate) then
+				v:Update(time.frameTime())
+			end
+		end
+	end
+    if (redraw) then
+    	DesktopEnv:DrawToTexture(ReloadDesktopEnvironment)
+    	DesktopEnv:DrawToTexture(PerformWindowRender)
+    end
+    if (OS.ValidHandle(CurWindowHdl) and not(AnimatingWindowHDLs[CurWindowHdl])) then
+        local app = OS.GetApp(CurWindowHdl)
+        if (GUI.MouseInRect(app.X, app.Y, app.Width, app.Height)) then
+        	PointedWindowHdl = app.Handle
+        end
+        DrawWindow(app)
+        GUI.SetTranslation(app.X, app.Y)
+        app:Render()
+        GUI.SetTranslation(0, 0)
+        if (GUI.MouseInRect(app.X, app.Y, app.Width, app.Height)) then
+            if (not(app.DrawCursor == nil)) then
+                local x, y = OS.MousePos()
+                GUI.WindowButton(x, y, app.DrawCursor)
+            end
+        end
+    end
+	if (not(Flag)) then
+	    HoveredReducedWindowHdl = nil
+	end
+
+    CurXInDock = ScrW / 2 - 256
+	DrawDock()
+end

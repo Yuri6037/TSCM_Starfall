@@ -1,0 +1,16 @@
+--@name PropFreezer
+--@author Yuri6037
+--@class processor
+--@autoupdate
+
+wire.createInputs({"Prop"}, {"Entity"})
+
+hook("input", "PropFreezer", function(inp, val)
+	if (inp == "Prop" and IsValid(val) and not(val:getPhysicsObject() == nil) and not(timer.exists("PropFreezer"))) then
+		timer.create("PropFreezer", 0.2, 1, function()
+			val:getPhysicsObject():enableMotion(false)
+			val:getPhysicsObject():enableGravity(false)
+			val:getPhysicsObject():enableMotion(true)
+		end)
+	end
+end)

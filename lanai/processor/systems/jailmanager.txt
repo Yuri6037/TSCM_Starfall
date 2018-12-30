@@ -1,0 +1,47 @@
+--@name JailManagerSystem
+--@author Yuri6037
+
+local OldRanks = {}
+local JailLoaded = false
+
+HookPostLoad(function()
+	if (GetBeamPointFromName("jail") == nil) then
+		util.Log("Systems", LOG_WARN, "No jail have been found on that ship, disabling JailManagerSystem...")
+		return
+	end
+	JailLoaded = true
+	HookPlayerIterator(function(v)
+		if (not(OldRanks[v] == nil) and not(PlayersInsideShip[v])) then
+			BeamEntityToPoint(v, "jail")
+		end
+	end)
+end)
+
+function JailPlayer(ply)
+	if (not(JailLoaded)) then return end
+	if (ply:AIHasPerm("immutable")) then
+		aiSay("You do not have permission to jail '" .. ply:name() .. "'")
+		return false
+	end
+	if (OldRanks[ply] == nil) then
+		OldRanks[ply] = ply:AIGetRank()
+	end
+	ply:AISetRank(RANK_JAILED)
+	BeamEntityToPoint(ply, "jail")
+	aiSayGuest(ply, "You have been jailed !")
+	aiSay("Jailed player " .. ply:name())
+	return true
+end
+
+function UnjailPlayer(ply)
+	if (not(JailLoaded)) then return end
+	if (ply:AIHasPerm("immutable")) then
+		aiSay("You do not have permission to unjail '" .. ply:name() .. "'")
+		return false
+	end
+	ply:AISetRank(OldRanks[ply])
+	OldRanks[ply] = nil
+	aiSayGuest(ply, "You have been pardonned !")
+	aiSay("Pardonned player " .. ply:name())
+	return true
+end

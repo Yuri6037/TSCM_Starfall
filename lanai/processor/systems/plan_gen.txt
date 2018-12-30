@@ -1,0 +1,118 @@
+--@name PlanGen
+--@author Yuri6037
+
+--WorkInProgress algorythm : Goal is to try to runtime generate ship interior plan depending on different ModBridge parts
+--NOTE : Will probably overload processor.
+--PlanType : 0 = Room, 1 = Door
+
+local function FixCoord(n)
+	if (n < 0) then
+		return -n
+	end
+	return n
+end
+
+Floors = {}
+local FloorList = {}
+ShipPlans = {}
+
+local LastFloor = nil
+
+local Self = ents.self()
+
+function CalculateShipMiddlePoint()
+	local min = Ship.Bounds.Min
+	local max = Ship.Bounds.Max
+
+	local xa = min.x
+	local ya = min.y
+	local xc = max.x
+	local yc = max.y
+
+	local xi = (xc + xa) / 2
+	local yi = (yc + ya) / 2
+
+	return Vector(xi, yi, Floors[1])
+end
+
+HookPostLoad(function()
+	SendPacket("PROC", "START", "Generating plans...")
+
+	local ff = {}
+	local numLst = {}
+
+	SendPacket("PROC", "UPD", 10)
+
+	--First we need to determine all the floors
+	local curGreat = 0
+	if (Ship.EvaProps[1] == nil) then return end
+	LastFloor = Ship.EvaProps[1].Prop
+	curGreat = math.floor(Self:worldToLocal(Ship.EvaProps[1].Prop:getPos()).z)
+	bypass.Iterator("LanAI_PlanGen_S1", Ship.EvaProps, function(k, v)
+		if (not(IsValid(v.Prop))) then return end
+		local z = math.floor(Self:worldToLocal(v.Prop:getPos()).z)
+		if (not(ff[z]) and not(ff[z + 1]) and not(ff[z - 1])) then
+			ff[z] = true
+			table.insert(numLst, z)
+		end
+		if (z > curGreat) then
+			curGreat = z
+			LastFloor = v.Prop
+		end
+	end, function()
+		numLst = math.RengeNumbers(numLst, RENGE_LOWEST_TO_GREATEST)
+		for k, v in pairs(numLst) do
+			Floors[v] = k
+		end
+		FloorList = numLst
+
+		SendPacket("PROC", "UPD", 10)
+
+		--Now we need to assign each prop to a floor
+		local plans = {}
+		bypass.Iterator("LanAI_PlanGen_S2", Ship.EvaProps, function(k, v)
+			if (not(IsValid(v.Prop)) or v.Prop == Ship.Shield) then return end
+			local z = math.floor(Self:worldToLocal(v.Prop:getPos()).z)
+			local floorNum = Floors[z]
+			if (floorNum == nil) then
+				floorNum = Floors[z + 1]
+			end
+			if (floorNum == nil) then
+				floorNum = Floors[z - 1]
+			end
+
+			local pos = Self:worldToLocal(v.Prop:getPos())
+			local angs = Self:worldToLocalAngles(v.Prop:getAngles())
+
+			table.insert(ShipPlans, {Type = 0, Floor = floorNum, Pos = pos, Model = v.Prop:model(), Angles = angs})
+		end, function()
+			SendPacket("PROC", "UPD", 100)
+			SendPacket("PROC", "END")
+
+			local camPos = CalculateShipMiddlePoint()
+			local p = Self:worldToLocal(LastFloor:obbCenterW())
+			--Multiply by 4 for ICARUS
+			--Multiply by 30 for STARTUS
+			camPos.z = p.z * 30
+
+			Floors.CamPos = camPos
+			Floors.Origin = Self
+
+			timer.create("LanAI_PlanGen_Send", 1, 1, function()
+				SendPacket("PLANS", ShipPlans, Floors)
+			end)
+		end)
+	end)
+end)
+
+RegisterPacket("PLANS", {
+	WriteData = function(args)
+		return {ShipPlans = args[1], Floors = args[2]}, true
+	end
+})
+
+HookScreenLoad(function()
+	--if (not(ScreenDevMode)) then
+	--	SendPacket("PLANS", ShipPlans, Floors)
+	--end
+end)

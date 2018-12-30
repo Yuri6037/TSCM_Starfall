@@ -1,0 +1,108 @@
+--@name TacticalApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {
+		{
+			Color = COLOR(255, 0, 0),
+			Vertices = GUI.PregenCircle(16, 16, 8)
+		},
+		{
+			Color = COLOR(0, 0, 0),
+			Vertices = GUI.PregenCircle(16, 16, 4)
+		}
+	},
+	[16] = {
+		{
+			Color = COLOR(255, 0, 0),
+			Vertices = GUI.PregenCircle(8, 8, 4)
+		},
+		{
+			Color = COLOR(0, 0, 0),
+			Vertices = GUI.PregenCircle(8, 8, 2)
+		}
+	}
+}
+
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+	self:SetTitle("Tactical")
+	self:SetSize(550, 256)
+	self:SetIcon32(ico[32])
+	self:SetIcon16(ico[16])
+	self:SetPos(LOCATION_CENTER)
+
+	self:AddPullDownMenu("Target")
+	self:AddPullDownMenuItem("Player", function()
+		OS.Dialog("ply", "Please select a target :", function(ply)
+			AIRunFunc("TargetPlayer", ply)
+		end)
+	end)
+	self:AddPullDownMenuItem("Core", function()
+		OS.Dialog("ply", "Please select a target :", function(ply)
+			AIRunFunc("TargetCode", ply)
+		end)
+	end)
+	self:AddPullDownMenuItem("Clear", function()
+		AIRunFunc("TargetOff")
+	end)
+	self:AddPullDownMenu("Tactical Tools")
+	self:AddPullDownMenuItem("Shield details", function()
+		OS.StartApp("shieldpower")
+	end)
+	self.OurP = self:AddComponent("progress", 20, 42, COLOR(255, 255, 0), "Plating")
+	self.OurP:SetSize(235, 32)
+	self.OurH = self:AddComponent("progress", 20, 84, COLOR(255, 0, 0), "Health")
+	self.OurH:SetSize(235, 32)
+	self.OurS = self:AddComponent("progress", 20, 126, COLOR(0, 0, 255), "Shield")
+	self.OurS:SetSize(235, 32)
+
+	self.TargetP = self:AddComponent("progress", 295, 42, COLOR(255, 255, 0), "Plating")
+	self.TargetP:SetSize(235, 32)
+	self.TargetH = self:AddComponent("progress", 295, 84, COLOR(255, 0, 0), "Health")
+	self.TargetH:SetSize(235, 32)
+	self.TargetS = self:AddComponent("progress", 295, 126, COLOR(0, 0, 255), "Shield")
+	self.TargetS:SetSize(235, 32)
+
+	self.TLabel = self:AddComponent("label", 20, 200)
+	self.TLabel:SetText("Target : NULL")
+	self.TLabel:SetSize(0, 0)
+
+	local b = self:AddComponent("button", 20, 216, "Shields", function(app)
+		AIRunFunc("BASICS", "Shields")
+	end)
+	b:SetSize(128, 32)
+	self.S = self:AddComponent("indicator", 486, 216)
+	self.S:SetSize(32, 32)
+end
+
+function app:PreRender()
+	GUI.InvGradiantRect(10, 32, 255, 160, COLOR(0, 0, 0))
+	GUI.NormGradiantRect(10, 32, 255, 160, COLOR(0, 0, 0))
+	GUI.InvGradiantRect(285, 32, 255, 160, COLOR(0, 0, 0))
+	GUI.NormGradiantRect(285, 32, 255, 160, COLOR(0, 0, 0))
+	GUI.Text("Our Ship", 100, 166, SmallFont, COLOR(0, 255, 0))
+	GUI.Text("Target", 385, 166, SmallFont, COLOR(255, 0, 0))
+end
+
+function app:OnDataReceived(data)
+	self.OurP:SetValue(math.round(data["Plating"] / 100, 3))
+	self.OurH:SetValue(math.round(data["Health"] / data["MaxHealth"], 3))
+	self.OurS:SetValue(math.round(data["Shield"] / data["MaxShield"], 3))
+	if (not(data["TName"] == nil)) then
+		self.TargetP:SetValue(math.round(data["TPlating"] / 100, 3))
+		self.TargetH:SetValue(math.round(data["THealth"] / data["TMaxHealth"], 3))
+		self.TargetS:SetValue(math.round(data["TShield"] / data["TMaxShield"], 3))
+		self.TLabel:SetText("Target : " .. data["TName"])
+	else
+		self.TargetP:SetValue(0)
+		self.TargetH:SetValue(0)
+		self.TargetS:SetValue(0)
+		self.TLabel:SetText("Target : NULL")
+	end
+	self.S:SetActive(ConvertWireBool(data["ShieldActive"]))
+end
+
+OS.DefineApp("tactical", app)
+OS.AddAppMenuItem("tactical", "Tactical", "Ship", ico[16])

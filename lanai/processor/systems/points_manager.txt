@@ -1,0 +1,149 @@
+--@name PointsManager
+--@author Yuri6037
+
+Points = {}
+Points.Beam = {}
+Points.Warp = {}
+Points.WarpList = {}
+Points.BeamList = {}
+
+local BeamsFile = "beams"
+local WarpsFile = "warps"
+
+local WarpsEdited = false
+local BeamsEdited = false
+
+--Hook to load the beam points file
+HookPostLoad(function()
+	aifiles.LineIterator(BeamsFile, function(str)
+		local tbl = string.Split(str, "=")
+		local crds = string.Split(tbl[2], ",")
+		local x = tonumber(crds[1])
+		local y = tonumber(crds[2])
+		local z = tonumber(crds[3])
+
+		if (not(x == nil) and not(y == nil) and not(z == nil) and not(tbl[1] == nil)) then
+			Points.Beam[tbl[1]] = Vector(x, y, z)
+			table.insert(Points.BeamList, tbl[1])
+		else
+			aiSay("An error exists in the beams file.")
+		end
+	end)
+
+	aifiles.LineIterator(WarpsFile, function(str)
+		local tbl = string.Split(str, "=")
+		local crds = string.Split(tbl[2], ",")
+		local x = tonumber(crds[1])
+		local y = tonumber(crds[2])
+		local z = tonumber(crds[3])
+
+		if (not(x == nil) and not(y == nil) and not(z == nil) and not(tbl[1] == nil)) then
+			Points.Warp[tbl[1]] = Vector(x, y, z)
+			table.insert(Points.WarpList, tbl[1])
+		else
+			aiSay("An error exists in the warps file.")
+		end
+	end)
+
+	for k, v in pairs(Ship.DynamicBeams) do
+		table.insert(Points.BeamList, k)
+	end
+
+	util.Log("Systems", LOG_DEBUG, "Number of beam points : ", #Points.BeamList)
+	util.Log("Systems", LOG_DEBUG, "Number of warp points : ", #Points.WarpList)
+
+	SendAPIEvent("POINTS_CHANGED", "BEAM", Points.BeamList)
+	SendAPIEvent("POINTS_CHANGED", "WARP", Points.WarpList)
+
+	GetGlobals().WarpList = Points.WarpList
+	GetGlobals().BeamList = Points.BeamList
+end)
+
+function SavePoint(type, name, vec)
+	local str = name .. "=" .. vec.x .. "," .. vec.y .. "," .. vec.z
+
+	if (type == "BEAM") then
+		Points.Beam[name] = vec
+		table.insert(Points.BeamList, name)
+		BeamsEdited = true
+		aiSetAction("Save Files")
+
+		SendAPIEvent("POINTS_CHANGED", "BEAM", Points.BeamList)
+		GetGlobals().BeamList = Points.BeamList
+	elseif (type == "WARP") then
+		Points.Warp[name] = vec
+		table.insert(Points.WarpList, name)
+		WarpsEdited = true
+		aiSetAction("Save Files")
+
+		SendAPIEvent("POINTS_CHANGED", "WARP", Points.WarpList)
+		GetGlobals().WarpList = Points.WarpList
+	end
+end
+
+local function SaveFiles()
+	aiSay("Saving beams and warps files...")
+	if (BeamsEdited) then
+		local data = ""
+		for k, v in pairs(Points.Beam) do
+			local str = k .. "=" .. v.x .. "," .. v.y .. "," .. v.z
+			data = data .. str .. "\n"
+		end
+		aifiles.Overwrite(beamsFile, data)
+	end
+	if (WarpsEdited) then
+		local data = ""
+		for k, v in pairs(Points.Warp) do
+			local str = k .. "=" .. v.x .. "," .. v.y .. "," .. v.z
+			data = data .. str .. "\n"
+		end
+		aifiles.Overwrite(warpsFile, data)
+	end
+	BeamsEdited = false
+	WarpsEdited = false
+	aiSay("Done !")
+end
+
+function DeletePoint(type, name)
+	if (type == "BEAM") then
+		Points.Beam[name] = nil
+		for k, v in pairs(Points.BeamList) do
+			if (v == name) then
+				table.remove(Points.BeamList, k)
+				break
+			end
+		end
+		BeamsEdited = true
+		aiSetAction("Save Files")
+
+		SendAPIEvent("POINTS_CHANGED", "BEAM", Points.BeamList)
+		GetGlobals().BeamList = Points.BeamList
+	elseif (type == "WARP") then
+		Points.Warp[name] = nil
+		for k, v in pairs(Points.WarpList) do
+			if (v == name) then
+				table.remove(Points.WarpList, k)
+				break
+			end
+		end
+		WarpsEdited = true
+		aiSetAction("Save Files")
+
+		SendAPIEvent("POINTS_CHANGED", "WARP", Points.WarpList)
+		GetGlobals().WarpList = Points.WarpList
+	end
+end
+
+function GetBeamPointFromName(name)
+	local vec = Points.Beam[name]
+	if (vec == nil and not(Ship.DynamicBeams[name] == nil)) then
+		vec = Ship.DynamicBeams[name].GetPos(Ship.DynamicBeams[name].Wirelink)
+	end
+	return vec
+end
+
+function GetWarpPointFromName(name)
+	return Points.Warp[name]
+end
+
+aiRegisterAction("Save Files", SaveFiles)

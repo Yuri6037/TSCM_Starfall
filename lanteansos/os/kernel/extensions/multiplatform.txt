@@ -1,0 +1,15 @@
+--@name MultiPlatformKernelExtension
+--@author Yuri6037
+
+local IsEmitter = ents.self():class() == "starfall_emitter"
+local IsScr = ents.self():class() == "starfall_screen"
+local IsHUD = ents.self():class() == "starfall_hud"
+function OS.IsEmitter()
+	return IsEmitter
+end
+function OS.IsScreen()
+	return IsScr
+end
+function OS.IsHUD()
+	return IsHUD
+end

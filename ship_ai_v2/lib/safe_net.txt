@@ -1,0 +1,34 @@
+--@name SafeNetLibrary
+--@author Yuri6037
+
+local NetEntity = nil
+
+function SetNetEntity(ent)
+	NetEntity = ent
+end
+
+function StartNet(func, ply)
+	if (NetEntity == nil) then
+		if (net.start(ents.self(), false)) then
+			func()
+		else
+			return
+		end
+	else
+		local b, e = net.start(NetEntity, false)
+		if (b) then
+			func()
+		else
+			if (CLIENT) then print(e) end
+			return
+		end
+	end
+
+	if (CLIENT) then
+		net.sendToServer()
+	elseif (IsValid(ply)) then
+		net.send(ply)
+	else
+		net.broadcast()
+	end
+end

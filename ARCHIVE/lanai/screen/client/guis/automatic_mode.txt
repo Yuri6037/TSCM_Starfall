@@ -1,0 +1,28 @@
+--@name AutomaticModeGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.Render(x, y)
+	gl.glPushMatrix()
+		local str = "Enable Automatic Mode"
+		if (SubInfos["AUTOMODE"]) then
+			str = "Disable Automatic Mode"
+		end
+		UI.SetSkin(1)
+		if (UI.Button(str, x + 500, 300, 256, 64)) then
+			StartNet(function()
+				net.writeString("SW_AUTO_MODE")
+			end)
+		end
+		UI.SetSkin(3)
+		UI.Keypad(0, 6, x + 10, y + 10)
+		UI.SetSkin(0)
+		gl.glTranslate(0, 0)
+	gl.glPopMatrix()
+end
+
+function gui.CheckInputs(x, y)
+end
+
+RegisterGUI(8, -1, -1, "Automatic Mode", gui)

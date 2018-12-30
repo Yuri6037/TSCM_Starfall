@@ -1,0 +1,13 @@
+--@name BooleanInvert_Hack
+--@author Yuri6037
+
+function HackBooleanCInvert(b)
+	if (type(b) == "boolean") then
+		if (b) then return false end
+		if (not(b)) then return true end
+	end
+	if (type(b) == "number") then
+		if (b == 1) then return 0 end
+		if (b == 0) then return 1 end
+	end
+end

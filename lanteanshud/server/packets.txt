@@ -1,0 +1,50 @@
+--@name Lanteans HUD ServerPackets
+--@author Yuri6037
+
+net.RegPacket(0, "LINK", function()
+	local p = net.readEntity()
+	chat.listen(PlayerChatFunc, p)
+	PlysData[p] = {AppsData = {}, Apps = CurApps}
+	for k, v in pairs(PlysData[p].Apps) do
+		if (not(v.OnActivated == nil)) then
+			v.OnActivated(p)
+		end
+	end
+end, nil, true)
+
+net.RegPacket(1, "UNLINK", function()
+	local p = net.readEntity()
+	chat.stop(PlayerChatFunc, p)
+	for k, v in pairs(PlysData[p].Apps) do
+		if (not(v.OnDeactivated == nil)) then
+			v.OnDeactivated(p)
+		end
+	end
+	PlysData[p] = nil
+end, nil, true)
+
+net.RegPacket(2, "OPENCONFIG", nil, function()
+end, true)
+
+net.RegPacket(3, "APP_ON", function(ply)
+	if (PlysData[ply] == nil) then
+		print("Starfall bug detected : Starfall hud initializes client side without anyone linked !")
+		return
+	end
+	local name = net.readString()
+	HUD.ActivateApp(name, true, ply)
+end, nil, true)
+
+net.RegPacket(4, "APP_OFF", function(ply)
+	if (PlysData[ply] == nil) then
+		print("Starfall bug detected : Starfall hud initializes client side without anyone linked !")
+		return
+	end
+	local name = net.readString()
+	HUD.ActivateApp(name, false, ply)
+end, nil, true)
+
+net.RegPacket(5, "APP_UPDATE", nil, function(args)
+	net.writeString(args[1])
+	net.writeTable(args[2])
+end, false)

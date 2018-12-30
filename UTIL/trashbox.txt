@@ -1,0 +1,45 @@
+--@name TrashBox
+--@author Yuri6037
+
+--(0, 0, 0) (20, 20, 20)
+
+wire.createInputs({"TrashCoreProp"}, {"Entity"})
+
+BlockedClasses = {
+	"physgun_beam",
+	"predicted_viewmodel",
+	"stargazer_environment",
+	"player",
+	"starfall_processor",
+	"starfall_screen",
+	"starfall_hud",
+	"starfall_emitter",
+	"starfall_screen_repeater"
+}
+
+function IsEntityClassBlocked(ent)
+	for k, v in pairs(BlockedClasses) do
+		if (v == ent:class()) then
+			return true
+		end
+	end
+	return false
+end
+
+timer.create("TrashBox_Updater", 1, 0, function()
+	if (not(wire.ports["TrashCoreProp"] == nil)) then
+		local ent = wire.ports["TrashCoreProp"]
+		--local mi = ent:localToWorld(Vector(0, 0, 0))
+		--local ma = ent:localToWorld(Vector(1, 1, 1))
+		local mi = ent:localToWorld(ent:obbMins())
+		local ma = ent:localToWorld(ent:obbMaxs())
+
+		for k, v in pairs(find.inBox(mi, ma, function(v) return not(IsEntityClassBlocked(v)) and not(v:isWeapon()) and not(v == ents.self()) and not(v:model() == "models/sprops/rectangles/size_2_5/rect_18x18x3.mdl") and not(v == ent) end)) do
+			print(v:class())
+			print(v:isWeapon())
+			print(IsValid(v))
+
+			v:remove()
+		end
+	end
+end)

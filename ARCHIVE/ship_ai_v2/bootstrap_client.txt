@@ -1,0 +1,50 @@
+--@name ShipAI II ClientBootstrap
+--@author Yuri6037
+--@widescreen
+--@sharedscreen
+
+--The engine used to display/manage screens
+--@include ship_ai_v2/lib/screen_engine.txt
+--@include ship_ai_v2/client/screens/load.txt
+
+--Main client file
+--@include ship_ai_v2/client/shipai_v2_client.txt
+
+--Libs includes
+--@include ship_ai_v2/lib/boolean_invert_hacker.txt
+--@include ship_ai_v2/lib/string_lib.txt
+--@include ship_ai_v2/lib/safe_net.txt
+--@include ship_ai_v2/lib/opsloop_hack_lib.txt
+
+--Constants
+--@include ship_ai_v2/constants.txt
+
+require("ship_ai_v2/constants.txt")
+require("ship_ai_v2/lib/safe_net.txt")
+
+if (CLIENT) then
+	require("ship_ai_v2/lib/screen_engine.txt")
+	require("ship_ai_v2/client/screens/load.txt")
+
+	Screen:Display("Load")
+
+	LoadingStr = "INF./INF."
+
+	InWait = true
+
+	hook("net", "AI_II_Bootstrap", function(len)
+		if (not(InWait)) then
+			hook.remove("net", "AI_II_Bootstrap")
+			return
+		end
+		local msg = net.readString()
+		if (msg == "FOUND_ENT") then
+			SetNetEntity(net.readEntity())
+			require("ship_ai_v2/client/shipai_v2_client.txt")
+			InWait = false
+			hook.remove("net", "AI_II_Bootstrap")
+		end
+	end)
+end
+if (SERVER) then
+end

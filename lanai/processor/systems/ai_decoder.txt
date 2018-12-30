@@ -1,0 +1,169 @@
+--@name LanAI CommandDecoder
+--@author Yuri6037
+
+local Files = {
+	"beam",
+	"warp",
+	"points",
+	"weapons",
+	"systems",
+	"playermanagement",
+	"permissions",
+	"misc",
+	"internal",
+	"broadcaster",
+	"doors",
+	"target",
+	"stargate"
+}
+
+util.CreateHook("AICmdUnknown")
+util.CreateHook("AICmdFail")
+
+local AICommands = {}
+local AIStringCommands = {}
+local AIAliases = {}
+--Help generator
+local AIHelp = {}
+local CurFile = nil
+
+function AIRegisterCommand(cmd, func, help, args, aliases, argsNumberNeeded)
+	local realArgs = {}
+	for k, v in pairs(args) do
+		if (string.find(v, ":")) then
+			local tbl = string.Split(v, ":")
+			table.insert(realArgs, tbl)
+		else
+			table.insert(realArgs, {v})
+		end
+	end
+	if (argsNumberNeeded == nil) then
+		argsNumberNeeded = #args
+	end
+	if (aliases == nil) then
+		aliases = {}
+	end
+	AICommands[cmd] = {Name = cmd, Func = func, Help = help, Args = realArgs, Aliases = aliases, NeededArgsNum = argsNumberNeeded}
+	table.insert(AIStringCommands, cmd)
+	for k, v in pairs(aliases) do
+		table.insert(AIStringCommands, v)
+		AIAliases[v] = cmd
+	end
+	--Generate help
+    if (not(CurFile == nil) and not(help == nil)) then
+        if (AIHelp[CurFile] == nil) then
+            AIHelp[CurFile] = {}
+        end
+        local rnk = permissions.GetRankName(permissions.GetRankFromPerm("command." .. cmd))
+        if (HUDType == "LanAI_HUD") then
+        	AIHelp[CurFile][cmd] = {Description = help[1], Usage = help[2], Rank = rnk, AdditionalInfo = help[3]}
+        else
+        	table.insert(AIHelp, {Command = cmd, Category = CurFile, Description = help[1], Usage = help[2], Rank = rnk, AdditionalInfo = help[3]})
+        end
+	end
+end
+
+local function DecodeArgument(arg, typeStr)
+	util.Log("AI.Decoder", LOG_DEBUG, "Decoding argument : ", arg, " of type '", typeStr, "'")
+	if (typeStr == "string") then
+		return arg
+	elseif (typeStr == "number") then
+		return tonumber(arg)
+	elseif (typeStr == "player") then
+		return find.playerByName(arg)
+	elseif (typeStr == "bool" or typeStr == "boolean") then
+		if (arg == "0" or arg == "off" or arg == "false") then
+			return false
+		elseif (arg == "1" or arg == "on" or arg == "true") then
+			return true
+		end
+	end
+	return arg
+end
+
+local function InterpretCommand(args, v1, strToDel, ply)
+	if (not(ply:AIHasPerm("command." .. v1.Name))) then
+		aiSayGuest(ply, "You do not have enough permissions to do that.")
+		return true
+	end
+	if (#args < v1.NeededArgsNum) then
+		aiSay("Invalid number of arguments (expected " .. v1.NeededArgsNum .. ", got " .. #args .. ") !", ply)
+		return true
+	end
+	local realArgs = {}
+	for i = 2, #args do
+		if (not(v1.Args[i - 1] == nil)) then
+			for k2, v2 in pairs(v1.Args[i - 1]) do
+				local arg = DecodeArgument(args[i], v2)
+				if (not(arg == nil)) then
+					table.insert(realArgs, arg)
+					break
+				end
+			end
+		end
+	end
+	if (#realArgs < v1.NeededArgsNum) then
+		aiSay("Interpreter failed when decoding arguments. This is usualy a wrong usage of the Decoder.", ply)
+		return true
+	end
+	local t, m = v1.Func(realArgs, ply)
+	if (t == Command.PASSING) then
+	    if (not(m == nil)) then
+		    aiSay(m, ply)
+		end
+	else
+        if (t == Command.INSUFFICIENT_PERMISSION) then
+            aiSay("You do not have enough permission to perform this command.", ply)
+        elseif (t == Command.INVALID_ARGUMENT) then
+            aiSay("The given argument '" .. m .. "' is invalid.", ply)
+        elseif (t == Command.INSUFFICIENT_ARGUMENT) then
+            aiSay("Not enough arguments to perform.", ply)
+        elseif (t == Command.ERROR_GENERIC) then
+            aiSay("An error has occured while performing command '" .. args[1] .. "'.", ply)
+        elseif (t == Command.ERROR_CUSTOM) then
+            aiSay("Command returned error '" .. m .. "'.", ply)
+        end
+	end
+	return true
+end
+
+function OnChatMessage(msg, ply)
+	if (not(globaltables.player.IntelliHUDLinkedPlayers == nil)) then
+		if (not(PlayersInsideShip[ply]) and not(globaltables.player.IntelliHUDLinkedPlayers[ply])) then return false end
+	else
+		if (not(PlayersInsideShip[ply])) then return false end
+	end
+	if (string.StartsWith(msg, "!ai") or string.StartsWith(msg, "!lanai")) then
+		if (CheckAutoMode() and not(ply:AIHasPerm("immutable"))) then
+			aiSayGuest(ply, "Automatic mode has taken officer rights !")
+			return true
+		end
+		if (Loading) then
+			aiSay("I'm still initializing, please wait...", ply)
+			return true
+		end
+		local str = string.sub(msg, string.GetIndexOfChar(msg, ' ') + 1, string.len(msg))
+		local args = string.SplitLeaveChar(str, " ", "\"")
+		local cmd, approx = string.GetMostSimilar(args[1], AIStringCommands)
+		util.Log("AI.Decoder", LOG_DEBUG, "Reconstructed command ", cmd, " at ", approx, "%")
+		if (approx <= 50) then
+			util.RunHook("AICmdUnknown", ply, str)
+			return true
+		end
+		local v1 = AICommands[cmd] or AICommands[AIAliases[cmd]]
+		if (not(v1 == nil)) then
+			InterpretCommand(args, v1, cmd, ply)
+			return true
+		end
+	end
+end
+
+--Loading commands files
+HookPostLoad(function()
+	for k, v in pairs(Files) do
+		util.Log("AI.Core", LOG_DEBUG, "Loading command file '", v, "'...")
+    	CurFile = v
+		require("lanai/processor/ai_cmds/cmd_" .. v .. ".txt")
+	end
+	aiSendHelp(AIHelp)
+end)

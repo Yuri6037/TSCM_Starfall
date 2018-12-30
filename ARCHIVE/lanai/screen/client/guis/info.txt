@@ -1,0 +1,47 @@
+--@name InfoGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.Render(x, y)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("LanAI " .. VERSION_AI .. " - ConstraintsRetriever V." .. VERSION_PLOADER, 10, 10)
+	gl.glText("GL V. " .. VERSION_GL .. " | Libs V. " .. VERSION_LIBS, 10, 40)
+	gl.glText("Running on ScreenEngine " .. VERSION_SCRENGINE, 10, 70)
+
+	--PacificTravellers logo
+	--gl.glBindColor(255, 0, 0)
+	--gl.glRect(x + 650, y + 20, 256, 64)
+	--render.setTexture(nil)
+	--render.setColor(0, 0, 255, 255)
+	--render.drawFilledCircle(x + 900, y + 84, 64, 32)
+	--render.setColor(255, 255, 0, 255)
+	--render.drawFilledCircle(x + 650, y + 20, 64, 32)
+	--gl.glBindColor(0, 128, 255)
+	--gl.glText("Pacific", x + 655, y + 15)
+	--gl.glBindColor(133, 133, 133)
+	--gl.glText("Travellers", x + 775, y + 54)
+
+
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.TitleFont)
+	if (ShipName == nil) then
+		gl.glText("NULL_SHIP_NAME", 33, 100)
+	else
+		local w = gl.glTextWidth(ShipName)
+		gl.glText(ShipName, 984 / 2 - w / 2, 100)
+	end
+
+	gl.glBindFont(Screen.StandardFont)
+	if (Evacuation) then
+		gl.glBindColor(255, 0, 0)
+		local w1 = gl.glTextWidth("WARNING : SHIP EVACUATION ENGAGED !")
+		gl.glText("WARNING : SHIP EVACUATION ENGAGED !", 512 - w1 / 2, 200)
+	end
+end
+
+function gui.CheckInputs(x, y)
+end
+
+RegisterGUI(0, -1, -1, "Informations", gui)

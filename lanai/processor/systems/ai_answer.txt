@@ -1,0 +1,233 @@
+--@name LanAI AnswerGenerator
+--@author Yuri6037
+
+local function GetPlayerLoc(ply)
+	if (VectorInBox(ply:pos(), Universe.Min, Universe.Max)) then
+		return "Universe"
+	elseif (VectorInBox(ply:pos(), Pegasus.Min, Pegasus.Max)) then
+		return "Pegasus"
+	elseif (VectorInBox(ply:pos(), Milkyway.Min, Milkyway.Max)) then
+		return "Milkyway"
+	end
+	return "Unknown Space"
+end
+
+AIDictionarry = {
+	{
+		Keys = {"how", "are/is", "you"},
+		Result = function()
+			local p = GlobalCPU
+			if (p >= 0 and p <= 40) then
+				return "I'm fine thanks, current overload is low..."
+			elseif (p >= 40 and p <= 60) then
+				return "I'm ok, current overload is medium !"
+			else
+				return "I'm in bad condition overload is high !"
+			end
+		end
+	},
+	{
+		Keys = {"how", "am", "i"},
+		Result = function()
+			return "I'm not sure how I can answer that..."
+		end
+	},
+	{
+		Keys = {"what", "is", "my", "steam/steamid"},
+		Result = function(ply)
+			return "Your steam name is " .. ply:name() .. " and your steamid 64 is " .. ply:steamID64() .. "."
+		end
+	},
+	{
+		Keys = {"what/who", "am", "i"},
+		Result = function()
+			return "You are an entity of class Player in a game called Garry's Mod powered by Valve's Source Engine"
+		end
+	},
+	{
+		Keys = {"what", "is/are", "this/that", "material"},
+		Result = function(ply)
+			local ent = ply:eyeTrace().Entity
+			if (not(ent == nil) and ent:isValid()) then
+				return "The material for that entity is " .. ent:material()
+			else
+				return "I see nothing here..."
+			end
+		end
+	},
+	{
+		Keys = {"what", "is/are", "this/that", "color"},
+		Result = function(ply)
+			local ent = ply:eyeTrace().Entity
+			if (not(ent == nil) and ent:isValid()) then
+				return "The color for that entity is (" .. ent:color().r .. ", " .. ent:color().g .. ", " .. ent:color().b .. ")"
+			else
+				return "I see nothing here..."
+			end
+		end
+	},
+	{
+		Keys = {"what", "is/are", "this/that", "model"},
+		Result = function(ply)
+			local ent = ply:eyeTrace().Entity
+			if (not(ent == nil) and ent:isValid()) then
+				return "The model for that entity is " .. ent:model()
+			else
+				return "I see nothing here..."
+			end
+		end
+	},
+	{
+		Keys = {"what", "is/are", "this/that"},
+		Result = function(ply)
+			local ent = ply:eyeTrace().Entity
+			if (not(ent == nil) and ent:isValid()) then
+				return "That is a " .. ent:class()
+			else
+				return "I see nothing here..."
+			end
+		end
+	},
+	{
+		Keys = {"what", "time"},
+		Result = function(ply)
+
+		end
+	},
+	{
+		Keys = {"where", "am"},
+		Result = function(ply)
+			local data = ply:getEnvironmentData()
+			local env = GetPlayerLoc(ply)
+			if (not(data == nil) and not(data.name == nil) and (data.Entity == nil)) then
+				env = "You are on a planet called " .. data.name .. ", in " .. env
+			elseif (not(data == nil) and not(data.name == nil)) then
+				env = "You are in a LS environment named " .. data.name .. ", in " .. env
+			else
+				env = "You are in " .. env
+			end
+			return env
+		end
+	},
+	{
+		Keys = {"where", "is"},
+		Result = function(ply, msg)
+			local p = find.playerByName(msg)
+			if (not(p == nil) and p:isValid()) then
+				return p:name() .. " is in " .. GetPlayerLoc(p)
+			end
+			return "I can't seam to find " .. msg
+		end
+	},
+	{
+		Keys = {"what", "is", "location", "my"},
+		Result = function(ply)
+			local data = ply:getEnvironmentData()
+			local env = GetPlayerLoc(ply)
+			if (not(data == nil) and not(data.name == nil) and (data.Entity == nil)) then
+				env = "You are on a planet called " .. data.name .. ", in " .. env
+			elseif (not(data == nil) and not(data.name == nil)) then
+				env = "You are in a LS environment named " .. data.name .. ", in " .. env
+			else
+				env = "You are in " .. env
+			end
+			return env
+		end
+	},
+	{
+		Keys = {"what", "is", "location"},
+		Result = function(ply, msg)
+			local p = find.playerByName(msg)
+			if (not(p == nil) and p:isValid()) then
+				return p:name() .. " is in " .. GetPlayerLoc(p)
+			end
+			return "I can't seam to find " .. msg
+		end
+	},
+	{
+		Keys = {"what/who", "are/is", "you"},
+		Result = function()
+			return "I'm a SF processor designed by Yuri6037 to serve Lanteans faction..."
+		end
+	},
+	{
+		Keys = {"what", "is", "meaning", "life"},
+		Result = function()
+			return "Result : 42"
+		end
+	},
+	{
+		Keys = {"what", "are/is"},
+		Result = function(ply, msg)
+			if (string.len(msg) > 10) then
+				return "Too many characters in given expression"
+			elseif (not(string.find(msg, "while")) and not(string.find(msg, "for")) and not(string.find(msg, "if"))) then
+				local str = "return " .. msg .. ""
+				local fnc = compileString(str, "EvalExpr", {})
+				if (fnc == nil) then
+					return "There was an error in the given expression"
+				end
+				local ret = fnc()
+				if (ret == nil) then
+					return "There was an error in the given expression"
+				end
+				return "Result is " .. ret
+			else
+				return "There was an error in the given expression"
+			end
+		end
+	},
+	{
+		Keys = {"is", "damage", "enabled", "on"},
+		Result = function(ply, msg)
+			local p = find.playerByName(msg)
+			if (IsValid(p)) then
+				if (p:hasDamageEnabled()) then
+					return p:name() .. " has damage enabled."
+				else
+					return p:name() .. " has not damage enabled."
+				end
+			end
+			return "I can't seam to find " .. msg
+		end
+	}
+}
+
+local function TableHasValue(tbl, str)
+	for k, v in pairs(tbl) do
+		if (string.find(str, v)) then
+			return true
+		end
+	end
+	return false
+end
+
+local function ComputeMSG(msg, nbr)
+	local vals = string.Split(msg, " ")
+	return vals[#vals]
+end
+
+local function TryAnswer(ply, msg)
+	msg = string.lower(msg)
+	for k, v in pairs(AIDictionarry) do
+		local fnd = true
+		for k1, v1 in pairs(v.Keys) do
+			local keys = string.Split(v1, "/")
+			if (not(TableHasValue(keys, msg))) then
+				fnd = false
+			end
+		end
+		if (fnd) then
+			local str = v.Result(ply, ComputeMSG(msg, #v.Keys))
+			aiSay(str, ply)
+			return true
+		end
+	end
+	return false
+end
+
+HookAICmdUnknown(function(ply, str)
+	if (not(TryAnswer(ply, str))) then
+		aiSay(AIErrorMessages[math.random(#AIErrorMessages)], ply)
+	end
+end)

@@ -1,0 +1,58 @@
+--@name WindowNB
+--@author Yuri6037
+
+local Notes = {[0] = ""}
+local CurLine = 0
+
+Screen:RegisterWindow("NB", "Notepad", 512, 400, function()
+	--Open func
+	RequireKeyboard(function(mem)
+		if (Notes[CurLine] == nil) then Notes[CurLine] = "" end
+		if (mem == 0) then return end
+		if (mem == 154) then return end --Cancel shift
+		if (mem == 9) then return end --Cancel tab
+		if (mem == 148) then
+			CurLine = 0
+			Notes = {[0] = ""}
+			return
+		end
+		if (mem == 13 or mem == 142) then --Enter key : new line
+			CurLine = CurLine + 1
+			return
+		end
+		if (mem == 127) then --Return key : remove last char/go prev line
+			local len = string.len(Notes[CurLine])
+			if (len <= 0) then
+				if (CurLine <= 0) then return end
+				CurLine = CurLine - 1
+			else
+				local str = Notes[CurLine]
+				str = str:sub(1, len - 1)
+				Notes[CurLine] = str
+			end
+			return
+		end
+		local s = string.char(mem)
+		local str = Notes[CurLine]
+		if (string.len(str) > 40) then
+			CurLine = CurLine + 1
+			str = ""
+		end
+		str = str .. s
+		Notes[CurLine] = str
+	end)
+end, function()
+	--Close func
+	DisposeKeyboard()
+	Notes = {[0] = ""}
+	CurLine = 0
+end, function()
+	--Render func
+	gl.glBindColor(0, 0, 0)
+	gl.glBindFont(Screen.StandardFont)
+	for k, v in pairs(Notes) do
+		gl.glText(v, 0, k * 32)
+	end
+end, function()
+	--Touch func
+end)

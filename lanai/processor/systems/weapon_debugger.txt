@@ -1,0 +1,77 @@
+--@name WeaponDebuggerSystem
+--@author Yuri6037
+
+local SamplingRate = 0.5
+
+local Samples = {}
+local SampleCount = 0
+local NumSamples = 0
+
+local MaxShield = 0
+local MaxHealth = 0
+
+local MS = 0
+local MH = 0
+local MP = 0
+
+channels.listen("WeaponDebugger_AutoStartOtherAI", function(...)
+	local tbl = {...}
+	if (tbl[1]:owner() == ents.self():owner() and not(tbl[1] == ents.self())) then
+		if (tbl[2] == "START") then
+			AddTarget(TargetType.CORE, tbl[3])
+			StartBeams()
+			StartAngles()
+			StartTSCM()
+			StartPulsarEmitters()
+		elseif (tbl[2] == "STOP") then
+			StopWeapons()
+			ClearTargets()
+		end
+	end
+end)
+
+function StartSampling(amount)
+	MaxShield = Ship.Shield["Max Charge"]
+	MaxHealth = Ship.Core["Max Health"]
+	Samples = {}
+	SampleCount = 0
+	NumSamples = amount
+	task.Start(function()
+		local s = Ship.Shield["Total Charge"] / MaxShield
+		local h = Ship.Core["Health"] / MaxHealth
+		local p = Ship.Core["Plating"] / 100
+		MS = 1 - s
+		MH = 1 - h
+		MP = 1 - p
+		SampleCount = SampleCount + 1
+		if (SampleCount > amount) then
+			EndSampling()
+		end
+	end, "LanAI_WeaponDebugger", SamplingRate)
+	aiSay("Started weapon power sampling for " .. amount .. " samples...")
+	channels.send("WeaponDebugger_AutoStartOtherAI", "START", Ship.Core:entity())
+end
+
+function EndSampling()
+	task.End("LanAI_WeaponDebugger")
+	aiSay("Weapon power sampling done")
+	channels.send("WeaponDebugger_AutoStartOtherAI", "STOP")
+end
+
+DefineOSApp("weapondebug", function()
+	CheckVar("CurSample", SampleCount)
+	CheckVar("NumSamples", NumSamples)
+	CheckVar("PShieldLost", MS)
+	CheckVar("PHullLost", MH)
+	CheckVar("PArmorLost", MP)
+end)
+
+OSAddFunction("DBGStartSampling", function(var)
+	StartSampling(var)
+end)
+
+OSAddFunction("DBGStopSampling", function()
+	EndSampling()
+end)
+
+util.Log("Systems", LOG_INFO, "Enabling Weapon Debugger Extension...")

@@ -1,0 +1,152 @@
+--@name BeamManager Client
+--@author Yuri6037
+
+--@include lanai/libs/screen/screen_engine.txt
+
+--@include beam_manager/beamp_screen.txt
+--@include beam_manager/beamo_screen.txt
+--@include beam_manager/beaml_screen.txt
+
+require("lanai/libs/screen/screen_engine.txt")
+require("beam_manager/beamp_screen.txt")
+require("beam_manager/beamo_screen.txt")
+require("beam_manager/beaml_screen.txt")
+
+require("lanai/libs/screen/safe_net.txt")
+
+local waitS = {}
+waitS.Name = "Load"
+local id = render.getTextureID("phoenix_storms/wire/pcb_green")
+function waitS:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindColor(255, 255, 0)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("LOAD...")
+	gl.glText("LOAD...", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Made by Yuri6037"
+
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+end
+function waitS:OnShow()
+end
+function waitS:OnExit()
+end
+function waitS:OnTouched(mouseX, mouseY)
+end
+
+Screen:Register(waitS)
+
+local main = {}
+main.Name = "Main"
+function main:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindColor(255, 255, 0)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("BeamHelp")
+	gl.glText("BeamHelp", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Made by Yuri6037"
+
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+end
+function main:OnShow()
+	Screen:AddControl("Button", 156, 128, 200, 32, {Text = "Beam Player", Func = function()
+		StartNet(function()
+			net.writeString("SHOW_GUI")
+			net.writeString("PBeam")
+		end)
+	end})
+
+	Screen:AddControl("Button", 156, 200, 200, 32, {Text = "Beam to Pad", Func = function()
+		StartNet(function()
+			net.writeString("SHOW_GUI")
+			net.writeString("OBeam")
+		end)
+	end})
+
+	Screen:AddControl("Button", 156, 275, 200, 32, {Text = "Beam to Point", Func = function()
+		StartNet(function()
+			net.writeString("SHOW_GUI")
+			net.writeString("LBeam")
+		end)
+	end})
+end
+function main:OnExit()
+end
+function main:OnTouched(mouseX, mouseY)
+end
+
+Screen:Register(main)
+
+StartNet(function()
+	net.writeString("REBOOT")
+end)
+
+local CurGui = "Main"
+
+Beams = {}
+
+hook("net", "BeamManager_ClientReceiver", function(len)
+	local cmd = net.readString()
+	if (cmd == "G") then
+		CurGui = net.readString()
+		Screen:Display(CurGui)
+	elseif (cmd == "P") then
+		Beams = net.readTable()
+	end
+end)

@@ -1,0 +1,11 @@
+--@name TricorderFucker
+--@author Yuri6037
+
+timer.create("TricorderFucker", 0.1, 0, function()
+	for k, v in pairs(find.allPlayers()) do
+		local tr = v:eyeTrace()
+		if (IsValid(tr.Entity) and tr.Entity:owner() == ents.owner() and tr.Entity:class() == "sbep_base_door_controller" and IsValid(v:activeWeapon()) and v:activeWeapon():class() == "st_tricorder") then
+			tr.Entity:getWirelink()["Open_1"] = 0
+		end
+	end
+end)

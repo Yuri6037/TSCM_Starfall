@@ -1,0 +1,11 @@
+--@name AdvDupe2ColorUnfucker
+--@author Yuri6037
+
+if (SERVER) then
+	hook("PreEntityCopy", "AdvDupe2ColorUnfucker", function(data)
+		data.Color = ents.self():color()
+	end)
+	hook("PostEntityPaste", "AdvDupe2ColorUnfucker", function(data)
+		ents.self():setColor(data.Color)
+	end)
+end

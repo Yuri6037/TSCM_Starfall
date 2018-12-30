@@ -1,0 +1,54 @@
+--@name ApplicationMenu
+--@author Yuri6037
+
+local app = {}
+
+function app:Init()
+	self:DisableDecorations()
+	self:SetSize(288, 200)
+	self:SetPos(ScrW / 2 - 256, ScrH - 60 - 200)
+	self.Lst = self:AddComponent("listbox", 0, 0)
+	self.Lst:SetSize(160, 200)
+	self.Lst:SetMaxLines(10)
+	local tbl = {}
+	self:GenAppMenu(tbl)
+	self.Lst:SetData(tbl)
+	self:SetNoCache()
+	self.SizeBG = self.Height
+end
+
+function app:DrawTitleBar()
+	GUI.RoundedRect(self.X, self.Y, self.Width, self.SizeBG, self.BGOver)
+end
+
+function app:OnTouched(x, y)
+	self.Lst:RecalculateSelected()
+	local id, str = self.Lst:GetSelected()
+	if (str == nil) then return end
+	self:RemoveComponentsOfType("icobutton")
+	local pos = 0
+	for k, v in pairs(self.Fuck[str]) do
+		local b = self:AddComponent("icobutton", 128, pos, v.Name, function()
+			OS.StartApp(v.ID)
+			self:Close()
+		end)
+		b:SetIcon16(v.Icon)
+		b:SetSize(160, 20)
+		pos = pos + 22
+	end
+	self.SizeBG = pos
+end
+
+function app:GenAppMenu(tbl)
+	self.Fuck = {}
+	for k, v in pairs(AppMenu.Content) do
+		table.insert(tbl, v.Name)
+		self.Fuck[v.Name] = v.Content
+	end
+end
+
+function app:PostRender()
+	if (not(self:HasFocus())) then self:Close() end
+end
+
+OS.DefineApp("appmenu", app, true)

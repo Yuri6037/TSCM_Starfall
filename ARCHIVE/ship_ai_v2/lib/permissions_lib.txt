@@ -1,0 +1,81 @@
+--@name PermissionsLib
+--@author Yuri6037
+
+local function GetOfficerList()
+	if (not(files.exists("officers.txt", "/ship_ai_v2/"))) then
+		return {}
+	end
+
+	local str = files.read("officers.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+
+	return nameTbl
+end
+local function SaveOfficer(id)
+	if (not(files.exists("officers.txt", "/ship_ai_v2/"))) then
+		files.write("officers.txt", id, "/ship_ai_v2/")
+	else
+		files.append("officers.txt", "\n" .. id, "/ship_ai_v2/")
+	end
+end
+local function DeleteOfficer(id)
+	if (not(files.exists("officers.txt", "/ship_ai_v2/"))) then
+		return false
+	end
+
+	local str = files.read("officers.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	local flag = false
+	for k, v in pairs(nameTbl) do
+		if (v == id) then
+			table.remove(nameTbl, k)
+			flag = true
+			break
+		end
+	end
+	if (flag) then
+		local data = ""
+		for k1, v1 in pairs(nameTbl) do
+			data = data .. "\n" .. v1
+		end
+		files.write("officers.txt", data, "/ship_ai_v2/")
+		return true
+	else
+		return false
+	end
+end
+
+
+permissions = {}
+
+function permissions.CheckOfficer(ply)
+	if (not(IsPlayerInFaction(ply))) then
+		aiSayGuest(ply, "Only faction members can access this function.")
+		return false
+	end
+	if (not(permissions.IsOfficer(ply))) then
+		aiSayGuest(ply, "You don't have enough permissions to access that command.")
+		return false
+	end
+	return true
+end
+
+function permissions.IsOfficer(ply)
+	local lst = GetOfficerList()
+	for k, v in pairs(lst) do
+		if (v == ply:steamID()) then
+			return true
+		end
+	end
+	return ply == ents.owner()
+end
+
+function permissions.Promote(ply)
+	SaveOfficer(ply:steamID())
+end
+
+function permissions.Demote(ply)
+	DeleteOfficer(ply:steamID())
+end

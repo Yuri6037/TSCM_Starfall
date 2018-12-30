@@ -1,0 +1,79 @@
+--@name Cops N Robbers MainProcessor
+--@author Yuri6037
+
+GameData = {
+	TotalMoney = 0,
+	CopsMoney = 0,
+	RobbersMoney = 0,
+	CaseNumber = 0,
+	Cases = {
+	}
+}
+
+MaxCases = 8
+
+local e, e1, e2 = nil, nil, nil
+
+function InitGame()
+	e = props.create("models/hunter/blocks/cube2x2x2.mdl", ents.self():getPos() + Vector(0, 0, 32), Angle(0, 0, 0))
+	e:getPhysicsObject():enableMotion(false)
+	e:setMaterial("models/props_wasteland/wood_fence01a")
+	e1 = props.create("models/hunter/blocks/cube2x2x2.mdl", wire.ports["CopsBank"]:getPos() + Vector(0, 0, 32), Angle(0, 0, 0))
+	e1:getPhysicsObject():enableMotion(false)
+	e1:setMaterial("models/props_wasteland/wood_fence01a")
+	e1:setColor(Color(0, 0, 255))
+	e2 = props.create("models/hunter/blocks/cube2x2x2.mdl", wire.ports["RobbersBank"]:getPos() + Vector(0, 0, 32), Angle(0, 0, 0))
+	e2:getPhysicsObject():enableMotion(false)
+	e2:setMaterial("models/props_wasteland/wood_fence01a")
+	e2:setColor(Color(255, 0, 0))
+end
+
+function OnPlayerKey(ply, but)
+	if (but == input.KEY_E and IsValid(ply)) then
+		if (ply:getPos():Distance(ents.self():getPos()) < 200) then
+			local e = ply:eyeTrace().Entity
+			if (IsValid(e) and e == ents.self()) then
+				--Player Gets money from bank
+
+			end
+		elseif (ply:getPos():Distance(wire.ports["CopsBank"]:getPos()) < 200) then
+			local e = ply:eyeTrace().Entity
+			if (IsValid(e) and e == wire.ports["CopsBank"]) then
+				--Player Gets money from bank
+			end
+		elseif (ply:getPos():Distance(wire.ports["RobbersBank"]:getPos()) < 200) then
+			local e = ply:eyeTrace().Entity
+			if (IsValid(e) and e == wire.ports["RobbersBank"]) then
+				--Player Gets money from bank
+			end
+		end
+	end
+end
+
+function RunGameUpdate()
+
+end
+
+wire.createInputs({"CopsBank", "RobbersBank"}, {"Entity", "Entity"})
+
+timer.create("AttemptAllocateMoneyCases", 1, 0, function()
+	for k, v in pairs(find.inSphere(ents.self():getPos(), 100, function(ent) return ent:class() == "starfall_emitter" and ent:model() == "models/props_c17/suitcase_passenger_physics.mdl" and ent:owner() == ents.owner() end)) do
+		if (GameData.Cases[v:index()] == nil) then
+			local randCash = math.random(0, 4096)
+			print(randCash)
+			GameData.Cases[v:index()] = {Cash = randCash, Ent = v, Wire = v:getWirelink()}
+			GameData.TotalMoney = GameData.TotalMoney + randCash
+			GameData.CaseNumber = GameData.CaseNumber + 1
+			v:getPhysicsObject():enableMotion(false)
+			v:setPos(ents.self():getPos() + Vector(0, 0, 64))
+			v:setAngles(Angle(0, 0, 0))
+			GameData.Cases[v:index()].Wire["AMOUNT"] = randCash
+			if (GameData.CaseNumber == MaxCases and IsValid(wire.ports["CopsBank"]) and IsValid(wire.ports["RobbersBank"])) then
+				timer.remove("AttemptAllocateMoneyCases")
+				InitGame()
+				timer.create("RunGameUpdate", 1, 0, RunGameUpdate)
+				hook("playerbuttonup", "PlayerButtonUP", OnPlayerKey)
+			end
+		end
+	end
+end)

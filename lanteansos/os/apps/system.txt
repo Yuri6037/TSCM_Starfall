@@ -1,0 +1,49 @@
+--@name SystemApps
+--@author Yuri6037
+
+local rebootapp = {}
+
+function rebootapp:Init()
+	self:Close()
+	OS.Reboot()
+	timer.create("LanteansOS_RebootTimer", 1, 1, function()
+		net.SendPacket("BOOT")
+	end)
+end
+
+OS.DefineApp("reboot", rebootapp)
+OS.AddAppMenuItem("reboot", "Reboot", "System")
+
+local cleanapp = {}
+function cleanapp:Init()
+	self:Close()
+	for k, v in pairs(Windows) do
+		OS.CloseApp(v.Handle)
+	end
+	Windows = {}
+end
+
+OS.DefineApp("cleanup", cleanapp)
+OS.AddAppMenuItem("cleanup", "Close All", "System")
+
+local logoutapp = {}
+function logoutapp:Init()
+	self:Close()
+	for k, v in pairs(Windows) do
+		OS.CloseApp(v.Handle)
+	end
+	Windows = {}
+	OS.SwitchScreen("logon")
+end
+
+OS.DefineApp("logout", logoutapp)
+OS.AddAppMenuItem("logout", "Logout", "System")
+
+local lockapp = {}
+function lockapp:Init()
+	self:Close()
+	OS.SwitchScreen("logon")
+end
+
+OS.DefineApp("lock", lockapp)
+OS.AddAppMenuItem("lock", "Lock", "System")

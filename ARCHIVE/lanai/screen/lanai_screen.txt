@@ -1,0 +1,182 @@
+--@name LanAI Screen
+--@author Yuri6037
+--@class screen
+--@widescreen
+--@sharedscreen
+
+LanAINextScreen = true
+
+--SUPER SECURITY ULTRA SECRET CODE
+if (SERVER) then
+	local tbl = faction.getOnlinePlayers("Lanteans")
+	local ok = false
+	for k, v in pairs(tbl) do
+		if (v == ents.owner()) then
+			ok = true
+		end
+	end
+	if (not(ok)) then
+		ents.self():remove()
+	end
+end
+--END
+
+--LanAI Constants
+--@include lanai/constants.txt
+
+--Libs include
+--@include lanai/libs/screen/safe_net.txt
+--@requirecl lanai/libs/screen/screen_engine.txt
+--@requiresv lanai/libs/bypass.txt
+
+--The transmission protocol
+--@requiresv lanai/screen/protocol.txt
+--@requiresv lanai/screen/packets.txt
+
+--Client files
+--@requirecl lanai/screen/client/net_hooks.txt
+--@requirecl lanai/screen/client/gui_registry.txt
+--@requirecl lanai/screen/client/triple_screen_protocol.txt
+--@requirecl lanai/screen/client/custom_ui_skins.txt
+--@includedir lanai/screen/client/guis/
+--@includedir lanai/screen/client/screens/
+--@includedir lanai/screen/client/windows/
+Screens = {
+	"autodestruct",
+	"load",
+	"lockdown",
+	"main",
+	"constraints_retriever",
+	"screensaver"
+}
+Guis = {
+	"combat",
+	"info",
+	"menu",
+	"radar",
+	"resources",
+	"status",
+	"warp",
+	"shipmaps",
+	"automatic_mode"
+}
+WindowFiles = {
+	"ri",
+	"console",
+	"notepad",
+	"alerts"
+}
+
+--Server files
+--@requiresv lanai/screen/server/net_hooks.txt
+
+--@require lanai/screen/keyboard_handler.txt
+
+--The wiremod lib (Keyboard listening system)
+--@require lanai/libs/wiremod.txt
+
+--The current GUI
+CurGUI = 0
+
+--Sub infos (ex timed warp engaged, automatic mode)
+SubInfos = {}
+
+--Plan generator variables
+ShipPlans = {}
+Floors = {}
+
+if (SERVER) then
+	wiremod.AddInput(wiremod.Types.WIRELINK, "Keyboard")
+	wiremod.SetInputCallback(function(name, value, valid)
+		if (name == "Keyboard") then
+			if (valid) then
+				InitKeyboardHandler(value:entity())
+			else
+				InitKeyboardHandler(nil)
+			end
+		end
+	end)
+
+	require("lanai/libs/screen/safe_net.txt")
+	require("lanai/constants.txt")
+
+	Loading = true
+	GettingConstraints = true
+
+	ScreenLocked = false
+	SelfDestruct = false
+	WarpList = {}
+
+	--The gui change sound
+	GuiChangeSound = sounds.create(ents.self(), "items/battery_pickup.wav")
+
+	SendPacket("RELOAD", "SV")
+elseif (CLIENT) then
+	require("lanai/libs/screen/safe_net.txt")
+	require("lanai/constants.txt")
+
+	for k, v in pairs(Screens) do
+		require("lanai/screen/client/screens/" .. v .. ".txt")
+	end
+
+	for k, v in pairs(Guis) do
+		require("lanai/screen/client/guis/" .. v .. ".txt")
+	end
+
+	--Alerts system
+	CurAlertLevel = 2
+	Alerts = {}
+
+	Net = {}
+
+	LoadingStr = 0
+	ConstraintsRetrieverStr = ""
+
+	SelfDestructDispTimer = 60
+
+	StartNet(function()
+		net.writeString("ScreenReload")
+	end)
+
+	ProcessorInfo = {CPU = 0, OPS = 0, CrashNum = 0, LastUpdated = 0}
+	BackgroundProcess = {Name = "", Percentage = 0}
+
+	timer.create("LanAI_ScreenSaver_AutoSwitch", 10, 0, function()
+		if (Screen.Current.Name == "Main") then
+			if (time.realTime() - Screen.LastTouch.Time >= 100) then
+				Screen:Display("ScreenSaver")
+			end
+		end
+	end)
+
+	IsMonitor = false
+	InitTripleScreenProtocol()
+
+	Screen:SetWindowHandlers(function(id, window)
+		--Reduce window
+		StartNet(function()
+			net.writeString("WindowReduce")
+			net.writeInt(id, 4, true)
+		end)
+	end, function(id, window)
+		--Close window
+		StartNet(function()
+			net.writeString("WindowKill")
+			net.writeInt(id, 4, true)
+		end)
+	end, function(id, window)
+		--Move window
+	end, function(id, window)
+		--Ravive window
+		StartNet(function()
+			net.writeString("WindowRavive")
+			net.writeInt(id, 4, true)
+		end)
+	end)
+
+	Screen:IntegrateWindowSupport()
+
+	for k, v in pairs(WindowFiles) do
+		require("lanai/screen/client/windows/" .. v .. ".txt")
+	end
+end

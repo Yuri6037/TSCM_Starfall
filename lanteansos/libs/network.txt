@@ -1,0 +1,187 @@
+--@name Lanteans OS NetworkLibrary
+--@author Yuri6037
+
+local TypesToID = {
+	["number"] = 0, --It's forcely an unsigned byte (used as flag)
+	["string"] = 1,
+	["table"] = 2,
+	["boolean"] = 3,
+	["nil"] = 4,
+	["Vector"] = 5,
+	["Angle"] = 6,
+	["Player"] = 7,
+	["Entity"] = 7
+}
+
+local Aliases = {}
+local Pcks = {}
+
+function net.CheckError()
+	--if ((net.quotaUsed() / net.quotaMax()) > 0.9) then
+	--	error("Network panic !")
+	--end
+end
+
+function net.CanSend()
+	if ((net.quotaUsed() / net.quotaMax()) > 0.6) then
+		return false
+	end
+	return true
+end
+
+if (net._writeUInt == nil) then net._writeUInt = net.writeUInt end
+local nt = net._writeUInt
+function net.writeUInt(bits, int)
+	nt(int, bits)
+end
+
+local NetPacketQueue = {}
+
+--SendPacket's id must be the alias
+if (SERVER) then
+	function net.SendPacket(id, ply, ...)
+		net.CheckError()
+		if (Pcks[Aliases[id]] == nil) then
+			error("[SV] Can not write packet " .. id)
+			return
+		end
+		local args = {...}
+		local pck = Pcks[Aliases[id]]
+		if ((pck.Reliable and net.CanSend()) or (not(pck.Reliable) and net.CanSend() and #NetPacketQueue == 0)) then
+			StartNet(function()
+				net.writeUInt(8, pck.ID)
+				pck.WriteFunc(args)
+			end, ply)
+		elseif (pck.Reliable) then
+			table.insert(NetPacketQueue, {pck, args, ply})
+		end
+	end
+	function net.Broadcast(id, ...)
+		net.CheckError()
+		if (Pcks[Aliases[id]] == nil) then
+			error("[SV] Can not write packet " .. id)
+			return
+		end
+		local args = {...}
+		local pck = Pcks[Aliases[id]]
+		if ((pck.Reliable and net.CanSend()) or (not(pck.Reliable) and net.CanSend() and #NetPacketQueue == 0)) then
+			StartNet(function()
+				net.writeUInt(8, pck.ID)
+				pck.WriteFunc(args)
+			end)
+		elseif (pck.Reliable) then
+			table.insert(NetPacketQueue, {pck, args, nil})
+		end
+	end
+
+	timer.create("LanteansOS_Net_ReliableQueue", 1, 0, function()
+		if (#NetPacketQueue > 0 and net.CanSend()) then
+			local p = NetPacketQueue[1]
+			StartNet(function()
+				net.writeUInt(8, p[1].ID)
+				p[1].WriteFunc(p[2])
+			end, p[3])
+			table.remove(NetPacketQueue, 1)
+		end
+	end)
+
+	hook("net", "LanteansOS_Net", function(len, ply)
+		local id = net.readUInt(8)
+		if (Pcks[id] == nil) then
+			error("[SV] Can not read packet " .. id)
+			return
+		end
+		Pcks[id].ReadFunc(ply)
+	end)
+else
+	function net.SendPacket(id, ...)
+		net.CheckError()
+		if (Pcks[Aliases[id]] == nil) then
+			error("[CL] Can not write packet " .. id)
+			return
+		end
+		local args = {...}
+		local pck = Pcks[Aliases[id]]
+		if ((pck.Reliable and net.CanSend()) or (not(pck.Reliable) and net.CanSend() and #NetPacketQueue == 0)) then
+			StartNet(function()
+				net.writeUInt(8, pck.ID)
+				pck.WriteFunc(args)
+			end)
+		elseif (pck.Reliable) then
+			table.insert(NetPacketQueue, {pck, args})
+		end
+	end
+
+	timer.create("LanteansOS_Net_ReliableQueue", 1, 0, function()
+		if (#NetPacketQueue > 0 and net.CanSend()) then
+			local p = NetPacketQueue[1]
+			StartNet(function()
+				net.writeUInt(8, p[1].ID)
+				p[1].WriteFunc(p[2])
+			end)
+			table.remove(NetPacketQueue, 1)
+		end
+	end)
+
+	hook("net", "LanteansOS_Net", function(len, ply)
+		local id = net.readUInt(8)
+		if (Pcks[id] == nil) then
+			error("[CL] Can not read packet " .. id)
+			return
+		end
+		Pcks[id].ReadFunc()
+	end)
+end
+
+--writeFnc/readFnc can be nil in case it's a server/client write only packet
+function net.RegPacket(id, alias, readFnc, writeFnc, reliable)
+	Pcks[id] = {ID = id, ReadFunc = readFnc, WriteFunc = writeFnc, Reliable = reliable}
+	Aliases[alias] = id
+end
+
+function net.ReadUnknown()
+	local t = net.readUInt(4)
+	if (t == 0) then
+		return net.readInt(16, false)
+	elseif (t == 1) then
+		return net.readString()
+	elseif (t == 2) then
+		return net.readTable()
+	elseif (t == 3) then
+		return net.readBool()
+	elseif (t == 4) then
+		return nil
+	elseif (t == 5) then
+		local x = net.readFloat()
+		local y = net.readFloat()
+		local z = net.readFloat()
+		return Vector(x, y, z)
+	elseif (t == 6) then
+		local x = net.readFloat()
+		local y = net.readFloat()
+		local z = net.readFloat()
+		return Angle(x, y, z)
+	elseif (t == 7) then
+		return net.readEntity()
+	end
+end
+
+function net.WriteUnknown(var)
+	local t = TypesToID[type(var)]
+	net.writeUInt(4, t)
+	if (t == 0) then
+		net.writeInt(var, 16, false)
+	elseif (t == 1) then
+		net.writeString(var)
+	elseif (t == 2) then
+		net.writeTable(var)
+	elseif (t == 3) then
+		net.writeBool(var)
+	elseif (t == 5 or t == 6) then
+		net.writeFloat(var.X)
+		net.writeFloat(var.Y)
+		net.writeFloat(var.Z)
+	elseif (t == 7) then
+		net.writeEntity(var)
+	end
+end

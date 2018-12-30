@@ -1,0 +1,53 @@
+--@name Tactic Computer
+--@author 4N0NYM
+
+if SERVER then
+
+    A = 0
+
+    wire.createInputs({"Button","Entity1","Entity2"},{"normal","entity","entity"})
+
+    Button132 = wire.ports.Button
+    Entity1 = wire.ports.Entity1
+    Entity2 = wire.ports.Entity2
+
+    function update()
+
+    Button132 = wire.ports.Button
+    Entity1 = wire.ports.Entity1
+    Entity2 = wire.ports.Entity2
+
+    if IsValid(Entity2) then
+
+    ENT2POS = Entity2:pos()
+
+    end
+
+    if Button132 == 1 then
+
+    if A < 90 then
+
+    A = A + 1.5
+
+    end
+
+    else
+
+    if A > 1 then
+
+    A = A - 1.5
+
+    end
+
+    end
+
+    if IsValid(Entity1) then
+    Entity1:setAng(Angle(A,0,0))
+    Entity1:setPos(ENT2POS + Vector(-100,0,50))
+    end
+
+    end
+
+    timer.create("update",0.01,0, update )
+
+end

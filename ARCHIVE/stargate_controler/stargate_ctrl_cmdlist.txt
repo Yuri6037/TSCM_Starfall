@@ -1,0 +1,37 @@
+--@name StargateControler_AICommandList
+--@author Yuri6037
+
+--@requiresv ship_ai_v2/lib/string_lib.txt
+
+--[[AI2Lib:RegisterFunction("stargate", function(s, v)
+	local tbl = StringSplit(s, " ")
+	if (tbl[1] == nil) then return false, "Invalid argument number !" end
+	local o = tbl[1]
+
+	if (string.find(o, "shield")) then
+		if (tbl[2] == nil) then return false, "Invalid argument number !" end
+		local p = tbl[2]
+		if (string.find(p, "on")) then
+			Shield.Active = 1
+			Data.Shield = true
+			ForceSend = true
+			return false, "Activated Stargate shield !"
+		elseif (string.find(p, "off")) then
+			Shield.Active = 0
+			Data.Shield = false
+			ForceSend = true
+			return false, "Desactivated Stargate shield !"
+		end
+		return false, "Argument is incorrect must be on or off."
+	elseif (string.find(o, "close")) then
+		Stargate["Close"] = 1
+		return false, "Closing Stargate."
+	elseif (string.find(o, "compose")) then
+		if (tbl[2] == nil) then return false, "Invalid argument number !" end
+		local p = tbl[2]
+		stargate.dial(Stargate:entity(), p, 0)
+		return false, "Dialing stargate to address : '" .. p .. "'."
+	end
+
+	return false, "Sorry, this option does not exist. Options are shield, close and compose."
+end, "The stargate function. Usage stargate <option> [args]")]]--

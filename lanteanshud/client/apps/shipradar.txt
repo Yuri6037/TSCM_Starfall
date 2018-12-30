@@ -1,0 +1,43 @@
+--@name ShipRadarApp (CLIENT)
+--@author Yuri6037
+
+local Cores = {}
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {},
+	Render = function()
+		local min = Vector(0, 0, 0)
+		local max = Vector(0, 0, 0)
+		if (PlayerInBox(LocalPlayer, Pegasus.Min, Pegasus.Max)) then
+			min = Pegasus.Min
+			max = Pegasus.Max
+		elseif (PlayerInBox(LocalPlayer, Universe.Min, Universe.Max)) then
+			min = Universe.Min
+			max = Universe.Max
+		elseif (PlayerInBox(LocalPlayer, Milkyway.Min, Milkyway.Max)) then
+			min = Milkyway.Min
+			max = Milkyway.Max
+		end
+		for k, v in pairs(Cores) do
+			if (IsValid(k) and PlayerInBox(k, min, max)) then
+				local p = k:pos():ToScreen()
+				if (p.x >= 0 and p.x <= ScrW and p.y >= 0 and p.y <= ScrH) then
+					GUI.Text((v.Name or "SF_FAILURE") .. "'s Ship", p.x, p.y, SmallFont, COLOR(255, 128, 0))
+					GUI.Text("Health " .. v.Health * 100 .. "%", p.x, p.y + 20, SmallFont, COLOR(255, 128, 0))
+					GUI.Text("Plating " .. v.Plating * 100 .. "%", p.x, p.y + 40, SmallFont, COLOR(255, 128, 0))
+					if (v.ShieldOn) then
+						GUI.Text("Shield (ON) " .. v.Shield * 100 .. "%", p.x, p.y + 60, SmallFont, COLOR(255, 128, 0))
+					else
+						GUI.Text("Shield (OFF) " .. v.Shield * 100 .. "%", p.x, p.y + 60, SmallFont, COLOR(255, 128, 0))
+					end
+				end
+			end
+		end
+	end,
+	OnDataReceived = function(data)
+		Cores = data.Cores
+	end
+}
+
+HUD.DefineApp("ShipRadar", app)

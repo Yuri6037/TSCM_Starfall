@@ -1,0 +1,161 @@
+--@name Lanteans OS SleepScreen
+--@author Yuri6037
+
+local scr = {
+    CurY = 0,
+    CurColor = 0,
+    CurColor1 = 0,
+    TxtX = ScrW / 2 - 120,
+    TxtY = ScrH / 2 - 16,
+    SpeedX = 1,
+    SpeedY = 1,
+    Acceleration = 6,
+	Render = function(self)
+		if (OS.IsScreen()) then render.clear(0, 0, 0) end
+        GUI.Text("Lanteans OS", self.TxtX, self.TxtY, StandardFont, COLOR(255, 255, 255))
+        GUI.GradiantRect(0, self.CurY, ScrW, 24, COLOR(self.CurColor, self.CurColor1, 0))
+	end,
+	Update = function(self, ticks)
+        if (self.CurY >= ScrH and not(self.Flag)) then
+            self.Flag = true
+            self.CurY = ScrH
+        else
+            if (self.Flag) then
+                self.CurY = self.CurY - ticks * 500
+                if (self.CurY <= 0) then
+                    self.Flag = false
+                    self.CurY = 0
+                end
+            else
+                self.CurY = self.CurY + ticks * 500
+            end
+        end
+        if (self.CurColor >= 255 and not(self.Flag1)) then
+            self.Flag1 = true
+            self.CurColor = 255
+        else
+            if (self.Flag1) then
+                self.CurColor = self.CurColor - ticks * 500
+                if (self.CurColor <= 0) then
+                    self.Flag1 = false
+                    self.CurColor = 0
+                end
+            else
+                self.CurColor = self.CurColor + ticks * 500
+            end
+        end
+        if (self.CurColor1 >= 128 and not(self.Flag2)) then
+            self.Flag2 = true
+            self.CurColor1 = 128
+        else
+            if (self.Flag2) then
+                self.CurColor1 = self.CurColor1 - ticks * 500
+                if (self.CurColor1 <= 0) then
+                    self.Flag2 = false
+                    self.CurColor1 = 0
+                end
+            else
+                self.CurColor1 = self.CurColor1 + ticks * 500
+            end
+        end
+
+        --Text moving system
+        self.TxtX = self.TxtX + self.SpeedX * self.Acceleration
+        self.TxtY = self.TxtY + self.SpeedY * self.Acceleration
+        --Check collisions
+        if (self.TxtY <= 0) then --We collides on top
+            if (self.TxtX < ScrW / 2) then --Collision on top left
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedX = -1
+                else
+                    self.SpeedX = 1
+                end
+                self.SpeedY = 1
+            elseif (self.TxtX > ScrW / 2) then --Collision on top right
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedX = -1
+                else
+                    self.SpeedX = 1
+                end
+                self.SpeedY = 1
+            else --Collision on perfect top center
+                self.SpeedX = 0
+                self.SpeedY = 1
+            end
+        end
+        if (self.TxtY >= ScrH - 32) then --We collides on bottom
+            if (self.TxtX < ScrW / 2) then --Collision on bottom left
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedX = -1
+                else
+                    self.SpeedX = 1
+                end
+                self.SpeedY = -1
+            elseif (self.TxtX > ScrW / 2) then --Collision on bottom right
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedX = -1
+                else
+                    self.SpeedX = 1
+                end
+                self.SpeedY = -1
+            else --Collision on perfect bottom center
+                self.SpeedX = 0
+                self.SpeedY = -1
+            end
+        end
+        if (self.TxtX <= 0) then
+            if (self.TxtY < ScrH / 2) then --Collision on left side top
+                self.SpeedX = 1
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedY = -1
+                else
+                    self.SpeedY = 1
+                end
+            elseif (self.TxtY > ScrH / 2) then --Collision on left side bottom
+                self.SpeedX = 1
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedY = -1
+                else
+                    self.SpeedY = 1
+                end
+            else --Collision on perfect left side center
+                self.SpeedX = 1
+                self.SpeedY = 0
+            end
+        end
+        if (self.TxtX >= ScrW - 150) then
+            if (self.TxtY < ScrH / 2) then --Collision on right side top
+                self.SpeedX = -1
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedY = -1
+                else
+                    self.SpeedY = 1
+                end
+            elseif (self.TxtY > ScrH / 2) then --Collision on right side bottom
+                self.SpeedX = -1
+                local b = math.random(0, 1)
+                if (b == 0) then
+                    self.SpeedY = -1
+                else
+                    self.SpeedY = 1
+                end
+            else --Collision on perfect right side center
+                self.SpeedX = -1
+                self.SpeedY = 0
+            end
+        end
+        --End text moving system
+	end,
+	Touched = function(self)
+        OS.SwitchScreen("main")
+	end
+}
+
+OS.DefineScreen("sleep", scr)

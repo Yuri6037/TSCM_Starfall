@@ -1,0 +1,20 @@
+--@name SetDevMaterial
+--@author Yuri6037
+
+ForceMat = "sprops/textures/sprops_metal5"
+
+function GetGroundProp()
+	local tr = trace.trace(ents.self():getPos(), ents.self():getPos() + ents.self():up() * -200, {ents.self()}, trace.MASK_SOLID)
+	print(tr.Entity)
+	if (IsValid(tr.Entity)) then
+		return tr.Entity
+	end
+	return nil
+end
+
+if (not(GetGroundProp() == nil)) then
+	local e = GetGroundProp()
+	e:setMaterial(ForceMat)
+	e:setColor(96, 96, 96)
+end
+ents.self():remove()

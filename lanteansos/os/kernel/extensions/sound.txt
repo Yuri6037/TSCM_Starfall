@@ -1,0 +1,59 @@
+--@name SoundKernelExtension
+--@author Yuri6037
+
+local CurSound = {Playing = false, File = nil, Looping = false, Handle = nil, Error = nil}
+permissions.register(permissions.PLAY_CLIENT_SOUNDS)
+
+function OS.PlaySound(file, loop)
+	if (not(CurSound.Handle == nil)) then return false end
+	if (not(permissions.canPerformAction(permissions.PLAY_CLIENT_SOUNDS))) then return false end
+	CurSound.File = file
+	CurSound.Playing = false
+	CurSound.Looping = loop
+	if (loop) then
+		sounds.playFile("sound/" .. file, "3d", function(SC, ErrID, ErrNa)
+			if (SC == nil) then CurSound.Error = ErrNa return end
+			SC:setVolume(1)
+			SC:set3DFadeDistance(500, 1000)
+			SC:setPos(ents.self():pos())
+			SC:play()
+			CurSound.Playing = true
+			CurSound.Handle = SC
+			timer.create("LanteansOS_SoundStreaming", SC:getLength(), 1, function()
+				CurSound.Playing = false
+				CurSound.File = nil
+				CurSound.Handle = nil
+				OS.PlaySound(file, loop)
+			end)
+		end)
+	else
+		sounds.playFile("sound/" .. file, "3d", function(SC, ErrID, ErrNa)
+			if (SC == nil) then CurSound.Error = ErrNa return end
+			SC:setVolume(1)
+			SC:set3DFadeDistance(500, 1000)
+			SC:setPos(ents.self():pos())
+			SC:play()
+			CurSound.Playing = true
+			CurSound.Handle = SC
+			timer.create("LanteansOS_SoundStreaming", SC:getLength(), 1, function()
+				CurSound.Playing = false
+				CurSound.File = nil
+				CurSound.Handle = nil
+			end)
+		end)
+	end
+	return true
+end
+
+function OS.SoundPlaying()
+	return not(CurSound.Handle == nil) and CurSound.Playing
+end
+
+function OS.StopSound()
+	if (CurSound.Handle == nil or CurSound.Playing == false) then return end
+	CurSound.Handle:stop()
+	CurSound.Playing = false
+	CurSound.File = nil
+	CurSound.Handle = nil
+	timer.remove("LanteansOS_SoundStreaming")
+end

@@ -1,0 +1,206 @@
+--@name WeaponsDeviceManager
+--@author Yuri6037
+
+local Beams = false
+local TSCM = false
+local Ang = false
+
+local DefaultAngles = {}
+
+function IsFiring()
+	return Beams or TSCM or Ang
+end
+
+function CalcTargetCenter()
+	local pos = nil
+	if (IsValid(Target.Player)) then
+		local phys = Target.Player:getPhysicsObject()
+		if (not(phys == nil)) then
+			pos = Target.Player:getPos() + phys:getMassCenter()
+		end
+	elseif (IsValid(Target.Entity)) then
+		local phys = Target.Entity:getPhysicsObject()
+		if (not(phys == nil)) then
+			pos = Target.Entity:getPos() + phys:getMassCenter()
+		end
+	end
+	return (pos)
+end
+
+task.Start(function()
+	if (not(IsValid(Target.Player)) and not(IsValid(Target.Entity))) then
+		if (IsFiring()) then
+			Target.Player = nil
+			Target.Entity = nil
+			StopWeapons()
+		end
+	end
+
+	local pos = CalcTargetCenter()
+	if (Beams) then
+		for k, v in pairs(Ship.Weaps.STAR) do
+			v["Vector"] = pos
+		end
+	end
+	if (TSCM) then
+		for k, v in pairs(Ship.Weaps.TSCM) do
+			v["Target"] = pos
+		end
+	end
+	if (Ang) then
+		for k, v in pairs(Ship.Weaps.ANGLE) do
+			if (v:model() == "models/veegi/emitter/emitter2.mdl") then
+				v:setAngles(((pos - v:getPos()):Angle()) + Angle(90, 0, 0))
+			else
+				v:setAngles((pos - v:getPos()):Angle())
+			end
+		end
+	end
+end, "LanAI_WeaponsUpdater", 0.5)
+
+function StartBeams()
+	local pos = CalcTargetCenter()
+	if (pos == nil) then return end
+	for k, v in pairs(Ship.Weaps.STAR) do
+		v["Vector"] = pos
+		v["Active"] = 1
+		v["Fire"] = 1
+	end
+	Beams = true
+end
+
+function StartComputerCore()
+	if (not(Ship.CCore == nil)) then
+		if (IsValid(Target.Entity)) then
+			Ship.CCore["Target"] = Target.Entity
+		else
+			Ship.CCore["Target"] = Target.Player
+		end
+	end
+end
+
+function StartPulsarEmitters()
+	if (IsValid(Target.Player)) then
+		Target.CurSteamID = Target.Player:steamID()
+		Ship.Core:entity():addTarget(Target.CurSteamID)
+	elseif (IsValid(Target.Entity)) then
+		if (not(IsValid(Target.Entity:owner()))) then
+			util.Log("Drivers.Weapons", LOG_ERR, "Something is really wrong : target has no owner ! This is impossible ! Bypassing TSCM bug...")
+			return
+		end
+		Target.CurSteamID = Target.Entity:owner():steamID()
+		Ship.Core:entity():addTarget(Target.CurSteamID)
+	end
+	Ship.Core:entity():enableEmitters(true)
+end
+
+function StartAngles()
+	local pos = CalcTargetCenter()
+	if (pos == nil) then return end
+	for k, v in pairs(Ship.Weaps.ANGLE) do
+		if (v:model() == "models/veegi/emitter/emitter2.mdl") then
+			v:setAngles(((pos - v:getPos()):Angle()) + Angle(90, 0, 0))
+		else
+			v:setAngles((pos - v:getPos()):Angle())
+		end
+		v:getWirelink()["Fire"] = 1
+	end
+	Ang = true
+end
+
+function StartTSCM()
+	local pos = CalcTargetCenter()
+	if (pos == nil) then return end
+	for k, v in pairs(Ship.Weaps.TSCM) do
+		v["Target"] = pos
+		v["Fire"] = 1
+	end
+	TSCM = true
+end
+
+function StartRepair()
+	if (IsValid(Target.Entity)) then
+		Ship.Core["Fire Repair Beam"] = 1
+		Ship.Core["Repair Target"] = Target.Entity
+	end
+end
+
+HookPostLoad(function()
+	for k, v in pairs(Ship.Weaps.ANGLE) do
+		DefaultAngles[v] = Ship.Core:entity():worldToLocalAngles(v:getAngles())
+	end
+	util.Log("Drivers.Weapons", LOG_DEBUG, "Number of SG weapons ", #Ship.Weaps.STAR)
+	util.Log("Drivers.Weapons", LOG_DEBUG, "Number of TSCM weapons ", #Ship.Weaps.TSCM)
+	util.Log("Drivers.Weapons", LOG_DEBUG, "Number of ANG weapons ", #Ship.Weaps.ANGLE)
+	util.Log("Drivers.Weapons", LOG_DEBUG, "Ship.CCore = ", Ship.CCore)
+end)
+
+function StopWeapons()
+	Beams = false
+	TSCM = false
+	Ang = false
+	for k, v in pairs(Ship.Weaps.STAR) do
+		v["Fire"] = 0
+		v["Active"] = 0
+	end
+	for k, v in pairs(Ship.Weaps.TSCM) do
+		v["Fire"] = 0
+	end
+	for k, v in pairs(Ship.Weaps.ANGLE) do
+		v:getWirelink()["Fire"] = 0
+		v:setAngles(Ship.Core:entity():localToWorldAngles(DefaultAngles[v]))
+	end
+
+	Ship.Core["Fire Repair Beam"] = 0
+	Ship.Core["Repair Target"] = nil
+
+	if (not(Ship.CCore == nil)) then
+		Ship.CCore["Target"] = nil
+	end
+	if (not(Target.CurSteamID == nil)) then
+		Ship.Core:entity():removeTarget(Target.CurSteamID)
+	end
+	Ship.Core:entity():enableEmitters(false)
+end
+
+Ship.Weaps = {}
+Ship.Weaps.TSCM = {}
+Ship.Weaps.STAR = {}
+Ship.Weaps.ANGLE = {}
+local classes = {
+	"ori_beam_cannon",
+	"asgard_beam",
+	"beam_emitter",
+	"ship_turret_base",
+	"ship_laser",
+	"pulse_phaser_emitter",
+	"phaser_emitter",
+	"ship_cannon",
+	"keeper_emitter",
+	"cruise_missile_launcher",
+	"torpedo_launcher",
+	"computer_core",
+	"sam_missile_launcher",
+	"heavy_missile_pod"
+}
+RegisterDriver(classes, function(ent)
+	if (ent:class() == "ori_beam_cannon" or ent:class() == "asgard_beam") then
+		table.insert(Ship.Weaps.STAR, ent:getWirelink())
+	elseif (ent:class() == "beam_emitter"
+		or ent:class() == "ship_turret_base"
+		or ent:class() == "ship_laser"
+		or ent:class() == "pulse_phaser_emitter"
+		or ent:class() == "phaser_emitter"
+		or ent:class() == "sam_missile_launcher"
+		or ent:class() == "torpedo_launcher"
+		or ent:class() == "heavy_missile_pod") then
+		table.insert(Ship.Weaps.TSCM, ent:getWirelink())
+	elseif (ent:class() == "ship_cannon"
+		or ent:class() == "keeper_emitter"
+		or ent:class() == "cruise_missile_launcher") then
+		table.insert(Ship.Weaps.ANGLE, ent)
+	elseif (ent:class() == "computer_core") then
+		Ship.CCore = ent:getWirelink()
+	end
+	return true
+end)

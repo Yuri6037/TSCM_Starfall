@@ -1,0 +1,150 @@
+--@name DialogApp
+--@author Yuri6037
+
+local function AquireUserFunc(args)
+	if (args["OKFunc"] == nil) then
+		return (function() end)
+	else
+		return (PROTECT(args["OKFunc"]))
+	end
+end
+
+local msgdialog = {}
+function msgdialog:Init(args)
+	self:SetSize(512, 128 + 32)
+	self:SetTitle("Generic dialog")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	self.OKFunc = AquireUserFunc(args)
+	self.Data = "Generic dialog message..."
+	local but = self:AddComponent("button", 192, 110, "OK", function()
+		self.OKFunc(self.Parent)
+		self:Close()
+	end)
+	but:SetSize(128, 28)
+	self.Label = self:AddComponent("label", 10, 42)
+	self.Label:SetText(self.Data)
+
+	self:SetData(args["Data"])
+	self:SetTitle(args["Title"])
+end
+function msgdialog:SetData(text)
+	if (type(text) == "string") then
+		self.Data = text
+		self.Label:SetText(self.Data)
+	elseif (type(text) == "table") then
+		self.Data = text
+		self.Label:SetText(self.Data[1])
+		for i = 2, #text do
+			local lbl = self:AddComponent("label", 10, 42 + (i - 1) * 16)
+			lbl:SetText(text[i])
+		end
+	end
+end
+
+local plydialog = {}
+function plydialog:Init(args)
+	self:SetSize(512, 128 + 52)
+	self:SetTitle("Generic player dialog")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	self.OKFunc = AquireUserFunc(args)
+	self.But = self:AddComponent("button", 192, 110, "OK", function()
+		self.OKFunc(self.Parent, self:GetSelectedPlayer())
+		self:Close()
+	end)
+	self.But:SetSize(128, 28)
+	local but = self:AddComponent("button", 192, 142, "Cancel", function()
+		self:Close()
+	end)
+	but:SetSize(128, 28)
+	self.Data = {}
+	self.DataPly = find.allPlayers()
+	for k, v in pairs(self.DataPly) do
+		table.insert(self.Data, v:name())
+	end
+	self.List = self:AddComponent("listbox", 10, 32)
+	self.List:SetSize(492, 70)
+	self.List:SetMaxLines(3)
+	self.List:SetData(self.Data)
+
+	self:SetTitle(args["Title"])
+end
+function plydialog:GetSelectedPlayer()
+	local id, name = self.List:GetSelected()
+	if (not(IsValid(self.DataPly[id]))) then
+		return nil
+	end
+	return self.DataPly[id]
+end
+
+local codedialog = {}
+function codedialog:Init(args)
+	self:SetSize(512, 128 + 52)
+	self:SetTitle("Generic code dialog")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	self.OKFunc = AquireUserFunc(args)
+	self.But = self:AddComponent("button", 192, 110, "OK", function()
+		self.OKFunc(self.Parent, self:GetCodeStr())
+		self:Close()
+	end)
+	self.But:SetSize(128, 28)
+	local but = self:AddComponent("button", 192, 142, "Cancel", function()
+		self:Close()
+	end)
+	but:SetSize(128, 28)
+	self.N = {}
+	for i = 1, 8 do
+		self.N[i] = self:AddComponent("numselect", 32 + (i - 1) * 58, 32)
+		self.N[i]:SetBounds(0, 9, 0)
+		self.N[i]:SetStep(1)
+		self.N[i]:SetDecorations("", "")
+		self.N[i]:SetSize(32, 77)
+	end
+
+	self:SetTitle(args["Title"])
+end
+function codedialog:GetCodeStr()
+	local str = ""
+	for i = 1, 8 do
+		str = str .. self.N[i]:GetValue()
+	end
+	return str
+end
+
+local savefiledialog = {}
+function savefiledialog:Init(args)
+	self:SetSize(512, 128 + 52)
+	self:SetTitle("Generic SaveFile dialog")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	self.OKFunc = AquireUserFunc(args)
+	self.Text = self:AddComponent("textfield", 10, 42)
+	self.Text:SetSize(492, 32)
+	self.Text:SetMaxChars(41)
+	self.But = self:AddComponent("button", 192, 110, "Save", function()
+		self.OKFunc(self.Parent, self:GetFile())
+		self:Close()
+	end)
+	self.But:SetSize(128, 28)
+	local but = self:AddComponent("button", 192, 142, "Cancel", function()
+		self:Close()
+	end)
+	but:SetSize(128, 28)
+	self:AddKeyboard()
+
+	self:SetTitle(args["Title"])
+end
+function savefiledialog:GetFile()
+	return self.Text:GetText()
+end
+
+OS.DefineApp("msgdialog", msgdialog, true)
+OS.DefineApp("plydialog", plydialog)
+OS.DefineApp("codedialog", codedialog)
+OS.DefineApp("savefiledialog", savefiledialog)

@@ -1,0 +1,8 @@
+--@name CopsNRobbers HUD
+--@author Yuri6037
+--@shared
+
+if (SERVER) then
+	wire.createInputs({"TotalMoney", "CopsMoney", "RobbersMoney"}, {"Normal", "Normal", "Normal"})
+else
+end

@@ -1,0 +1,57 @@
+--@name StatusServerGui
+--@author Yuri6037
+
+function CheckStatusNeedUpdate()
+	local flag = false
+	if(not(Ship.Shield == nil)) then
+		if (not(ShipVars.Shields == Ship.Shield["Active"])) then
+			ShipVars.Shields = Ship.Shield["Active"]
+			flag = true
+		end
+	end
+	if (not(ShipVars.LS == Ship.LS["Active"])) then
+		ShipVars.LS = Ship.LS["Active"]
+		flag = true
+	end
+	if (not(Ship.Cloak == nil) and not(ShipVars.Cloak == Ship.Cloak["Active"])) then
+		ShipVars.Cloak = Ship.Cloak["Active"]
+		flag = true
+	end
+
+	--Probe
+	if (not(Ship.Probe == nil)) then
+		--Oxygen = 0, Nitrogen = 0, Gravity = 0, Temperature = 0, Hydrogen = 0, CO2 = 0
+		if (not(Ship.Probe["Oxygen"] == ShipVars.POxygen)) then
+			ShipVars.POxygen = Ship.Probe["Oxygen"]
+			flag = true
+		end
+		if (not(Ship.Probe["Nitrogen"] == ShipVars.PNitrogen)) then
+			ShipVars.PNitrogen = Ship.Probe["Nitrogen"]
+			flag = true
+		end
+		if (not(Ship.Probe["Gravity"] == ShipVars.PGravity)) then
+			ShipVars.PGravity = Ship.Probe["Gravity"]
+			flag = true
+		end
+		if (not(Ship.Probe["Temperature"] == ShipVars.PTemperature)) then
+			ShipVars.PTemperature = Ship.Probe["Temperature"]
+			flag = true
+		end
+		if (not(Ship.Probe["CO2"] == ShipVars.PCO2)) then
+			ShipVars.PCO2 = Ship.Probe["CO2"]
+			flag = true
+		end
+		if (not(Ship.Probe["Hydrogen"] == ShipVars.PHydrogen)) then
+			ShipVars.PHydrogen = Ship.Probe["Hydrogen"]
+			flag = true
+		end
+	else
+		ShipVars.PGravity = -1
+		ShipVars.PTemperature = -1
+	end
+
+	if (flag or ForceSend) then
+		return true, {Shields = ShipVars.Shields, LifeSupport = ShipVars.LS, Cloak = ShipVars.Cloak, POxygen = ShipVars.POxygen, PNitrogen = ShipVars.PNitrogen, PGravity = (ShipVars.PGravity * 100), PTemperature = RoundNumber(ShipVars.PTemperature - 273.15), PHydrogen = ShipVars.PHydrogen, PCO2 = ShipVars.PCO2}
+	end
+	return false, nil
+end

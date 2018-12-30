@@ -1,0 +1,110 @@
+--@name LanAI_Next OS Manager
+--@author Yuri6037
+
+--Global variable to store the current displayed GUI on LanAI Next OS screen
+CurGui = 0
+
+local onGuiChangedHooks = {}
+function HookOnGuiChanged(fnc)
+	table.insert(onGuiChangedHooks, fnc)
+end
+
+local onGuiNeedsUpdate = {}
+function HookOnGuiNeedsUpdate(fnc)
+	table.insert(onGuiNeedsUpdate, fnc)
+end
+
+--Protocol addons
+RegisterPacket("CHGUI", {
+	ReadData = function(args)
+		CurGui = args.ID
+		for k, v in pairs(onGuiChangedHooks) do
+			v()
+		end
+	end
+})
+RegisterPacket("WARPGUI", {
+	WriteData = function(args)
+		return {WarpData = GetWarpList()}
+	end
+})
+RegisterPacket("DATA_CHANGE", {
+	WriteData = function(args)
+		return {Net = args[1]}
+	end
+})
+function OnScreenReloadCL()
+	for k, v in pairs(onGuiNeedsUpdate) do
+		v()
+	end
+end
+--End
+
+local GuiUpdaters = {}
+--Registers a GUI updater, id is the GUI index, ents are the entities to check for output change as list,
+--checkChange is the function called each 0.5 seconds to know if the screen needs an update
+--and hookCallback is the function to call when the GUI is displayed, or when the screen asks for a force send
+function RegisterGuiUpdater(id, checkChange, hookCallback)
+	GuiUpdaters[id] = {CheckGuiNeedUpdate = checkChange, OnHooked = hookCallback}
+end
+
+HookOnGuiChanged(function()
+	if (not(GuiUpdaters[CurGui] == nil)) then
+		local tbl = GuiUpdaters[CurGui]
+		local toSend = tbl.OnHooked()
+		if (not(toSend == nil) and #toSend > 0) then
+			SendPacket("DATA_CHANGE", toSend)
+		end
+	end
+	OldGui = CurGui
+end)
+
+HookOnGuiNeedsUpdate(function()
+	if (not(GuiUpdaters[CurGui] == nil)) then
+		local tbl = GuiUpdaters[CurGui]
+		local toSend = tbl.OnHooked()
+		if (not(toSend == nil) and #toSend > 0) then
+			SendPacket("DATA_CHANGE", toSend)
+		end
+	end
+end)
+
+timer.create("LanAI_ScreenDataUpdater", 0.5, 0, function()
+	if (not(GuiUpdaters[CurGui] == nil)) then
+		local tbl = GuiUpdaters[CurGui]
+		local b, toSend = tbl.CheckGuiNeedUpdate()
+		if (b) then
+			SendPacket("DATA_CHANGE", toSend)
+		end
+	end
+	--[[local ForceSendTbl = nil
+	if (CurGui == 1) then
+		local b, tbl = CheckStatusNeedUpdate()
+		if (b) then
+			ForceSendTbl = tbl
+			ForceSend = true
+		end
+	elseif (CurGui == 2) then
+		local b, tbl = CheckResourcesNeedUpdate()
+		if (b) then
+			ForceSendTbl = tbl
+			ForceSend = true
+		end
+	elseif (CurGui == 3) then
+		local b, tbl = CheckCombatNeedUpdate()
+		if (b) then
+			ForceSendTbl = tbl
+			ForceSend = true
+		end
+	end
+
+	if (ForceSend) then
+		SendPacket("DATA_CHANGE", ForceSendTbl)
+		ForceSend = false
+	end]]--
+end)
+
+--@includedir lanai/processor/guis/
+for k, v in pairs(ProcessorFiles.GuiUpdaters) do
+	require("lanai/processor/guis/" .. v .. ".txt")
+end

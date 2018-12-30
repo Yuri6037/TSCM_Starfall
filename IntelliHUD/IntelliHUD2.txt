@@ -1,0 +1,14 @@
+--@name IntelliHUD II
+--@author Yuri6037
+--@class hud
+--@shared
+--@autoupdate
+
+--@requirecl lanteansos/libs/gui.txt
+--@require lanai/libs/screen/safe_net.txt
+--@require IntelliHUD/IT2Lib.txt
+--@require lanai/constants.txt
+--@requiresv IntelliHUD/IT2Server.txt
+--@requirecl IntelliHUD/IT2Client.txt
+
+if (CLIENT) then showOverlay(false) end

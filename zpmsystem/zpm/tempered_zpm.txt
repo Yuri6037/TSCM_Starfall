@@ -1,0 +1,41 @@
+--@name NormalZPM
+--@author Yuri6037
+--@class processor
+--@model models/pg_props/pg_zpm/pg_zpm.mdl
+
+--@require zpmsystem/zpm/zpmlib.txt
+
+local Core = nil
+
+--Actual code
+local tbl = {
+	MaxEnergyValue = 66666,
+	OnConnected = function()
+		self:setSkin(3)
+		local parent = ents.self():getParent()
+		local tbl = parent:getConstraints()
+		local core = nil
+		for k, v in pairs(tbl) do
+			if (v:class() == "ship_core") then core = v end
+		end
+		Core = core
+		print(Core)
+	end,
+	OnDisconnected = function()
+		self:setSkin(2)
+		Core = nil
+	end,
+	OnPumpedEnergy = function(amount)
+		if (CurEnergyValue <= 60000 and IsValid(Core)) then
+			print("test")
+			Core:getWirelink()["Self Destruct"] = 1
+		end
+	end,
+	OnEntitySaved = function()
+	end,
+	OnEntitySpawned = function()
+		self:setSkin(2)
+	end
+}
+
+zpms.Define(tbl)

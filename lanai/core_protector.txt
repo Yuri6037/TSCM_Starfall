@@ -1,0 +1,123 @@
+--@name LanAI CoreProtector
+--@author Yuri6037
+--@autoupdate
+
+local CoverModel = "models/sprops/geometry/fdisc_60.mdl"
+local CoverMaterial = "models/props_combine/com_shield001a"
+local SideModel = "models/sprops/misc/tubes/size_60/tube_60x78.mdl"
+local SideMaterial = "cmats/glass"
+
+wire.createInputs({"Core", "Open"}, {"Entity", "Normal"})
+
+local Core = nil
+local SideProp = nil
+local CoverProp = nil
+
+if (globaltables.player.LanAICProtector == nil) then
+	globaltables.player.LanAICProtector = {}
+end
+
+if (not(globaltables.player.LanAICProtector[ents.self():index()] == nil)) then
+	SideProp = globaltables.player.LanAICProtector[ents.self():index()].SideProp
+	CoverProp = globaltables.player.LanAICProtector[ents.self():index()].CoverProp
+end
+
+local function CreateProps()
+	if (IsValid(CoverProp)) then CoverProp:remove() end
+	if (IsValid(SideProp)) then SideProp:remove() end
+	CoverProp = props.create(CoverModel, Core:getPos() + Vector(0, 0, 47), Angle(0, 0, 90), true)
+	SideProp = props.create(SideModel, Core:getPos() + Vector(0, 0, 10), Angle(0, 0, 90), true)
+	if (not(IsValid(CoverProp)) or not(IsValid(SideProp))) then
+		timer.create("CoreProtector_BypassPropsCreateBug", 1, 1, CreateProps)
+		return
+	end
+	CoverProp:weldTo(Core)
+	CoverProp:setMaterial(CoverMaterial)
+	SideProp:setMaterial(SideMaterial)
+	SideProp:weldTo(Core)
+	globaltables.player.LanAICProtector[ents.self():index()] = {
+		SideProp = SideProp,
+		CoverProp = CoverProp
+	}
+end
+
+local NewState = 0
+local CurState = 0
+
+local function OnCoreEntityChanged()
+	CreateProps()
+end
+
+if (IsValid(wire.ports["Core"])) then
+	Core = wire.ports["Core"]
+	OnCoreEntityChanged()
+end
+if (wire.ports["Open"] == 1) then
+	NewState = 1
+end
+
+hook("PreEntityCopy", "CoreProtector_DupeFixer_Save", function(data)
+	data.CoverProp = CoverProp:index()
+	data.SideProp = SideProp:index()
+end)
+
+hook("PostEntityPaste", "CoreProtector_DupeFixer_Load", function(data, enttbl)
+	local coverProp = enttbl[data.CoverProp]
+	local sideProp = enttbl[data.SideProp]
+	if (IsValid(coverProp)) then
+		coverProp:remove()
+	end
+	if (IsValid(sideProp)) then
+		sideProp:remove()
+	end
+end)
+
+hook("input", "CoreProtector_Wire", function(inp, var)
+	if (inp == "Core") then
+		Core = var
+		if (IsValid(SideProp)) then
+			SideProp:remove()
+			SideProp = nil
+		end
+		if (IsValid(CoverProp)) then
+			CoverProp:remove()
+			CoverProp = nil
+		end
+		if (IsValid(Core)) then
+			OnCoreEntityChanged()
+		end
+	elseif (inp == "Open" and IsValid(Core)) then
+		NewState = var
+	end
+end)
+
+--models/props_phx/construct/metal_tube.mdl
+
+local neededPos = nil
+timer.create("CoreProtector_Animate", 0.1, 0, function()
+	if (not(NewState == CurState)) then
+		if (NewState == 1) then
+			neededPos = Core:getPos() + Vector(0, 0, 90)
+
+			if (SideProp:getPos().z >= neededPos.z) then
+				SideProp:setPos(neededPos)
+				CoverProp:setPos(neededPos + Vector(0, 0, 37))
+				CurState = NewState
+				return
+			end
+			SideProp:setPos(SideProp:getPos() + Vector(0, 0, 1))
+			CoverProp:setPos(CoverProp:getPos() + Vector(0, 0, 1))
+		elseif (NewState == 0) then
+			neededPos = Core:getPos() + Vector(0, 0, 10)
+
+			if (SideProp:getPos().z <= neededPos.z) then
+				SideProp:setPos(neededPos)
+				CoverProp:setPos(neededPos + Vector(0, 0, 37))
+				CurState = NewState
+				return
+			end
+			SideProp:setPos(SideProp:getPos() + Vector(0, 0, -1))
+			CoverProp:setPos(CoverProp:getPos() + Vector(0, 0, -1))
+		end
+	end
+end)

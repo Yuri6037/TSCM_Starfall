@@ -1,0 +1,32 @@
+--@name ExtendedAppLibKernelExtension
+--@author Yuri6037
+
+function OS.GetApp(handle)
+	if (OS.ValidHandle(handle)) then
+		return Windows[handle]
+	end
+	return nil
+end
+
+function OS.GetTaskCount(name)
+	if (name == nil) then return 0 end
+	local b = 0
+	for k, v in pairs(Windows) do
+		if (v.Type == name) then
+			b = b + 1
+		end
+	end
+	return b
+end
+
+function OS.TaskKill(name)
+	local b = false
+	if (name == nil) then return false end
+	for k, v in pairs(Windows) do
+		if (v.Type == name) then
+			OS.CloseApp(v.Handle, true)
+			b = true
+		end
+	end
+	return b
+end

@@ -1,0 +1,16 @@
+--@name ConfigLibrary
+--@author Yuri6037
+
+local file = "lanteans_os.cfg.txt"
+
+local Values = {}
+
+config = {}
+function config.Set(key, val)
+    Values[key] = val
+end
+
+function config.Get(key)
+    return Values[key]
+end
+

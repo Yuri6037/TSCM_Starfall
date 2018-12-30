@@ -1,0 +1,27 @@
+--@name TransportPlate
+--@author Yuri6037
+--@model models/boba_fett/kino/kino.mdl
+
+local ent = ents.self():getSingleConstrainedEnts()[1]
+local min = ent:obbMins()
+local max = ent:obbMaxs()
+
+local LockForce = 0
+LockForce = LockForce + 1
+
+if (IsValid(ent)) then
+	local ZTarget = 0
+	hook("think", "TransportPlate", function()
+		local phys = ent:getPhysicsObject()
+		if (ZTarget == 0 or phys:isAsleep()) then
+			ZTarget = ent:pos().Z
+		end
+
+		--if (ent:localToWorld(min).Z < ZTarget) then
+		--	phys:applyForceOffset(Vector(0, 0, LockForce) * phys:getMass(), min)
+		--end
+		if (ent:localToWorld(max).Z < ZTarget) then
+			phys:applyForceOffset(Vector(0, 0, LockForce) * phys:getMass(), max)
+		end
+	end)
+end

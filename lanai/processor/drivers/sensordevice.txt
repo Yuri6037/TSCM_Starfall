@@ -1,0 +1,72 @@
+--@name SensorDeviceManager
+--@author Yuri6037
+
+--Fix Starfall bug with Atlantis shield type
+--Implement atlantis shiled type
+
+function EnableSensor()
+	if (Target.Entity == nil or not(IsValid(Target.Entity))) then
+		return false
+	end
+	if (not(Target.Entity:class() == "ship_core") and IsValid(Target.Entity:getCore())) then
+		Target.Entity = Target.Entity:getCore()
+	end
+	return true
+end
+
+function GetTargetShieldData()
+	if (not(Target.Entity:class() == "ship_core")) then return false, 0, 0 end
+	local shield = Target.Entity:getShield()
+	if (not(IsValid(shield))) then return false, 0, 0 end
+	return shield:isActive(), shield:getTotalCharge(), shield:getMaxCharge()
+end
+
+function GetTargetHealthData()
+	local h = Target.Entity:entHealth()
+	local mh = Target.Entity:entMaxHealth()
+	local p = 0
+	if (Target.Entity:class() == "ship_core") then
+		p = Target.Entity:platingStrength()
+	end
+	return h, mh, p
+end
+
+RegisterDriver({"sensor_array"}, function(ent)
+	if (ent:class() == "sensor_array") then
+		Ship.Sensor = ent:getWirelink()
+	end
+	return true
+end)
+
+OSAddFunction("TargetPlayer", function(ent)
+	if (AddTarget(TargetType.PLAYER, ent)) then
+		aiSay("Player target aquired : " .. (ent:name() or "NULL"))
+	end
+end)
+
+OSAddFunction("TargetCore", function(ent)
+	local core = GetPlayerShipCore(ent)
+	if (core == nil) then
+		aiSay("No valid ship found for " .. (ent:name() or "NULL"))
+		return
+	end
+	if (AddTarget(TargetType.CORE, core)) then
+		aiSay("Core target aquired : " .. (ent:name() or "NULL"))
+	end
+end)
+
+OSAddFunction("TargetNode", function(ent)
+	local node = GetPlayerShipNode(ent)
+	if (node == nil) then
+		aiSay("No valid ship found for " .. (ent:name() or "NULL"))
+		return
+	end
+	if (AddTarget(TargetType.NODE, node)) then
+		aiSay("Node target aquired : " .. (ent:name() or "NULL"))
+	end
+end)
+
+OSAddFunction("TargetOff", function()
+	ClearTargets()
+	aiSay("Cleared all targets !")
+end)

@@ -1,0 +1,36 @@
+--@name ZPM_API
+--@author Yuri6037
+
+zpmapi = {}
+
+local Running = false
+local PowerConsuprionDelay = 2
+local PowerConsumptionMultiplier = 1
+
+--Current linked hub unique identifier
+local CurHUB
+
+function zpmapi.SetPowerConsumptionDelay(delay)
+	if (Running) then error("ZPM API already running !") return end
+	PowerConsuprionDelay = delay
+end
+
+function zpmapi.SetPowerConsumptionMultiplier(mult)
+	if (Running) then error("ZPM API already running !") return end
+	PowerConsumptionMultiplier = mult
+end
+
+function zpmapi.Initialize()
+	if (Running) then error("ZPM API already running !") return end
+
+	Running = true
+	timer.create("ZPM_API", PowerConsuprionDelay, 0, function()
+
+	end)
+end
+
+function zpmapi.LinkHub(unique_id)
+end
+
+function zpmapi.UnlinkHub()
+end

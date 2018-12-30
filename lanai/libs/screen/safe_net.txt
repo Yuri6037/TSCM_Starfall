@@ -1,0 +1,20 @@
+--@name SafeNetLibrary
+--@author Yuri6037
+
+--Implement packet system
+
+function StartNet(func, ply)
+	if (net.start(ents.self(), false)) then
+		func()
+	else
+		return
+	end
+
+	if (CLIENT) then
+		net.sendToServer()
+	elseif (IsValid(ply)) then
+		net.send(ply)
+	else
+		net.broadcast()
+	end
+end

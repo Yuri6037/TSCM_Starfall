@@ -1,0 +1,94 @@
+--@name Lanteans OS Initializer
+--@author Yuri6037
+
+--LanAI Constants
+--@include lanai/constants.txt
+
+--Libraries
+--@requirecl lanteansos/libs/gui.txt
+--@require lanai/libs/processor/string_lib.txt
+--@require lanai/libs/screen/safe_net.txt
+--@require lanteansos/libs/network.txt
+--@requirecl lanai/libs/screen/gl_lib.txt
+--@require lanai/libs/logging.txt
+
+--TransmissionProtocol
+--@requiresv lanteansos/os/protocol.txt
+--@requiresv lanteansos/os/packets.txt
+
+--Register network packets
+--@require lanteansos/os/netpackets.txt
+
+--Desktop Window Manager
+--@requirecl lanteansos/os/dwm.txt
+
+--App API
+--@requirecl lanteansos/os/appblacklist.txt
+--@requirecl lanteansos/os/application.txt
+
+--Component API
+--@requirecl lanteansos/os/component.txt
+
+--Include dirs for automatic load by initializer
+--@includedir lanteansos/os/screens/
+--@includedir lanteansos/os/apps/
+--@includedir lanteansos/os/components/
+--@includedir lanteansos/os/drivers/
+--@includedir lanteansos/os/kernel/extensions/
+
+--Run Kernel
+--@require lanteansos/os/kernel/kernel.txt
+
+VERSION_GL = "8.5 - Scissors !"
+VERSION_OS = "3.0 Beta"
+
+util.SetLogLevel(0)
+if (SERVER) then
+	util.AddLogHandler(function(msg)
+		printConsole("LanteansOS.Server> " .. msg)
+	end)
+else
+	util.AddLogHandler(function(msg)
+		printConsole("LanteansOS.Client> " .. msg)
+	end)
+end
+
+local rt = require
+function require(file)
+	local _t = time.sysTime()
+	rt(file)
+	util.Log("RequirePerf", LOG_DEBUG, file, ">", time.sysTime() - _t)
+end
+
+--LanAI/OS Constants
+LanteansOS = true
+require("lanai/constants.txt")
+
+if (CLIENT) then USER_REG = false end
+
+for f, func in pairs(getScripts()) do
+	if (string.StartsWith(f, "lanteansos/os/drivers/")) then
+		func()
+	end
+end
+
+for f, func in pairs(getScripts()) do
+	if (CLIENT and (string.StartsWith(f, "lanteansos/" .. Edition .. "/") or string.StartsWith(f, "lanteansos/os/screens/") or string.StartsWith(f, "lanteansos/os/apps/") or string.StartsWith(f, "lanteansos/os/components/"))) then
+		func()
+	end
+end
+
+--We are done loading the OS required files, ask the server to update states now, and display the boot screen
+if (CLIENT) then
+	OS.SwitchScreen("boot")
+	net.SendPacket("BOOT")
+end
+
+if (CLIENT) then USER_REG = true end
+
+function checks(expected, value)
+	local received = type(value)
+	if received ~= expected then
+		error(string.format("expected %s received %s", expected, received), 2)
+	end
+end

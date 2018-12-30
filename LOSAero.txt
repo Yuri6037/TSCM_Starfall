@@ -1,0 +1,65 @@
+--@name Lanteans OS AppCard (Aero)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "aero"
+AppCode = [[
+local app = {}
+function app:Init()
+end
+OS.DefineApp("aero", app)
+local OldDrawWindow = DrawWindow
+local OldWAPIConstruct = WINAPI.Construct
+local OldWAPIAddComp = WINAPI.AddComponent
+function WINAPI:Construct(hdl)
+	OldWAPIConstruct(self, hdl)
+	self.Background = COLOR(100, 100, 100)
+end
+function DrawWindow(app)
+	--Body
+	GUI.ANormGradiantRect(app.X, app.Y, app.Width, app.Height, app.Background, 200)
+	GUI.AInvGradiantRect(app.X, app.Y, app.Width, app.Height, app.Background, 200)
+	--Title bar
+	app:DrawTitleBar()
+	--Draw decorations if required
+	if (app.DrawDecos) then
+		--Icon
+		GUI.Icon(app.X, app.Y + 4, app.Icon.Window)
+		--Window reduce button
+		if (GUI.MouseInRect(app.X + app.Width - 38, app.Y + 6, 12, 12)) then
+			GUI.WindowButton(app.X + app.Width - 32, app.Y + 12, COLOR(0, 0, 255))
+			GUI.Text("-", app.X + app.Width - 38, app.Y + 6, SmallFont, COLOR(0, 0, 0))
+		else
+			GUI.WindowButton(app.X + app.Width - 32, app.Y + 12, COLOR(133, 133, 133))
+		end
+		--Window close button
+		if (GUI.MouseInRect(app.X + app.Width - 22, app.Y + 6, 12, 12)) then
+			GUI.WindowButton(app.X + app.Width - 16, app.Y + 12, COLOR(255, 0, 0))
+			GUI.Text("x", app.X + app.Width - 22, app.Y + 6, SmallFont, COLOR(0, 0, 0))
+		else
+			GUI.WindowButton(app.X + app.Width - 16, app.Y + 12, COLOR(133, 133, 133))
+		end
+	end
+end
+
+OS.DefineUninstall("aero", function()
+	DrawWindow = OldDrawWindow
+	WINAPI.Construct = OldWAPIConstruct
+	WINAPI.AddComponent = OldWAPIAddComp
+end)
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

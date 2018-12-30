@@ -1,0 +1,76 @@
+--@name TextFieldComponent
+--@author Yuri6037
+
+local textfield = {}
+function textfield:Init()
+	self.Text = ""
+	self.Cursor = 0
+	self.Parent.ComponentsNeedKeyboard = true
+	self:SetColors(COLOR(255, 255, 255), OS.GetTextColor())
+	self:SetFont(SmallFont)
+	self.MaxChars = 10
+end
+
+function textfield:SetMaxChars(num)
+	self.MaxChars = num
+end
+
+function textfield:SetColors(base, text)
+	self.TxColor = text
+	self.BaseColor = base
+end
+
+function textfield:SetFont(fnt)
+	self.Font = fnt
+end
+
+function textfield:GetText()
+	return self.Text
+end
+
+function textfield:SetText(txt)
+	self.Text = txt
+end
+
+function textfield:SetCursor(newcursor)
+	if (newcursor < 0 or newcursor > self.Text:len()) then return end
+	self.Cursor = newcursor
+end
+
+function textfield:Render(x, y)
+	GUI.ColoredRect(0, 0, self.W + 2, self.H + 2, COLOR(0, 0, 0, 170))
+	GUI.ColoredRect(0, 0, self.W, self.H, self.BaseColor)
+	local w, h = GUI.TextSize(self.Text:sub(1, self.Cursor), self.Font)
+	GUI.Text(self.Text, 0, self.H / 2 - h / 2, self.Font, self.TxColor)
+	if (self.Parent:HasFocus()) then
+		GUI.ColoredRect(w, 10, 2, self.H - 20, self.TxColor)
+	end
+end
+
+function textfield:OnKeyTyped(key, char)
+	if (key == KEY_BACKSPACE and self.Cursor > 0) then
+		local p1 = self.Text:sub(1, self.Cursor - 1)
+		local p2 = self.Text:sub(self.Cursor + 1)
+		self.Text = p1 .. p2
+		self.Cursor = self.Cursor - 1
+	elseif (key == KEY_DELETE and self.Cursor < self.Text:len()) then
+		local p1 = self.Text:sub(1, self.Cursor);
+		local p2 = self.Text:sub(self.Cursor + 2);
+		self.Text = p1 .. p2
+	elseif (key == KEY_LEFT and self.Cursor > 0) then
+		self.Cursor = self.Cursor - 1
+	elseif (key == KEY_RIGHT and self.Cursor < self.Text:len()) then
+		self.Cursor = self.Cursor + 1
+	elseif (key == KEY_START) then
+		self.Cursor = 0
+	elseif (key == KEY_END) then
+		self.Cursor = self.Text:len()
+	elseif (not(SpecialKey(key)) and self.Text:len() < self.MaxChars and not(char == nil)) then
+		local p1 = self.Text:sub(1, self.Cursor)
+		local p2 = self.Text:sub(self.Cursor + 1)
+		self.Text = p1 .. char .. p2
+		self.Cursor = self.Cursor + 1
+	end
+end
+
+DefineComponent("textfield", textfield)

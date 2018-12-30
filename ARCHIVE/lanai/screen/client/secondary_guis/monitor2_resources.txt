@@ -1,0 +1,59 @@
+--@name Monitor2_ResourceGui
+--@author Yuri6037
+
+local gui = {}
+
+local resource = "nil"
+local method = "Push"
+
+function gui.Render(x, y)
+	if (Net.ValveState == nil) then return end
+	gl.glBindColor(255, 0, 0)
+	gl.glRoundedRect(10, 10, 450, 100, 8)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Resource name : " .. resource, 20, 40)
+	gl.glText("Resource valve is : " .. Net.ValveState, 20, 10)
+
+	gl.glPushMatrix()
+		gl.glTranslate(0, 0)
+		if (UI.Button("Method : " .. method, x + 20, y + 70, 410, 32)) then
+			if (method == "Push") then
+				method = "Pull"
+			else
+				method = "Push"
+			end
+		end
+		UI.SetSkin(1)
+		if (UI.Button("Toggle Resource Valve", x + 10, y + 140, 450, 170)) then
+			if (resource == "nil") then return end
+			local str = Net.ValveState
+			if (not(str == "OFFLINE")) then
+				SendTripleScreenPacket(-1, "MONITOR_FUNC", "ValveOff")
+				return
+			end
+			if (method == "Push") then
+				SendTripleScreenPacket(-1, "MONITOR_FUNC", "ValvePush", resource)
+			elseif (method == "Pull") then
+				SendTripleScreenPacket(-1, "MONITOR_FUNC", "ValvePull", resource)
+			end
+		end
+		UI.SetSkin(0)
+		if (UI.Button("Energy", x + 260, y + 380, 200, 50)) then
+			resource = "Energy"
+		end
+		if (UI.Button("Water", x + 10, y + 320, 200, 50)) then
+			resource = "Water"
+		end
+		if (UI.Button("Oxygen", x + 260, y + 320, 200, 50)) then
+			resource = "Oxygen"
+		end
+		if (UI.Button("Deuterium", x + 10, y + 380, 200, 50)) then
+			resource = "Deuterium"
+		end
+	gl.glPopMatrix()
+end
+
+function gui.CheckInputs(x, y)
+end
+
+RegisterSecondaryGUI(3, gui)

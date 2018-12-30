@@ -1,0 +1,182 @@
+--@name NET_HOOKS
+--@author Yuri6037
+
+screenLocked = false
+
+hook("net", "ShipAI_II", function(len, ply)
+	local command = net.readString()
+	if (command == "ScreenReload") then
+		if (Loading) then
+			StartNet(function()
+				net.writeString("LOAD.START")
+			end, ply)
+			return
+		end
+
+		if (SelfDestruct) then
+			StartNet(function()
+				net.writeString("D")
+			end, ply)
+		elseif (screenLocked) then
+			StartNet(function()
+				net.writeString("L")
+			end, ply)
+		else
+			StartNet(function()
+				net.writeString("U")
+			end, ply)
+
+			ForceSend = true
+
+			--Cutsom actions for warping gui (custom warps update)
+			if (CurGUI == 5) then
+				StartNet(function()
+					net.writeString("GW")
+					net.writeTable(GetWarpList())
+				end, ply)
+				return
+			end
+			--End
+
+			StartNet(function()
+				net.writeString("G")
+				net.writeInt(CurGUI, 4, true)
+			end, ply)
+		end
+	elseif (command == "Unlock") then
+		if (IsPlayerInFaction(ply)) then
+			screenLocked = false
+			StartNet(function()
+				net.writeString("U")
+			end)
+		else
+			aiSayGuest(ply, "Only faction members can access this function.")
+		end
+	end
+	if (screenLocked) then
+		return
+	end
+	if (command == "GuiChange") then
+		Ship.GuiChangeSound:setVolume(1)
+		Ship.GuiChangeSound:play()
+
+		timer.create("Ship_AI_GuiSoundStop", 1, 1, function()
+			Ship.GuiChangeSound:stop()
+		end)
+
+		ForceSend = true
+		CurGUI = net.readInt(4, true)
+
+		--Cutsom actions for warping gui (custom warps update)
+		if (CurGUI == 5) then
+			StartNet(function()
+				net.writeString("GW")
+				net.writeTable(GetWarpList())
+			end)
+			return
+		end
+		--End
+
+		StartNet(function()
+			net.writeString("G")
+			net.writeInt(CurGUI, 4, true)
+		end)
+	elseif (command == "ToggleShields") then
+		if (Ship.Shield == nil) then
+			aiSay("Your ship has no shields, unable to perform action !")
+			return
+		end
+		Ship.Shield["Activate"] = HackBooleanCInvert(Ship.Shield["Active"])
+		if (Ship.Shield["Active"] == 1) then
+			aiSay("Shields are now down.")
+		else
+			aiSay("Shields are now up.")
+		end
+	elseif (command == "ToggleLife") then
+		Ship.LS["Activate"] = HackBooleanCInvert(Ship.LS["Active"])
+		Ship.LS["Disable Noclip"] = Ship.LS["Active"]
+		if (Ship.LS["Active"] == 1) then
+			aiSay("Life support is now offline.")
+		else
+			aiSay("Life support is now online.")
+		end
+	elseif (command == "ToggleGazgen") then
+		Ship.GazGen["Activate"] = HackBooleanCInvert(Ship.GazGen["Active"])
+		if (Ship.GazGen["Active"] == 1) then
+			aiSay("Air generator is now activated.")
+		else
+			aiSay("Air generator is now desactivated.")
+		end
+	elseif (command == "ToggleEnergygen") then
+		Ship.EnergyGen["Activate"] = HackBooleanCInvert(Ship.EnergyGen["Active"])
+		if (Ship.EnergyGen["Active"] == 1) then
+			aiSay("Energy generator is now activated.")
+		else
+			aiSay("Energy generator is now desactivated.")
+		end
+	elseif (StringStartWith(command, "warp_")) then
+		if (IsPlayerInFaction(ply)) then
+			local n = StringReplace(command, "warp_", "")
+			WarpToDefinedDirection(n)
+		else
+			aiSayGuest(ply, "Only faction members can access this function.")
+		end
+	elseif (command == "warpBack") then
+		if (IsPlayerInFaction(ply)) then
+			WarpToDefinedDirection("back")
+		else
+			aiSayGuest(ply, "Only faction members can access this function.")
+		end
+	elseif (command == "ToggleEva") then
+		if (not(permissions.CheckOfficer(ply))) then return end
+
+		ToggleEvacuation()
+	elseif (command == "ToggleCloak") then
+		if (not(Ship.Cloak == nil)) then
+			Ship.Cloak["Activate"] = HackBooleanCInvert(Ship.Cloak["Active"])
+			if (Ship.Cloak["Active"] == 1) then
+				aiSay("Cloak is now desactivated.")
+			else
+				aiSay("Cloak is now activated.")
+			end
+		else
+			aiSay("Your ship has no cloaks...")
+		end
+	elseif (command == "Lock") then
+		if (IsPlayerInFaction(ply)) then
+			screenLocked = true
+			StartNet(function()
+				net.writeString("L")
+			end)
+		else
+			aiSayGuest(ply, "Only faction members can access this function.")
+		end
+	elseif (command == "Alert") then
+		if (IsPlayerInFaction(ply)) then
+			local id = net.readInt(4, true)
+			UpdateAlertStatus(id)
+			StartNet(function()
+				net.writeString("A")
+				net.writeInt(id, 4, true)
+			end)
+		else
+			aiSayGuest(ply, "Only faction members can access this function.")
+		end
+	elseif (command == "DestroyToggle") then
+		if (not(permissions.CheckOfficer(ply))) then return end
+
+		SelfDestruct = HackBooleanCInvert(SelfDestruct)
+		if (SelfDestruct) then
+			aiSay("Autodestruction is engaged ; evacuate the ship now !")
+			timer.create("Ship_AI_DestroyTimer", 60, 1, function()
+				Ship.Core["Self Destruct"] = 1
+			end)
+		else
+			aiSay("Autodestruction has been stopped !")
+			timer.remove("Ship_AI_DestroyTimer")
+		end
+		StartNet(function()
+			net.writeString("D")
+		end)
+	end
+end)

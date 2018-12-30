@@ -1,0 +1,304 @@
+--@name CombatServerGui
+--@author Yuri6037
+
+RegisterGuiUpdater(3, function()
+   local flag = false
+	--Shields
+	if (not(Ship.Shield == nil)) then
+		if (not(ShipVars.ShieldCharge == Ship.Shield["Total Charge"])) then
+			ShipVars.ShieldCharge = Ship.Shield["Total Charge"]
+			flag = true
+		end
+		if (not(ShipVars.ShieldMaxCharge == Ship.Shield["Max Charge"])) then
+			ShipVars.ShieldMaxCharge = Ship.Shield["Max Charge"]
+			flag = true
+		end
+	end
+	--Health
+	if (not(ShipVars.Health == Ship.Core["Health"])) then
+		ShipVars.Health = Ship.Core["Health"]
+		flag = true
+	end
+	if (not(ShipVars.MaxHealth == Ship.Core["Max Health"])) then
+		ShipVars.MaxHealth = Ship.Core["Max Health"]
+		flag = true
+	end
+	--Plating
+	if (not(ShipVars.Plating == Ship.Core["Plating"])) then
+		ShipVars.Plating = Ship.Core["Plating"]
+		flag = true
+	end
+	--TargetData
+	if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+		Ship.Sensor["Target"] = Target.Entity
+
+		--Target shields
+		if (not(TargetVars.TShields == sensorHacker.PirateShieldsActive())) then
+			TargetVars.TShields = sensorHacker.PirateShieldsActive()
+			flag = true
+		end
+		if (not(TargetVars.TShieldCharge == sensorHacker.PirateShieldsCharge())) then
+			TargetVars.TShieldCharge = sensorHacker.PirateShieldsCharge()
+			flag = true
+		end
+		if (not(TargetVars.TShieldMaxCharge == sensorHacker.PirateMaxShieldsCharge())) then
+			TargetVars.TShieldMaxCharge = sensorHacker.PirateMaxShieldsCharge()
+			flag = true
+		end
+		--Target health
+		if (not(TargetVars.THealth == Ship.Sensor["Health"])) then
+			TargetVars.THealth = Ship.Sensor["Health"]
+			flag = true
+		end
+		if (not(TargetVars.TMaxHealth == Ship.Sensor["Max Health"])) then
+			TargetVars.TMaxHealth = Ship.Sensor["Max Health"]
+			flag = true
+		end
+		--Target plating
+		if (not(TargetVars.TPlating == Ship.Sensor["Plating"])) then
+			TargetVars.TPlating = Ship.Sensor["Plating"]
+			flag = true
+		end
+	elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+		if (not(Target.Player == TargetVars.Player)) then
+			flag = true
+			TargetVars.Player = Target.Player
+		end
+		if (not(TargetVars.THealth == Target.Player:health())) then
+			TargetVars.THealth = Target.Player:health()
+			flag = true
+		end
+		if (not(TargetVars.TMaxHealth == GetPlayerMaxHealth(Target.Player))) then
+			TargetVars.TMaxHealth = GetPlayerMaxHealth(Target.Player)
+			flag = true
+		end
+		TargetVars.TShields = 0
+		TargetVars.TShieldCharge = 0
+		TargetVars.TShieldMaxCharge = -1
+	end
+	if (flag) then
+		if (not(Target.Player == nil) or not(Target.Entity == nil)) then
+
+			if (not(Target.Player == nil) and not(Target.Player:isValid())) then
+				if (Ship.Shield == nil) then
+					return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				else
+					return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				end
+			end
+			if (not(Target.Entity == nil) and not(Target.Entity:isValid())) then
+				if (Ship.Shield == nil) then
+					return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				else
+					return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				end
+			end
+
+			local type = -1
+			if (not(Target.Player == nil)) then
+				type = 0
+			elseif (not(Target.Entity == nil)) then
+				type = 1
+			end
+			local name = ""
+			if (not(Target.Player == nil)) then
+				name = Target.Player:name()
+			elseif (not(Target.Entity == nil)) then
+				name = Target.Entity:owner():name()
+			end
+			if (TargetVars.TShieldCharge == nil) then
+				TargetVars.TShieldCharge = 0
+			end
+			if (TargetVars.TShieldMaxCharge == nil) then
+				TargetVars.TShieldMaxCharge = 0
+			end
+
+			if (Ship.Shield == nil) then
+				return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth), TType = type, TName = name, THealth = RoundNumber((TargetVars.THealth * 100) / TargetVars.TMaxHealth), TShields = TargetVars.TShields, TShieldCharge = RoundNumber((TargetVars.TShieldCharge * 100) / TargetVars.TShieldMaxCharge), TPlating = TargetVars.TPlating}
+			else
+				return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth), TType = type, TName = name, THealth = RoundNumber((TargetVars.THealth * 100) / TargetVars.TMaxHealth), TShields = TargetVars.TShields, TShieldCharge = RoundNumber((TargetVars.TShieldCharge * 100) / TargetVars.TShieldMaxCharge), TPlating = TargetVars.TPlating}
+			end
+		end
+		if (Ship.Shield == nil) then
+			return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+		else
+			return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+		end
+	end
+	return false, nil
+end, function()
+	if (ShipVars.Plating == nil or ShipVars.ShieldCharge == nil) then return nil end
+	if (not(Target.Player == nil) or not(Target.Entity == nil)) then
+		if (not(Target.Player == nil) and not(Target.Player:isValid())) then
+			if (Ship.Shield == nil) then
+				return {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+			else
+				return {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+			end
+		end
+		if (not(Target.Entity == nil) and not(Target.Entity:isValid())) then
+			if (Ship.Shield == nil) then
+				return {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+			else
+				return {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+			end
+		end
+
+		local type = -1
+		if (not(Target.Player == nil)) then
+			type = 0
+		elseif (not(Target.Entity == nil)) then
+			type = 1
+		end
+		local name = ""
+		if (not(Target.Player == nil)) then
+			name = Target.Player:name()
+		elseif (not(Target.Entity == nil)) then
+			name = Target.Entity:owner():name()
+		end
+		if (TargetVars.TShieldCharge == nil) then
+			TargetVars.TShieldCharge = 0
+		end
+		if (TargetVars.TShieldMaxCharge == nil) then
+			TargetVars.TShieldMaxCharge = 0
+		end
+
+		if (Ship.Shield == nil) then
+			return {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth), TType = type, TName = name, THealth = RoundNumber((TargetVars.THealth * 100) / TargetVars.TMaxHealth), TShields = TargetVars.TShields, TShieldCharge = RoundNumber((TargetVars.TShieldCharge * 100) / TargetVars.TShieldMaxCharge), TPlating = TargetVars.TPlating}
+		else
+			return {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth), TType = type, TName = name, THealth = RoundNumber((TargetVars.THealth * 100) / TargetVars.TMaxHealth), TShields = TargetVars.TShields, TShieldCharge = RoundNumber((TargetVars.TShieldCharge * 100) / TargetVars.TShieldMaxCharge), TPlating = TargetVars.TPlating}
+		end
+	end
+	if (Ship.Shield == nil) then
+		return {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+	else
+		return {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+	end
+end)
+
+--[[function CheckCombatNeedUpdate()
+	local flag = false
+	--Shields
+	if (not(Ship.Shield == nil)) then
+		if (not(ShipVars.ShieldCharge == Ship.Shield["Total Charge"])) then
+			ShipVars.ShieldCharge = Ship.Shield["Total Charge"]
+			flag = true
+		end
+		if (not(ShipVars.ShieldMaxCharge == Ship.Shield["Max Charge"])) then
+			ShipVars.ShieldMaxCharge = Ship.Shield["Max Charge"]
+			flag = true
+		end
+	end
+	--Health
+	if (not(ShipVars.Health == Ship.Core["Health"])) then
+		ShipVars.Health = Ship.Core["Health"]
+		flag = true
+	end
+	if (not(ShipVars.MaxHealth == Ship.Core["Max Health"])) then
+		ShipVars.MaxHealth = Ship.Core["Max Health"]
+		flag = true
+	end
+	--Plating
+	if (not(ShipVars.Plating == Ship.Core["Plating"])) then
+		ShipVars.Plating = Ship.Core["Plating"]
+		flag = true
+	end
+	--TargetData
+	if (not(Target.Entity == nil) and Target.Entity:isValid()) then
+		Ship.Sensor["Target"] = Target.Entity
+
+		--Target shields
+		if (not(TargetVars.TShields == sensorHacker.PirateShieldsActive())) then
+			TargetVars.TShields = sensorHacker.PirateShieldsActive()
+			flag = true
+		end
+		if (not(TargetVars.TShieldCharge == sensorHacker.PirateShieldsCharge())) then
+			TargetVars.TShieldCharge = sensorHacker.PirateShieldsCharge()
+			flag = true
+		end
+		if (not(TargetVars.TShieldMaxCharge == sensorHacker.PirateMaxShieldsCharge())) then
+			TargetVars.TShieldMaxCharge = sensorHacker.PirateMaxShieldsCharge()
+			flag = true
+		end
+		--Target health
+		if (not(TargetVars.THealth == Ship.Sensor["Health"])) then
+			TargetVars.THealth = Ship.Sensor["Health"]
+			flag = true
+		end
+		if (not(TargetVars.TMaxHealth == Ship.Sensor["Max Health"])) then
+			TargetVars.TMaxHealth = Ship.Sensor["Max Health"]
+			flag = true
+		end
+		--Target plating
+		if (not(TargetVars.TPlating == Ship.Sensor["Plating"])) then
+			TargetVars.TPlating = Ship.Sensor["Plating"]
+			flag = true
+		end
+	elseif (not(Target.Player == nil) and Target.Player:isValid()) then
+		if (not(Target.Player == TargetVars.Player)) then
+			flag = true
+			TargetVars.Player = Target.Player
+		end
+		if (not(TargetVars.THealth == Target.Player:health())) then
+			TargetVars.THealth = Target.Player:health()
+			flag = true
+		end
+		if (not(TargetVars.TMaxHealth == GetPlayerMaxHealth(Target.Player))) then
+			TargetVars.TMaxHealth = GetPlayerMaxHealth(Target.Player)
+			flag = true
+		end
+		TargetVars.TShields = 0
+		TargetVars.TShieldCharge = 0
+		TargetVars.TShieldMaxCharge = -1
+	end
+	if (flag or ForceSend) then
+		if (not(Target.Player == nil) or not(Target.Entity == nil)) then
+
+			if (not(Target.Player == nil) and not(Target.Player:isValid())) then
+				if (Ship.Shield == nil) then
+					return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				else
+					return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				end
+			end
+			if (not(Target.Entity == nil) and not(Target.Entity:isValid())) then
+				if (Ship.Shield == nil) then
+					return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				else
+					return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+				end
+			end
+
+			local type = -1
+			if (not(Target.Player == nil)) then
+				type = 0
+			elseif (not(Target.Entity == nil)) then
+				type = 1
+			end
+			local name = ""
+			if (not(Target.Player == nil)) then
+				name = Target.Player:name()
+			elseif (not(Target.Entity == nil)) then
+				name = Target.Entity:owner():name()
+			end
+			if (TargetVars.TShieldCharge == nil) then
+				TargetVars.TShieldCharge = 0
+			end
+			if (TargetVars.TShieldMaxCharge == nil) then
+				TargetVars.TShieldMaxCharge = 0
+			end
+
+			if (Ship.Shield == nil) then
+				return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth), TType = type, TName = name, THealth = RoundNumber((TargetVars.THealth * 100) / TargetVars.TMaxHealth), TShields = TargetVars.TShields, TShieldCharge = RoundNumber((TargetVars.TShieldCharge * 100) / TargetVars.TShieldMaxCharge), TPlating = TargetVars.TPlating}
+			else
+				return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth), TType = type, TName = name, THealth = RoundNumber((TargetVars.THealth * 100) / TargetVars.TMaxHealth), TShields = TargetVars.TShields, TShieldCharge = RoundNumber((TargetVars.TShieldCharge * 100) / TargetVars.TShieldMaxCharge), TPlating = TargetVars.TPlating}
+			end
+		end
+		if (Ship.Shield == nil) then
+			return true, {Plating = ShipVars.Plating, Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+		else
+			return true, {Plating = ShipVars.Plating, ShieldCharge = RoundNumber((ShipVars.ShieldCharge * 100) / ShipVars.ShieldMaxCharge), Health = RoundNumber((ShipVars.Health * 100) / ShipVars.MaxHealth)}
+		end
+	end
+	return false, nil
+end]]--

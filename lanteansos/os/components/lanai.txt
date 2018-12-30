@@ -1,0 +1,22 @@
+--@name LanAI Component
+--@author Yuri6037
+
+local comp = {NoDraw = true}
+function comp:Connect()
+	net.SendPacket("APP", 0, self.Parent.Type)
+	self.Parent.NetContext = true
+end
+
+function comp:Disconnect()
+	net.SendPacket("APP", 1, self.Parent.Type)
+	self.Parent.NetContext = false
+end
+
+function comp:Destroy()
+	if (self.Parent.NetContext) then
+		self:Disconnect()
+		util.Log("WINAPI", LOG_WARN, "Terminating LanAI Connection for application ", self.Parent.Type, "...")
+	end
+end
+
+DefineComponent("lanai", comp)

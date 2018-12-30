@@ -1,0 +1,31 @@
+--@name UninstallerApp
+--@author Yuri6037
+
+local app = {}
+
+function app:Init()
+	self:SetSize(256, 166)
+	self:SetTitle("Uninstall application")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	local lst = self:AddComponent("listbox", 10, 32)
+	lst:SetSize(236, 100)
+	lst:SetMaxLines(5)
+	lst:SetData(OS.AppList())
+	local bad = self:AddComponent("button", 128, 140, "Cancel", function()
+		self:Close()
+	end)
+	bad:SetSize(128, 16)
+	local ok = self:AddComponent("button", 0, 140, "Uninstall", function()
+		local id, str = lst:GetSelected()
+		if (OS.UndefineApp(str)) then
+			OS.TaskKill(str)
+			lst:SetData(OS.AppList())
+		end
+	end)
+	ok:SetSize(128, 16)
+end
+
+OS.DefineApp("uninstaller", app, true)
+OS.AddAppMenuItem("uninstaller", "Uninstaller", "Tools")

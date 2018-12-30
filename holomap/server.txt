@@ -1,0 +1,83 @@
+--@name HoloMap Server
+--@author Yuri6037
+
+local PModel = "models/holograms/hq_icosphere.mdl"
+local SModel = "models/holograms/hq_rcylinder_thick.mdl"
+
+local EntLst = {}
+local EntHolos = {}
+local CurMin = Vector(0, 0, 0)
+local CurMax = Vector(0, 0, 0)
+local Self = ents.self()
+
+function ReloadHolos(loc)
+	holograms.removeAll()
+	EntHolos = {}
+	EntLst = {}
+	for k, v in pairs(Models[loc]) do
+		local p = v.Pos
+		local a = v.Ang
+		local s = v.Scale
+		if (p == nil) then p = Vector(0, 0, 0) end
+		if (a == nil) then a = Angle(0, 0, 0) end
+		if (s == nil) then s = 1 end
+		p = Self:pos() + p
+		local h = holograms.create(p, a, v.Model, s)
+		h:setParent(Self)
+	end
+	if (loc == "Universe") then
+		CurMin = Universe.Min
+		CurMax = Universe.Max
+	elseif (loc == "Milkyway") then
+		CurMin = Milkyway.Min
+		CurMax = Milkyway.Max
+	elseif (loc == "Pegasus") then
+		CurMin = Pegasus.Min
+		CurMax = Pegasus.Max
+	end
+	ReloadEntHolos()
+end
+
+function PlayerInBox(ply, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = ply:getPos().x
+	local cY = ply:getPos().y
+	local cZ = ply:getPos().z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+function ReloadEntHolos()
+	find.byClass("player", function(ent)
+		--EntLst = {}
+		if (IsValid(ent) and PlayerInBox(ent, CurMin, CurMax) and not(IsValid(EntHolos[ent]))) then
+			EntHolos[ent] = holograms.create(Self:pos() + ToLocalSpace(ent:pos(), CurMax), Angle(0, 0, 0), PModel, 1)
+			EntHolos[ent]:setParent(Self)
+			print(ent)
+			EntLst[#EntLst + 1] = ent
+			print(#EntLst)
+		end
+	end)
+end
+function UpdateEntHolos()
+	for k, v in pairs(EntLst) do
+		EntHolos[v]:setPos(Self:pos() + ToLocalSpace(v:pos(), CurMax))
+	end
+end
+timer.create("Holomap_ReloadEnts", 10, 0, ReloadEntHolos)
+timer.create("Holomap_UpdateEnts", 1, 0, UpdateEntHolos)

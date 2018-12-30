@@ -1,0 +1,176 @@
+--@name ManoeverClient
+--@author Yuri6037
+
+--@include lanai/libs/screen/screen_engine.txt
+
+--@include manoever/lockdown_screen.txt
+
+require("lanai/libs/screen/screen_engine.txt")
+
+require("manoever/lockdown_screen.txt")
+
+require("lanai/libs/screen/safe_net.txt")
+
+ChoosedAngle = 0
+ChoosedAxis = "X"
+
+local main = {}
+main.Name = "Main"
+local id = render.getTextureID("phoenix_storms/wire/pcb_green")
+function main:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindColor(255, 255, 0)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("Manoever")
+	gl.glText("Manoever", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Made by Yuri6037"
+
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+
+
+	--Rendering special stuff
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(156, 400, 200, 32)
+	gl.glBindColor(0, 0, 0)
+	gl.glText(tostring(ChoosedAngle) .. "°", 156, 400)
+
+	if (ChoosedAxis == "X") then
+		gl.glBindColor(0, 255, 255)
+		gl.glRect(156, 432, 32, 32)
+	else
+		gl.glBindColor(0, 0, 255)
+		gl.glRect(156, 432, 32, 32)
+	end
+
+	if (ChoosedAxis == "Y") then
+		gl.glBindColor(0, 255, 255)
+		gl.glRect(190, 432, 32, 32)
+	else
+		gl.glBindColor(0, 0, 255)
+		gl.glRect(190, 432, 32, 32)
+	end
+
+	if (ChoosedAxis == "Z") then
+		gl.glBindColor(0, 255, 255)
+		gl.glRect(224, 432, 32, 32)
+	else
+		gl.glBindColor(0, 0, 255)
+		gl.glRect(224, 432, 32, 32)
+	end
+	gl.glBindColor(255, 255, 255)
+	gl.glText("X", 161, 432)
+	gl.glText("Y", 195, 432)
+	gl.glText("Z", 230, 432)
+end
+function main:OnShow()
+	Screen:AddControl("Button", 156, 128, 200, 32, {Text = "Rotate 90°", Func = function()
+		StartNet(function()
+			net.writeString("ROT_Y")
+			net.writeInt(90, 16, false)
+		end)
+	end})
+
+	Screen:AddControl("Button", 156, 200, 200, 32, {Text = "Rotate -90°", Func = function()
+		StartNet(function()
+			net.writeString("ROT_Y")
+			net.writeInt(-90, 16, false)
+		end)
+	end})
+
+	Screen:AddControl("Button", 156, 275, 200, 32, {Text = "Rotate 180°", Func = function()
+		StartNet(function()
+			net.writeString("ROT_Y")
+			net.writeInt(180, 16, false)
+		end)
+	end})
+
+	Screen:AddControl("Button", 156, 350, 200, 32, {Text = "Start Manoever", Func = function()
+		StartNet(function()
+			net.writeString("ROT_" .. ChoosedAxis)
+			net.writeInt(ChoosedAngle, 16, false)
+		end)
+	end})
+
+
+
+	Screen:AddControl("Button", 284, 432, 32, 32, {Text = "+", Func = function()
+		ChoosedAngle = ChoosedAngle + 5
+	end})
+	Screen:AddControl("Button", 324, 432, 32, 32, {Text = "-", Func = function()
+		ChoosedAngle = ChoosedAngle - 5
+	end})
+end
+function main:OnExit()
+end
+function main:OnTouched(mouseX, mouseY)
+	if (mouseX >= 156 and mouseX <= (156 + 32)) then
+		if (mouseY >= 432 and mouseX <= (432 + 32)) then
+			--X
+			ChoosedAxis = "X"
+		end
+	end
+
+	if (mouseX >= 190 and mouseX <= (190 + 32)) then
+		if (mouseY >= 432 and mouseX <= (432 + 32)) then
+			--Y
+			ChoosedAxis = "Y"
+		end
+	end
+
+	if (mouseX >= 224 and mouseX <= (224 + 32)) then
+		if (mouseY >= 432 and mouseX <= (432 + 32)) then
+			--Z
+			ChoosedAxis = "Z"
+		end
+	end
+end
+
+Screen:Register(main)
+
+StartNet(function()
+	net.writeString("REBOOT")
+end)
+
+hook("net", "ManoeverClient_Receiver", function(len)
+	local cmd = net.readString()
+	if (cmd == "B") then
+		local o = net.readString()
+		if (o == "U") then
+			Screen:Display("Main")
+		else
+			Screen:Display("Locked")
+		end
+	elseif (cmd == "U") then
+		Screen:Display("Main")
+	elseif (cmd == "L") then
+		Screen:Display("Locked")
+	end
+end)

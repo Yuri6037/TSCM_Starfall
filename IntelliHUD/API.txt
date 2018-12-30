@@ -1,0 +1,48 @@
+--@name IntelliHUD API
+--@author Yuri6037
+
+intellihud = {}
+
+--Registers a vehicle entity so IntelliHUD will render special infos when inside this vehicle
+--data is given from intellihud.NewDataStructure()
+function intellihud.RegisterVehicle(VehicleEnt, data)
+	if (not(IsValid(VehicleEnt))) then
+		error("VehicleEnt must be a valid vehicle entity !")
+		return
+	end
+
+	if (globaltables.global.IntelliHUD == nil) then
+		globaltables.global.IntelliHUD = {}
+	end
+	globaltables.global.IntelliHUD[VehicleEnt:index()] = data
+end
+
+function intellihud.NewDataStructure(ZPMEnt, VehName, VehNameColor, BaseEntity)
+	if (not(IsValid(ZPMEnt))) then
+		error("ZPMEnt must be a valid ZPM entity !")
+		return
+	end
+
+	return {ZPM = ZPMEnt, Name = VehName, NameColor = VehNameColor, HorizonBase = BaseEntity}
+end
+
+function intellihud.UpdateZPMEntity(VehicleEnt, NewZPMEnt)
+	if (not(IsValid(NewZPMEnt))) then
+		error("NewZPMEnt must be a valid ZPM entity !")
+		return
+	end
+	if (not(IsValid(VehicleEnt))) then
+		error("VehicleEnt must be a valid vehicle entity !")
+		return
+	end
+	if (globaltables.global.IntelliHUD == nil) then
+		error("No valid vehicle registered !")
+		return
+	end
+	if (globaltables.global.IntelliHUD[VehicleEnt:index()] == nil) then
+		error("No valid vehicle registered !")
+		return
+	end
+
+	globaltables.global.IntelliHUD[VehicleEnt:index()].ZPM = ZPMEnt
+end

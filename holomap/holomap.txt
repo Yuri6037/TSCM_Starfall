@@ -1,0 +1,28 @@
+--@name Lanteans Holomap
+--@author Yuri6037
+--@shared
+--@class emitter
+
+function ToLocalSpace(vec, max)
+	local v = (Vector(100, 100, 100) * max) * Vector(1 / vec.X, 1 / vec.Y, 1 / vec.Z)
+	if (vec.X == 0) then
+		v.X = 0
+	end
+	if (vec.Y == 0) then
+		v.Y = 0
+	end
+	if (vec.Z == 0) then
+		v.Z = 0
+	end
+	return v
+end
+
+--@require lanai/constants.txt
+
+--@require holomap/constants.txt
+
+--@requiresv holomap/server.txt
+
+if (SERVER) then
+	ReloadHolos("Pegasus")
+end

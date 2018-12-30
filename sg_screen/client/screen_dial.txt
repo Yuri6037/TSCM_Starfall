@@ -1,0 +1,91 @@
+--@name ScreenDial
+--@author Yuri6037
+
+local Names = {}
+local addressToCompose = ""
+local addressToComposeDangerous = false
+
+local dialScreen = {}
+dialScreen.Name = "Dial"
+local id = render.getTextureID("phoenix_storms/wire/pcb_blue")
+
+local function RenderDialData()
+	local str, id = UI.ListBox(0, 20, 130, 472, 256, Names, 7)
+	--print(id)
+	if (not(SG_ADDRESS_LIST[id] == nil)) then
+		addressToCompose = SG_ADDRESS_LIST[id].Address
+		addressToComposeDangerous = SG_ADDRESS_LIST[id].Danger
+	end
+
+	gl.glBindFont(Screen.StandardFont)
+	local w = gl.glTextWidth("Selected Address : ")
+	gl.glBindFont(SgGlyphFont)
+	local w1 = gl.glTextWidth(addressToCompose)
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255, 255)
+	gl.glText("Selected Address : ", (256 - w / 2) - w1 / 2, 400)
+	gl.glBindFont(SgGlyphFont)
+	gl.glBindColor(255, 255, 0, 255)
+	gl.glText(addressToCompose, (256 - w1 / 2) + w / 2, 400)
+
+	if (addressToComposeDangerous) then
+		gl.glBindFont(Screen.StandardFont)
+		gl.glBindColor(255, 0, 0, 255)
+		local w = gl.glTextWidth("DESTINATION IS DANGEROUS !")
+		gl.glText("DESTINATION IS DANGEROUS !", (256 - w / 2), 87)
+	end
+end
+local function RenderButtons()
+	if (UI.Button("Dial Gate", 128, 440, 256, 32)) then
+		StartNet(function()
+			net.writeInt(5, 4, true)
+			net.writeString(addressToCompose)
+		end)
+	end
+end
+function dialScreen:OnRender()
+	gl.glBindColor(133, 133, 133)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	gl.glBindColor(0, 0, 0)
+	gl.glRect(128, 0, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glUnfilledRect(128, 0, 128, 32, 2)
+	gl.glText("Main", 162, 0)
+
+	gl.glBindColor(133, 133, 133)
+	gl.glRect(256, 0, 128, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glUnfilledRect(256, 0, 128, 32, 2)
+	gl.glText("Dial", 290, 0)
+
+	RenderDialData()
+	RenderButtons()
+end
+function dialScreen:OnShow()
+	addressToCompose = ""
+	addressToComposeDangerous = false
+
+	Names = {}
+	for k, v in pairs(SG_ADDRESS_LIST) do
+		print(v.Name .. " -> " .. k)
+		table.insert(Names, v.Name)
+	end
+end
+function dialScreen:OnExit()
+end
+function dialScreen:OnTouched(mouseX, mouseY)
+	if (Screen:IsMouseInRect(128, 0, 128, 32)) then --Switch screen
+		StartNet(function()
+			net.writeInt(1, 4, true)
+		end)
+	end
+end
+function dialScreen:Animate(t)
+end
+
+Screen:Register(dialScreen)

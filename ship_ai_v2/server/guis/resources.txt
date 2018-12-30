@@ -1,0 +1,53 @@
+--@name ResourcesServerGui
+--@author Yuri6037
+
+function CheckResourcesNeedUpdate()
+	local flag = false
+	--Vars
+	if (not(ShipVars.Energy == Ship.Node["Energy"])) then
+		ShipVars.Energy = Ship.Node["Energy"]
+		flag = true
+	end
+	if (not(ShipVars.Oxygen == Ship.Node["Oxygen"])) then
+		ShipVars.Oxygen = Ship.Node["Oxygen"]
+		flag = true
+	end
+	if (not(ShipVars.Water == Ship.Node["Water"])) then
+		ShipVars.Water = Ship.Node["Water"]
+		flag = true
+	end
+	if (not(ShipVars.Deuter == Ship.Node["Deuterium"])) then
+		ShipVars.Deuter = Ship.Node["Deuterium"]
+		flag = true
+	end
+	--MaxVars
+	if (not(ShipVars.MaxEnergy == Ship.Node["Max Energy"])) then
+		ShipVars.MaxEnergy = Ship.Node["Max Energy"]
+		flag = true
+	end
+	if (not(ShipVars.MaxOxygen == Ship.Node["Max Oxygen"])) then
+		ShipVars.MaxOxygen = Ship.Node["Max Oxygen"]
+		flag = true
+	end
+	if (not(ShipVars.MaxWater == Ship.Node["Max Water"])) then
+		ShipVars.MaxWater = Ship.Node["Max Water"]
+		flag = true
+	end
+	if (not(ShipVars.MaxDeuter == Ship.Node["Max Deuterium"])) then
+		ShipVars.MaxDeuter = Ship.Node["Max Deuterium"]
+		flag = true
+	end
+	if (not(ShipVars.GazGen == Ship.GazGen["Active"])) then
+		ShipVars.GazGen = Ship.GazGen["Active"]
+		flag = true
+	end
+	if (not(ShipVars.EnergyGen == Ship.EnergyGen["Active"])) then
+		ShipVars.EnergyGen = Ship.EnergyGen["Active"]
+		flag = true
+	end
+
+	if (flag or ForceSend) then
+		return true, {Energy = RoundNumber((ShipVars.Energy * 100) / ShipVars.MaxEnergy), Oxygen = RoundNumber((ShipVars.Oxygen * 100) / ShipVars.MaxOxygen), Water = RoundNumber((ShipVars.Water * 100) / ShipVars.MaxWater), Deuter = RoundNumber((ShipVars.Deuter * 100) / ShipVars.MaxDeuter), GazGen = ShipVars.GazGen, EnergyGen = ShipVars.EnergyGen}
+	end
+	return false, nil
+end

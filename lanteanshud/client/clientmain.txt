@@ -1,0 +1,126 @@
+--@name Lanteans HUD ClientMain
+--@author Yuri6037
+
+Self = ents.self()
+LocalPlayer = ents.player()
+ScrW, ScrH = render.getScreenRes()
+
+SmallFont = GUI.Font("federation", 18, true)
+MediumFont = GUI.Font("federation", 24, true)
+LargeFont = GUI.Font("federation", 32, true)
+
+--App Specification
+--[[
+OverrideList = {
+	"defaulthudtoremove"
+}
+function Render()
+]]--
+--End
+
+local AppCnt = 0
+local Apps = {}
+local CurApps = {}
+local RMHuds = {}
+
+HUD = {}
+function HUD.DefineApp(name, app, active)
+	Apps[name] = app
+	AppCnt = AppCnt + 1
+	if (active) then HUD.ActivateApp(name, true) end
+end
+function HUD.ActivateApp(name, b)
+	if (Apps[name] == nil) then error("No such application found !") end
+	if (b) then
+		CurApps[name] = Apps[name]
+		for k, v in pairs(Apps[name].OverrideList) do
+			RMHuds[v] = true
+		end
+		if (Apps[name].HasNetwork) then
+			net.SendPacket("APP_ON", name)
+		end
+	else
+		CurApps[name] = nil
+		for k, v in pairs(Apps[name].OverrideList) do
+			RMHuds[v] = nil
+		end
+		if (Apps[name].HasNetwork) then
+			net.SendPacket("APP_OFF", name)
+		end
+	end
+end
+function HUD.NetworkEvent(name, tbl)
+	if (not(CurApps[name] == nil)) then
+		CurApps[name].OnDataReceived(tbl)
+	end
+end
+function HUD.AppActive(name)
+	return not(CurApps[name] == nil)
+end
+function HUD.OpenConfigPanel()
+	local f = vgui.create("DFrame")
+	f.OnKeyCodeReleased = function(fuck, code)
+		if (code == input.KEY_F3) then f:Close() return end
+	end
+	f:SetTitle("Lanteans HUD - Config (V." .. VERSION .. ")")
+	f:SetSize(450, AppCnt * 50)
+	f.Paint = function(self, w, h)
+		render.setColor(0, 0, 0, 128)
+		render.drawRect(0, 0, w, h)
+		render.setColor(0, 128, 255)
+		render.drawLine(0, 0, w, 0)
+		render.drawLine(w - 1, 0, w - 1, h)
+		render.drawLine(0, h - 1, w - 1, h - 1)
+		render.drawLine(0, 0, 0, h)
+	end
+	f:Center()
+	f:MakePopup()
+	local y = 32
+	for k, v in pairs(Apps) do
+		local lbl = vgui.create("DLabel", f)
+		lbl:SetPos(20, y)
+		lbl:SetSize(492, 32)
+		lbl:SetText(k)
+		lbl:SetFont(SmallFont)
+		if (HUD.AppActive(k)) then
+			lbl:SetTextColor(Color(0, 255, 255))
+		else
+			lbl:SetTextColor(Color(255, 255, 255))
+		end
+		lbl:SetMouseInputEnabled(true)
+		lbl.DoClick = function()
+			HUD.ActivateApp(k, not(HUD.AppActive(k)))
+			if (HUD.AppActive(k)) then
+				lbl:SetTextColor(Color(0, 255, 255))
+			else
+				lbl:SetTextColor(Color(255, 255, 255))
+			end
+		end
+		y = y + 32
+	end
+end
+
+hook("hudshoulddraw", "LanteansHUD_DisableHUD", function(elem)
+	if (RMHuds[elem]) then return true end
+end)
+
+hook("render", "LanteansHUD_Render", function()
+	for k, v in pairs(CurApps) do
+		v.Render()
+	end
+end)
+
+hook("hudlink", "LanteansHUD_HudLink", function(ply)
+	net.SendPacket("LINK", ply)
+end)
+
+hook("hudunlink", "LanteansHUD_HudUnlink", function(ply)
+	net.SendPacket("UNLINK", ply)
+end)
+
+hook("playerbindpress", "LanteansHUD_BindPress", function(ply, bind, pressed)
+	if (not(hud.isLinked())) then return end
+	if (ply == LocalPlayer and bind == "gm_showspare1") then
+		HUD.OpenConfigPanel()
+	end
+end)

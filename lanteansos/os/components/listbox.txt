@@ -1,0 +1,137 @@
+--@name ListBoxComponent
+--@author Yuri6037
+
+local listbox = {}
+--Internal
+function listbox:UpdateConsole(id, max)
+	self.RenderedData = {}
+	local done = (self.MaxLines - 1) + 1
+	local parser = self.ScrollNbr
+	while done > -1 do
+		table.insert(self.RenderedData, self.ListData[parser])
+		parser = parser + 1
+		done = done - 1
+	end
+end
+function listbox:ScrollUp()
+	if (#self.ListData <= self.MaxLines or self.ScrollNbr == (#self.ListData - self.MaxLines)) then
+		return
+	end
+	self.ScrollNbr = self.ScrollNbr + 1
+	self:UpdateConsole()
+end
+function listbox:ScrollDown()
+	if (#self.ListData <= self.MaxLines or self.ScrollNbr == 1) then
+		return
+	end
+	self.ScrollNbr = self.ScrollNbr - 1
+	self:UpdateConsole()
+end
+
+--API
+function listbox:Init()
+	self.MaxLines = 1
+	self.T = false
+	self.Select = true
+	self:SetData({})
+	self:SetColors(COLOR(255, 255, 255), COLOR(0, 0, 0), COLOR(61, 134, 254, 200), COLOR(200, 134, 254, 200))
+	self:SetButtonColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200))
+	self:SetFont(SmallFont)
+end
+function listbox:SetColors(background, text, mouseover, selected)
+	self.BackColor = background
+	self.TxColor = text
+	self.OverColor = mouseover
+	self.SelColor = selected
+end
+function listbox:SetButtonColors(base, over)
+	self.ButOver = over
+	self.ButBase = base
+end
+function listbox:SetFont(fnt)
+	self.Font = fnt
+end
+function listbox:SetMaxLines(nbr)
+	self.MaxLines = nbr
+	self:UpdateConsole()
+end
+function listbox:GetSelected()
+	return self.SelectedElem, self.ListData[self.SelectedElem]
+end
+function listbox:SetNoSelect()
+	self.Select = false
+end
+function listbox:SetData(data)
+	self.RenderedData = {}
+	self.ScrollNbr = 1
+	self.SelectedElem = nil
+	self.ListData = data
+	self:UpdateConsole()
+end
+function listbox:Render(x, y)
+	local j = 5
+
+	GUI.RoundedRect(0, 0, self.W - 32, self.H + 2, COLOR(0, 0, 0, 170))
+	GUI.RoundedRect(0, 0, self.W - 34, self.H, self.BackColor)
+	for k, v in pairs(self.RenderedData) do
+		if (self.Select) then
+			if (not(self.SelectedElem == nil) and self.SelectedElem == k + self.ScrollNbr - 1) then
+				GUI.Text(v, 5, j, self.Font, self.SelColor)
+				GUI.OutRect(0, j, self.W - 32, 16, 1, self.SelColor)
+			elseif (GUI.MouseInRect(x, y + j, self.W - 32, 16)) then
+				if (self.T) then
+					self.SelectedElem = k + self.ScrollNbr - 1
+				end
+				GUI.Text(v, 5, j, self.Font, self.OverColor)
+				GUI.OutRect(0, j, self.W - 32, 16, 1, self.OverColor)
+			else
+				GUI.Text(v, 5, j, self.Font, self.TxColor)
+			end
+		else
+			GUI.Text(v, 5, j, self.Font, self.TxColor)
+		end
+		j = j + 16
+	end
+	--ScrollUp
+	if (#self.ListData > self.MaxLines and not(self.ScrollNbr == 1)) then
+		GUI.RoundedRect(self.W - 32, 0, 34, 34, COLOR(0, 0, 0, 170))
+		if (GUI.MouseInRect(x + self.W - 32, y, 32, 32)) then
+			GUI.RoundedRect(self.W - 32, 0, 32, 32, self.ButOver)
+		else
+			GUI.RoundedRect(self.W - 32, 0, 32, 32, self.ButBase)
+		end
+	end
+	--ScrollDown
+	if (#self.ListData > self.MaxLines and not(self.ScrollNbr == (#self.ListData - self.MaxLines))) then
+		GUI.RoundedRect(self.W - 32, self.H - 32, 34, 34, COLOR(0, 0, 0, 170))
+		if (GUI.MouseInRect(x + self.W - 32, y + self.H - 32, 32, 32)) then
+			GUI.RoundedRect(self.W - 32, self.H - 32, 32, 32, self.ButOver)
+		else
+			GUI.RoundedRect(self.W - 32, self.H - 32, 32, 32, self.ButBase)
+		end
+	end
+	self.T = false
+end
+function listbox:RecalculateSelected()
+	if (not(self.T)) then return end
+	local j = 5
+	for k, v in pairs(self.RenderedData) do
+		if (self.Select) then
+			if (GUI.MouseInRect(self.Parent.X + self.X, self.Parent.Y + self.Y + j, self.W - 32, 16)) then
+				self.SelectedElem = k + self.ScrollNbr - 1
+			end
+		end
+		j = j + 16
+	end
+	self.T = false
+end
+function listbox:Touched(x, y)
+	self.T = true
+	if (GUI.MouseInRect(x + self.W - 32, y, 32, 32)) then
+		self:ScrollDown()
+	elseif (GUI.MouseInRect(x + self.W - 32, y + self.H - 32, 32, 32)) then
+		self:ScrollUp()
+	end
+end
+
+DefineComponent("listbox", listbox)

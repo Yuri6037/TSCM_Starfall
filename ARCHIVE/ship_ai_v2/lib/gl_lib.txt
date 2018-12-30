@@ -1,0 +1,72 @@
+--@name GL_Lib
+--@author Yuri6037
+
+gl = {}
+local usingColor = false
+local R = 0
+local G = 0
+local B = 0
+local A = 0
+local usingTexture = false
+local font
+
+function gl.glBindColor(r, g, b, a)
+	usingTexture = false
+	usingColor = true
+	if (a == nil) then
+		R = r
+		G = g
+		B = b
+		A = 255
+		return
+	end
+	R = r
+	G = g
+	B = b
+	A = a
+end
+function gl.glRect(x, y, width, height)
+	if (usingTexture) then
+		--render.setColor(255, 255, 255, 255)
+		render.drawTexturedRect(x, y, width, height)
+	elseif (usingColor) then
+		render.setColor(R, G, B, A)
+		render.drawRect(x, y, width, height)
+	end
+end
+function gl.glUnfilledRect(x, y, width, height, stroke)
+	gl.glRect(x, y, width, stroke)
+	gl.glRect((x + width) - stroke, y, stroke, height)
+	gl.glRect(x, y, stroke, height)
+	gl.glRect(x, (y + height) - stroke, width, stroke)
+end
+function gl.glBindTexture(id)
+	usingColor = false
+	usingTexture = true
+	render.setTexture(id)
+end
+function gl.glBindFont(f)
+	font = f
+end
+function gl.glText(str, x, y)
+	if (not(font == nil)) then
+		if (usingColor) then
+			render.setColor(R, G, B, A)
+		end
+		render.drawText(font, x, y, str, TEXT_ALIGN_CENTER)
+	end
+end
+function gl.glTextWidth(str)
+	if (not(font == nil)) then
+		local w,_ = render.getTextSize(font, str)
+		return w
+	end
+	return -1
+end
+function gl.glTextHeight(str)
+	if (not(font == nil)) then
+		local _,h = render.getTextSize(font, str)
+		return h
+	end
+	return -1
+end

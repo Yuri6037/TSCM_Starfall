@@ -1,0 +1,18 @@
+--@name StarfallIcon
+--@author
+--@model models/sprops/misc/alphanum/alphanum_star_3.mdl
+
+local a = ents.self():getAngles()
+a:RotateAroundAxis(a:Forward(), -90)
+H8 = holograms.create(ents.self():pos() + Vector(0, 0, 0), a, "models/sprops/misc/alphanum/alphanum_star_3.mdl", Vector(10, 10, 10))
+H8:setAngVel(Angle(-100, -100, 100))
+H8:setParent(ents.self())
+H8:setMaterial("cmats/light")
+H8:setColor(255, 0, 0)
+
+timer.create("SFIconColorAnimator", 0.1, 0, function()
+    local r = math.random(1, 255)
+    local g = math.random(1, 255)
+    local b = math.random(1, 255)
+    H8:setColor(r, g, b)
+end)

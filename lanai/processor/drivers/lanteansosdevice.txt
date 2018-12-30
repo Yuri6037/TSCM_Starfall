@@ -1,0 +1,122 @@
+--@name Lanteans OS Device Manager
+--@author Yuri6037
+
+local Tasks = {}
+local TasksIDX = {}
+TasksData = {}
+local OSApps = {}
+local TasksNum = 0
+
+CurApp = nil
+
+local function CreateTask(type)
+	if (OSApps[type] == nil) then return end
+	if (not(OSApps[type][2] == nil)) then
+		CurApp = type
+		OSApps[type][2]()
+		if (not(TasksData[type] == nil)) then
+			SendPacket("DATA", type, TasksData[type])
+		end
+	elseif (TasksIDX[type] == nil) then
+		TasksIDX[type] = #Tasks + 1
+		Tasks[#Tasks + 1] = {type, OSApps[type][1], 1}
+		util.Log("Drivers.LOS", LOG_DEBUG, "Added task ", type)
+		if (not(TasksData[type] == nil)) then
+			SendPacket("DATA", type, TasksData[type])
+		else
+			TasksData[type] = {}
+		end
+
+		--Debug
+		TasksNum = TasksNum + 1
+		wire.ports["TasksNum"] = TasksNum
+	else
+		Tasks[TasksIDX[type]][3] = Tasks[TasksIDX[type]][3] + 1
+		if (not(TasksData[type] == nil)) then
+			SendPacket("DATA", type, TasksData[type])
+		end
+		util.Log("Drivers.LOS", LOG_DEBUG, "Incremented task ", type, " (", Tasks[TasksIDX[type]][3], ")")
+	end
+end
+local function DestroyTask(type)
+	if (OSApps[type] == nil or TasksIDX[type] == nil) then return end
+	Tasks[TasksIDX[type]][3] = Tasks[TasksIDX[type]][3] - 1
+	util.Log("Drivers.LOS", LOG_DEBUG, "Decremented task ", type, " (", Tasks[TasksIDX[type]][3], ")")
+	if (Tasks[TasksIDX[type]][3] == 0) then
+		util.Log("Drivers.LOS", LOG_DEBUG, "Removed task ", type)
+		Tasks[TasksIDX[type]] = nil
+		TasksIDX[type] = nil
+
+		--Debug
+		TasksNum = TasksNum - 1
+		wire.ports["TasksNum"] = TasksNum
+	end
+end
+
+function DefineOSApp(type, updfnc, crtfnc)
+    OSApps[type] = {updfnc, crtfnc}
+end
+
+local CurAppMod = false
+function CheckVar(name, var)
+    if (not(TasksData[CurApp][name] == var)) then
+        TasksData[CurApp][name] = var
+        CurAppMod = true
+    end
+end
+
+--OS Specific packets
+RegisterPacket("DATA", {
+	WriteData = function(args)
+		return {Type = args[1], Data = args[2]}
+	end
+})
+RegisterPacket("TASK", {
+	ReadData = function(args)
+		if (args.Action == "CREATE") then
+			CreateTask(args.Type)
+		elseif (args.Action == "DESTROY") then
+			DestroyTask(args.Type)
+		elseif (args.Action == "ENDALL") then
+			for k, v in pairs(Tasks) do
+				DestroyTask(v[1])
+			end
+		end
+	end
+})
+RegisterPacket("LOGIN", {
+	WriteData = function(args)
+		return {Player = args[1], Entity = args[2], LoginMsg = args[3]}, true
+	end,
+	ReadData = function(args)
+		if (args.Player:AIHasPerm("lanteansos")) then
+			SendPacket("LOGIN", args.Player, args.Entity, nil)
+			util.Log("Drivers.LOS", LOG_INFO, "Access granted for ", args.Player:name())
+		else
+			SendPacket("LOGIN", args.Player, args.Entity, "Insufficient rank : access denied !")
+			util.Log("Drivers.LOS", LOG_INFO, "Access denied for ", args.Player:name())
+		end
+	end
+})
+--End
+
+HookPostLoad(function()
+    task.Start(function()
+    	for k, v in pairs(Tasks) do
+    		CurAppMod = false
+    		CurApp = v[1]
+    		v[2]()
+    		if (CurAppMod) then
+    			SendPacket("DATA", CurApp, TasksData[CurApp])
+    		end
+    	end
+    end, "LanAI_OSUpdater", 0.5)
+end)
+
+--Reg
+
+--@includedir lanai/processor/osapps/
+for k, v in pairs(ProcessorFiles.OSApps) do
+	util.Log("Drivers.LOS", LOG_DEBUG, "Loading '", v, "' OS App...")
+    require("lanai/processor/osapps/" .. v .. ".txt")
+end

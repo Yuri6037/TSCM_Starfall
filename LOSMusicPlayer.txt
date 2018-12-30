@@ -1,0 +1,99 @@
+--@name Lanteans OS AppCard (MusicPlayer)
+--@author Yuri6037 and Belloxy
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+--[[
+--self:SetIcon16(Icon16None)
+]]--
+--Application
+AppName = "app Wolf Music"
+AppCode = [[
+local app = {}
+local Icon16None = {
+	{
+		Color = COLOR(255, 0, 0),
+		String = "♫",
+		Font = LargeFont,
+		Vertices = {0, 0}
+	}
+}
+local Icon32None = {
+    {
+        Color = COLOR(255, 0, 0),
+        String = "♫",
+        Font = StandardFont,
+        Vertices = {0, 0}
+    }
+}
+local Music = {
+	"Musique_Teamfrench/Dada_Life.mp3",
+	"music/mannrobics.wav",
+	"ambient/music/country_rock_am_radio_loop.wav",
+	"music/cossack_sandvich.wav",
+	"music/hl1_song3.mp3",
+	"music/hl1_song5.mp3",
+	"music/hl1_song6.mp3",
+	"music/hl1_song9.mp3",
+	"music/hl1_song10.mp3",
+	"music/hl1_song11.mp3",
+	"music/hl1_song14.mp3",
+	"music/hl1_song15.mp3",
+	"music/hl1_song17.mp3",
+	"music/hl1_song19.mp3",
+	"music/hl1_song20.mp3",
+	"music/hl1_song21.mp3",
+	"music/hl1_song24.mp3",
+	"music/hl1_song25_remix3.mp3",
+	"music/hl1_song26.mp3",
+	"music/hl2_song20_submix0.mp3",
+	"music/hl2_song20_submix4.mp3",
+	"music/hl2_song25_teleporter.mp3"
+}
+
+function app:Init()
+    self:SetSize(500, 300)
+    self:SetTitle("Wolf Music ♫")
+    self:SetIcon32(Icon32None)
+    self:SetIcon16(Icon16None)
+
+    local lst = self:AddComponent("listbox", 10, 32)
+    lst:SetSize(480, 185)
+    lst:SetMaxLines(10)
+    lst:SetFont(SmallFont)
+    lst:SetData(Music)
+    local play = self:AddComponent("button", 122, 260, "Play/Stop", function(app)
+    	if (OS.SoundPlaying()) then OS.StopSound() return end
+    	local id, str = lst:GetSelected()
+    	if (str == nil) then return end
+		OS.PlaySound(str, app.Loop)
+   	end)
+   	play:SetFont(LargeFont)
+   	play:SetSize(256, 32)
+   	local ind = self:AddComponent("indicator", 474, 232)
+   	ind:SetSize(16, 16)
+   	self.Loop = false
+   	local loop = self:AddComponent("button", 10, 232, "Loop", function(app)
+		self.Loop = not(self.Loop)
+		ind:SetActive(self.Loop)
+   	end)
+   	loop:SetSize(128, 16)
+end
+function app:OnExit()
+	OS.StopSound()
+end
+OS.DefineApp("Wolf", app)
+OS.AddAppMenuItem("Wolf", "Music", "Wolf")
+]]
+--End
+
+--Saving
+Ports["AppName"] = AppName
+Ports["AppCode"] = AppCode
+--End

@@ -1,0 +1,146 @@
+--@name BasicsComponents
+--@author Yuri6037
+
+local button = {} --Simple button
+function button:Init(data)
+    self.Text = data[1]
+    if (OS.IsUserApp(self.Parent.Type)) then
+    	self.Action = PROTECT(data[2])
+    else
+    	self.Action = data[2]
+    end
+    self:SetColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200), OS.GetTextColor())
+    self:SetFont(SmallFont)
+end
+function button:SetColors(base, over, text)
+	self.ButOver = over
+	self.ButBase = base
+	self.TxColor = text
+end
+function button:SetFont(fnt)
+	self.Font = fnt
+end
+function button:Render(x, y)
+	GUI.RoundedRect(0, 0, self.W + 2, self.H + 2, COLOR(0, 0, 0, 170))
+    if (GUI.MouseInRect(x, y, self.W, self.H)) then
+        GUI.RoundedRect(0, 0, self.W, self.H, self.ButOver)
+    else
+		GUI.RoundedRect(0, 0, self.W, self.H, self.ButBase)
+    end
+    local sx, sy = GUI.TextSize(self.Text, self.Font)
+    GUI.Text(self.Text, self.W / 2 - sx / 2, self.H / 2 - sy / 2, self.Font, self.TxColor)
+end
+function button:SetText(txt)
+    self.Text = txt
+end
+function button:Touched(x, y)
+    self.Action(self.Parent)
+end
+
+local icobutton = {} --Icon button
+function icobutton:Init(data)
+	self.Text = data[1]
+	if (OS.IsUserApp(self.Parent.Type)) then
+		self.Action = PROTECT(data[2])
+	else
+		self.Action = data[2]
+	end
+	self:SetColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200), OS.GetTextColor())
+	self:SetFont(SmallFont)
+	self:SetIcon16(Icon16None)
+end
+function icobutton:SetIcon16(ico)
+	self.Ico16 = ico
+end
+function icobutton:SetColors(base, over, text)
+	self.ButOver = over
+	self.ButBase = base
+	self.TxColor = text
+end
+function icobutton:SetFont(fnt)
+	self.Font = fnt
+end
+function icobutton:Render(x, y)
+	GUI.RoundedRect(0, 0, self.W + 2, self.H + 2, COLOR(0, 0, 0, 170))
+	if (GUI.MouseInRect(x, y, self.W, self.H)) then
+		GUI.RoundedRect(0, 0, self.W, self.H, self.ButOver)
+	else
+		GUI.RoundedRect(0, 0, self.W, self.H, self.ButBase)
+	end
+	local sx, sy = GUI.TextSize(self.Text, self.Font)
+	GUI.Text(self.Text, self.W / 2 - sx / 2, self.H / 2 - sy / 2, self.Font, self.TxColor)
+	GUI.Icon(2, self.H / 2 - 8, self.Ico16)
+end
+function icobutton:SetText(txt)
+	self.Text = txt
+end
+function icobutton:Touched(x, y)
+	self.Action(self.Parent)
+end
+
+local progress = {} --Progress bar which value goes from 0 to 1
+function progress:Init(data)
+    self.Text = data[2]
+    self.Value = 0
+    self:SetColors(COLOR(255, 255, 255), data[1], OS.GetTextColor())
+    self:SetFont(SmallFont)
+end
+function progress:SetColors(base, charge, text)
+	self.ChargeColor = COLOR(charge[1], charge[2], charge[3], 170)
+	self.BaseColor = base
+	self.TxColor = text
+end
+function progress:SetFont(fnt)
+	self.Font = fnt
+end
+function progress:SetValue(val)
+	if (not(self.Value == val)) then
+    	self.Value = val
+    	self.Parent:NotifyRenderer()
+    end
+end
+function progress:Render()
+	GUI.RoundedRect(0, 0, self.W + 2, self.H + 2, COLOR(0, 0, 0, 170))
+    GUI.RoundedRect(0, 0, self.W, self.H, self.BaseColor)
+    GUI.RoundedRect(0, 0, self.Value * self.W, self.H, self.ChargeColor)
+    GUI.Text(self.Text .. "  (" .. self.Value * 100 .. "%)", 10, self.H / 2 - 8, self.Font, self.TxColor)
+end
+
+local indicator = {}
+function indicator:SetActive(b)
+    self.Active = b
+end
+function indicator:Render()
+    if (self.Active) then
+        GUI.ColoredRect(0, 0, self.W, self.H, COLOR(0, 255, 0))
+    else
+        GUI.ColoredRect(0, 0, self.W, self.H, COLOR(255, 0, 0))
+    end
+end
+
+local label = {}
+function label:Init()
+	self.Color = OS.GetTextColor()
+	self:SetSize(1, 1)
+	self.Font = SmallFont
+end
+function label:SetText(str)
+	self.Text = str
+end
+function label:SetColor(r, g, b)
+	self.Color = COLOR(r, g, b)
+end
+function label:SetFont(fnt)
+	self.Font = fnt
+end
+function label:Render()
+	if (not(self.Text == nil)) then
+		GUI.Text(self.Text, 0, 0, self.Font, self.Color)
+	end
+end
+
+DefineComponent("button", button)
+DefineComponent("icobutton", icobutton)
+DefineComponent("progress", progress)
+DefineComponent("indicator", indicator)
+DefineComponent("label", label)

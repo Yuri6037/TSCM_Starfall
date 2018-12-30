@@ -1,0 +1,105 @@
+--@name BasicPacketsRegistry
+--@author Yuri6037
+
+--The Preload system packet
+RegisterPacket("PRELOAD", {
+	WriteData = function(args)
+		local r = true
+		if (args[1] == "UPD") then
+			r = false
+		end
+
+		if (args[2] == nil) then
+			return {Option = args[1], Par = "null"}, r
+		end
+		return {Option = args[1], Par = args[2]}, r
+	end
+})
+
+--The Load system packet
+RegisterPacket("LOAD", {
+	WriteData = function(args)
+		local r = true
+		if (args[1] == "UPD") then
+			r = false
+		end
+
+		if (args[2] == nil) then
+			return {Option = args[1], Par = "null"}, r
+		end
+		return {Option = args[1], Par = args[2]}, r
+	end
+})
+
+--Screen reload/load packet
+RegisterPacket("RELOAD", {
+	ReadData = function(args)
+		local e = args.Entity
+		if (args.Realm == "CL") then
+			if (not(OnScreenReloadCL == nil)) then
+				OnScreenReloadCL()
+			end
+		elseif (args.Realm == "SV") then
+			if (GettingConstraints) then
+				SendEntityPacket("PRELOAD", e, "START")
+			elseif (Loading) then
+				SendEntityPacket("LOAD", e, "START")
+			else
+				SendEntityPacket("PRELOAD", e, "END")
+				SendEntityPacket("LOAD", e, "END")
+
+				util.RunHook("ScreenLoad", e)
+			end
+		end
+	end
+})
+
+local Funcs = {}
+local FuncPerms = {}
+
+function OSAddFunction(name, func)
+	if (func == nil or name == nil) then return end
+	Funcs[name] = func
+	FuncPerms[name] = "func." .. string.lower(name)
+end
+
+RegisterPacket("FUNC", {
+	ReadData = function(args)
+		local o = args.Option
+		if (Funcs[o] == nil) then
+			util.Log("Core.Packets", LOG_WARN, "Tried to use non existant function : ", o)
+			return
+		end
+		if (not(args.Player:AIHasPerm(FuncPerms[o])) or (CheckAutoMode() and not(args.Player:AIHasPerm("immutable")))) then
+			aiSayGuest(args.Player, "You do not have enough permissions to do that.")
+			util.Log("Core.Packets", LOG_INFO, "Permission denied for '", args.Player, "'")
+			return
+		end
+		Funcs[o](args.Data)
+	end
+})
+
+--The event packet to inform the screen of some action
+RegisterPacket("EVENT", {
+	WriteData = function(args)
+		return {Name = args[1], Data = args[2]}, true
+	end
+})
+
+--Runtime processor informations packet
+RegisterPacket("RUNTIME_INFO", {
+	WriteData = function(args)
+		return {CPUUsage = args[1], OPSUsage = args[2], CrashNumber = args[3]}, false
+	end
+})
+
+--Current process (for slow processes) information packet
+RegisterPacket("PROC", {
+	WriteData = function(args)
+		local r = true
+		if (args[1] == "UPD") then
+			r = false
+		end
+		return {Opt = args[1], Data = args[2]}, r
+	end
+})

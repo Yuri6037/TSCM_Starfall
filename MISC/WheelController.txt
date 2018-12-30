@@ -1,0 +1,44 @@
+--@name WheelController
+--@author Yuri6037
+
+wire.createInputs({"Wheel", "Pod"}, {"Entity", "Wirelink"})
+
+Speed = 100
+
+local OriginalForward = nil
+
+hook("think", "WheelController", function()
+    if (IsValid(wire.ports["Wheel"]) and not(wire.ports["Pod"] == nil)) then
+        local pod = wire.ports["Pod"]
+        local ent = wire.ports["Wheel"]
+        if (OriginalForward == nil) then
+            OriginalForward = ent:forward()
+        end
+        local phys = ent:getPhysicsObject()
+        if (pod["Active"] == 1) then
+            if (pod["W"] == 1) then
+                local f = ent:forward()
+                f.roll = 0
+                f.pitch = 0
+                phys:applyForceCenter(f * Speed)
+            end
+            if (pod["S"] == 1) then
+                local f = ent:forward()
+                f.roll = 0
+                f.pitch = 0
+                phys:applyForceCenter(f * -Speed)
+            end
+            if (pod["Q"] == 1) then
+                local f = ent:forward()
+                f.roll = 0
+                f.pitch = 0
+                phys:applyForceOffset(ent:right() * 0.5, f * -50)
+            end
+            if (pod["D"] == 1) then
+                local f = ent:forward()
+                f.roll = 0
+                phys:applyForceOffset(ent:right() * -0.5, f * -50)
+            end
+        end
+    end
+end)

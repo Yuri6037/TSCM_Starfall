@@ -1,0 +1,12 @@
+--@name WindowScaleX3Holo
+--@author Yuri6037
+--@shared
+
+if (SERVER) then
+	ents.self():setColor(Color(0, 0, 0, 0))
+
+	local ang = ents.self():getAngles()
+	ang:RotateAroundAxis(ents.self():up(), 90)
+	local prop = holograms.create(ents.self():pos(), ang, "models/cerus/modbridge/plate/flat/s11g2.mdl", Vector(3, 1, 1))
+	prop:setParent(ents.self())
+end

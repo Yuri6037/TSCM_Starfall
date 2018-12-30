@@ -1,0 +1,133 @@
+--@name SystemsCommands
+--@author Yuri6037
+
+AIRegisterCommand("enable", function(args, ply)
+	local o = args[1]
+	if (o == "ls" or o == "lifesupport") then
+		Ship.LS["Activate"] = 1
+		return Command.PASSING, "Activated life support core."
+	elseif (o == "energy") then
+		Ship.EnergyGen["Activate"] = 1
+		return Command.PASSING, "Activated energy generator."
+	elseif (o == "refinement" or o == "refinery") then
+		Ship.GazGen["Activate"] = 1
+		return Command.PASSING, "Activated refinement core."
+	end
+	return Command.INVALID_ARGUMENT, "1 (option ls/lifesupport/energy/refinement/refinery)"
+end, {"Enables a system.", "<command> <option>", "Option : ls/lifesupport, energy, refinement/refinery"}, {"string"}, {"activate", "sysenable", "sysactivate", "start"}, 1)
+
+AIRegisterCommand("disable", function(args, ply)
+	local o = args[1]
+	if (o == "ls" or o == "lifesupport") then
+		Ship.LS["Activate"] = 0
+		return Command.PASSING, "Deactivated life support core."
+	elseif (o == "energy") then
+		Ship.EnergyGen["Activate"] = 0
+		return Command.PASSING, "Deactivated energy generator."
+	elseif (o == "refinement" or o == "refinery") then
+		Ship.GazGen["Activate"] = 0
+		return Command.PASSING, "Deactivated refinement core."
+	end
+	return Command.INVALID_ARGUMENT, "1 (option ls/lifesupport/energy/refinement/refinery)"
+end, {"Disables a system.", "<command> <option>", "Option : ls/lifesupport, energy, refinement/refinery"}, {"string"}, {"deactivate", "sysdisable", "sysdeactivate", "stop"}, 1)
+
+AIRegisterCommand("autoprobe", function(args, ply)
+	if (not(Ship.Water == nil)) then
+		StartShipAutoLoad()
+		return Command.PASSING, "The water collector may spawn automatically..."
+	else
+		return Command.ERROR_CUSTOM, "no water core !"
+	end
+end, {"Automatic probe.", "<command>"}, {}, {"automaticprobe", "automaticspawprobe", "autocollector", "automaticcollector"})
+
+AIRegisterCommand("alert", function(args, ply)
+	local o = args[1]
+	if (o == "low") then
+		UpdateAlertStatus(2)
+		return Command.PASSING
+	elseif (o == "normal") then
+		UpdateAlertStatus(1)
+		return Command.PASSING
+	elseif (o == "high") then
+		UpdateAlertStatus(0)
+		return Command.PASSING
+	elseif (o == "off") then
+		UpdateAlertStatus(3)
+		return Command.PASSING
+	end
+	return Command.INVALID_ARGUMENT, "1 (option low/normal/high)"
+end, {"Sets alert level.", "<command> <option>", "Option : low, normal, high"}, {"string"}, {"alertset", "setalert"}, 1)
+
+AIRegisterCommand("evacuation", function(args, ply)
+	ToggleEvacuation()
+	return Command.PASSING
+end, {"Toggles ship evacuation.", "<command>"}, {}, {"evac"}, 0)
+
+AIRegisterCommand("shields", function(args, ply)
+	if (Ship.Shield == nil) then
+		return Command.ERROR_CUSTOM, "ship has no shields !"
+	end
+	local o = args[1]
+	if (o == "on" or o == "up") then
+		Ship.Shield["Activate"] = 1
+		return Command.PASSING, "Activated shields."
+	elseif (o == "off" or o == "down") then
+		Ship.Shield["Activate"] = 0
+		return Command.PASSING, "Deactivated shields."
+	end
+	return Command.INVALID_ARGUMENT, "1 (option on/up/off/down)"
+end, {"Manage shields.", "<command> <option>", "Option : on/up, off/down"}, {"string"}, {}, 1)
+
+AIRegisterCommand("cloak", function(args, ply)
+	if (Ship.Cloak == nil) then
+		return Command.ERROR_CUSTOM, "ship has no cloak !"
+	end
+	local o = args[1]
+	if (o == "on") then
+		Ship.Shield["Activate"] = 1
+		return Command.PASSING, "Ship is now cloaked."
+	elseif (o == "off") then
+		Ship.Shield["Activate"] = 0
+		return Command.PASSING, "Ship is now uncloaked."
+	end
+	return Command.INVALID_ARGUMENT, "1 (option on/off)"
+end, {"Manage cloak.", "<command> <option>", "Option : on, off"}, {"string"}, {"cloaking"}, 1)
+
+AIRegisterCommand("systeminfo", function(args, ply)
+	if (Ship.Node == nil) then
+		return Command.ERROR_CUSTOM, "No ship node found."
+	end
+	local o = args[1]
+	if (o == "energy") then
+		local val = Ship.Node["Energy"] / Ship.Node["Max Energy"]
+		return Command.PASSING, "Energy level is at " .. math.round(val * 100, 2) .. "%"
+	elseif (o == "oxygen" or o == "o2") then
+		local val = Ship.Node["Oxygen"] / Ship.Node["Max Oxygen"]
+		return Command.PASSING, "Oxygen level is at " .. math.round(val * 100, 2) .. "%"
+	elseif (o == "water" or o == "h2o") then
+		local val = Ship.Node["Water"] / Ship.Node["Max Water"]
+		return Command.PASSING, "Water level is at " .. math.round(val * 100, 2) .. "%"
+	elseif (o == "deuterium") then
+		local val = Ship.Node["Deuterium"] / Ship.Node["Max Deuterium"]
+		return Command.PASSING, "Deuterium level is at " .. math.round(val * 100, 2) .. "%"
+	elseif (o == nil) then
+		local val = Ship.Node["Energy"] / Ship.Node["Max Energy"]
+		local val1 = Ship.Node["Oxygen"] / Ship.Node["Max Oxygen"]
+		local val2 = Ship.Node["Water"] / Ship.Node["Max Water"]
+		local val3 = Ship.Node["Deuterium"] / Ship.Node["Max Deuterium"]
+		local str = "Resources : "
+		if (val > 0) then
+			str = str .. "Energy (" .. math.round(val * 100, 2) .. "%) "
+		end
+		if (val1 > 0) then
+			str = str .. "Oxygen (" .. math.round(val1 * 100, 2) .. "%) "
+		end
+		if (val2 > 0) then
+			str = str .. "Water (" .. math.round(val2 * 100, 2) .. "%) "
+		end
+		if (val3 > 0) then
+			str = str .. "Deuterium (" .. math.round(val3 * 100, 2) .. "%) "
+		end
+		return Command.PASSING, str
+	end
+end, {"Views system informations.", "<command> <option>", "Option : energy, oxygen/o2, water/h2o, deuterium"}, {"string"}, {"sysinfo", "sysstats", "systemstats"}, 0)

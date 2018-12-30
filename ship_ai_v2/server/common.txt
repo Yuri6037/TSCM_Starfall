@@ -1,0 +1,447 @@
+--@name ServerCommon
+--@author Yuri6037
+
+--Forces to send the data of the current gui
+ForceSend = false
+
+function CheckEnergy()
+	local percent = Ship.Node["Energy"] * 100 / Ship.Node["Max Energy"]
+	return percent > 5
+end
+
+function WarpToDefinedDirection(name)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (name == nil) then
+		aiSay("Unable to perform : destination is NULL !")
+	end
+
+	local dir = nil
+	if (name == "back") then
+		if (ShipVars.BackWarp == nil) then
+			aiSay("You have no previous location !")
+			return false
+		end
+		dir = ShipVars.BackWarp
+	elseif (name == "desert") then
+		dir = Vector(11580, -8964, -9120)
+	elseif (name == "earth") then
+		dir = Vector(1483, 8202, 8368)
+	elseif (name == "shakuras") then
+		dir = Vector(-6145, -5620, 7179)
+	elseif (name == "build") then
+		dir = Vector(14084, 14122, -15203)
+	elseif (name == "hiigara") then
+		dir = Vector(7328, 9624, -5677)
+	elseif (name == "spaceStation") then
+		dir = Vector(5371, -7552, 8901)
+	elseif (name == "hell") then
+		dir = Vector(-11127, 1425, -3645)
+	end
+	if (not(dir == nil)) then
+		ShipVars.BackWarp = Ship.Warp:entity():getPos()
+		Ship.Warp["Destination"] = dir
+		Ship.Warp["Activate"] = 1
+		if (name == "back") then
+			aiSay("Warping to your previous location !")
+		else
+			aiSay("Warping to " .. name .. " !")
+		end
+		return true
+	else
+		local vec = GetWarpPointFromName(name)
+		if (vec == nil) then
+			aiSay("This warp point does not exist !")
+			return false
+		end
+		ShipVars.BackWarp = Ship.Warp:entity():getPos()
+		Ship.Warp["Destination"] = vec
+		Ship.Warp["Activate"] = 1
+		aiSay("Warping to " .. name .. " !")
+		return true
+	end
+end
+
+function WarpToPlayer(ply)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (not(IsValid(ply))) then
+		aiSay("You can't warp to a NULL player !")
+		return false
+	end
+
+	ShipVars.BackWarp = Ship.Warp:entity():getPos()
+	Ship.Warp["Destination"] = ply:getPos()
+	Ship.Warp["Activate"] = 1
+	return true
+end
+
+function WarpToVector(vec)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+
+	ShipVars.BackWarp = Ship.Warp:entity():getPos()
+	Ship.Warp["Destination"] = vec
+	Ship.Warp["Activate"] = 1
+	return true
+end
+
+function WarpToAngle(ang)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+
+	Ship.Warp["Destination"] = Ship.Warp:entity():getPos()
+	Ship.Warp["Angle Offset"] = ang
+	Ship.Warp["Activate"] = 1
+	timer.create("ShipAI_VariableReset", 1, 1, function()
+		Ship.Warp["Angle Offset"] = Angle(0, 0, 0)
+	end)
+	return true
+end
+
+--Beaming functions
+function BeamToPoint(pt)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+
+	local vec = GetBeamPointFromName(pt)
+	if (vec == nil) then
+		aiSay("No such beam point name !")
+		return false
+	end
+	if (stargate.locationJammed(vec)) then
+		aiSay("This point is in a jammed location !")
+		return false
+	end
+	Ship.TP["TargetLocation"] = vec
+	Ship.TP["Beam from pads"] = 1
+	--[[timer.create("Ship_AI_BeamStop", 1, 1, function()
+		Ship.TP["TargetLocation"] = Vector(0, 0, 0)
+		Ship.TP["Beam from pads"] = 0
+	end)]]--
+	--TODO : replace timer
+	return true
+end
+function BeamPlayer(ply)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	if (not(IsValid(ply))) then
+		aiSay("You can't beam a NULL player !")
+		return false
+	end
+
+	if (stargate.locationJammed(ply:getPos())) then
+		aiSay("This player is in a jammed location !")
+		return false
+	end
+
+	Ship.TP["Target1"] = ply
+	Ship.TP["Beam to pads"] = 1
+	--[[timer.create("Ship_AI_BeamBackStop", 1, 1, function()
+		Ship.TP["Target1"] = nil
+		Ship.TP["Beam to pads"] = 0
+	end)]]--
+	--TODO : replace timer
+	return true
+end
+function BeamToPad(pad)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	if (not(IsValid(pad))) then
+		aiSay("You can't beam to a NULL pad !")
+		return false
+	end
+
+	if (stargate.locationJammed(pad:getPos())) then
+		aiSay("This pad is in a jammed location !")
+		return false
+	end
+
+	Ship.TP["Target Pad"] = pad
+	Ship.TP["Beam from pads"] = 1
+	--[[timer.create("Ship_AI_BeamPadStop", 1, 1, function()
+		Ship.TP["Target Pad"] = nil
+		Ship.TP["Beam from pads"] = 0
+	end)]]--
+	--TODO : replace timer
+	return true
+end
+--End
+
+function FindFactionsMembers()
+	local fac = faction.getFaction(ents.owner())
+	if (fac == nil) then
+		return {ents.owner()}
+	end
+	return faction.getOnlinePlayers(fac)
+end
+
+function IsPlayerInFaction(ply)
+	local f = faction.getFaction(ply)
+	local f1 = faction.getFaction(ents.owner())
+	return f == f1
+end
+
+--
+--Beam points manager
+--
+function GetBeamList()
+	if (not(files.exists("beams.txt", "/ship_ai_v2/"))) then
+		return {}
+	end
+
+	local list = {}
+
+	local str = files.read("beams.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	for k, v in pairs(nameTbl) do
+		table.insert(list, StringSplit(v, "=")[1])
+	end
+
+	return list
+end
+
+function GetBeamPointFromName(name)
+	if (not(files.exists("beams.txt", "/ship_ai_v2/"))) then
+		return nil
+	end
+
+	local str = files.read("beams.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	for k, v in pairs(nameTbl) do
+		if (StringStartWith(v, name .. "=")) then
+			local tbl = StringSplit(StringReplace(v, name .. "=", ""), ",")
+			local x = tbl[1]
+			local y = tbl[2]
+			local z = tbl[3]
+			return Vector(tonumber(x), tonumber(y), tonumber(z))
+		end
+	end
+
+	return nil
+end
+
+function SaveBeamPoint(name, pos)
+	local str = pos.x .. "," .. pos.y .. "," .. pos.z
+	if (not(files.exists("beams.txt", "/ship_ai_v2/"))) then
+		files.write("beams.txt", name .. "=" .. str, "/ship_ai_v2/")
+	else
+		files.append("beams.txt", "\n" .. name .. "=" .. str, "/ship_ai_v2/")
+	end
+end
+
+function DeleteBeamPoint(name)
+	if (not(files.exists("beams.txt", "/ship_ai_v2/"))) then
+		return false
+	end
+
+	local str = files.read("beams.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	local flag = false
+	for k, v in pairs(nameTbl) do
+		if (StringStartWith(v, name .. "=")) then
+			table.remove(nameTbl, k)
+			flag = true
+			break
+		end
+	end
+	if (flag) then
+		local data = ""
+		for k1, v1 in pairs(nameTbl) do
+			data = data .. "\n" .. v1
+		end
+		files.write("beams.txt", data, "/ship_ai_v2/")
+		return true
+	else
+		return false
+	end
+end
+--
+--End
+--
+
+
+function RoundNumber(num, idp)
+	local mult = 10^(idp or 0)
+	return math.floor(num * mult + 0.5) / mult
+end
+
+
+--
+--Custom warps locations
+--
+function GetWarpList()
+	if (not(files.exists("warps.txt", "/ship_ai_v2/"))) then
+		return {}
+	end
+
+	local list = {}
+
+	local str = files.read("warps.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	for k, v in pairs(nameTbl) do
+		table.insert(list, StringSplit(v, "=")[1])
+	end
+
+	return list
+end
+
+function GetWarpPointFromName(name)
+	if (not(files.exists("warps.txt", "/ship_ai_v2/"))) then
+		return nil
+	end
+
+	local str = files.read("warps.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	for k, v in pairs(nameTbl) do
+		if (StringStartWith(v, name .. "=")) then
+			local tbl = StringSplit(StringReplace(v, name .. "=", ""), ",")
+			local x = tbl[1]
+			local y = tbl[2]
+			local z = tbl[3]
+			return Vector(tonumber(x), tonumber(y), tonumber(z))
+		end
+	end
+
+	return nil
+end
+
+function SaveWarpPoint(name, pos)
+	local str = pos.x .. "," .. pos.y .. "," .. pos.z
+	if (not(files.exists("warps.txt", "/ship_ai_v2/"))) then
+		files.write("warps.txt", name .. "=" .. str, "/ship_ai_v2/")
+	else
+		files.append("warps.txt", "\n" .. name .. "=" .. str, "/ship_ai_v2/")
+	end
+end
+
+function DeleteWarpPoint(name)
+	if (not(files.exists("warps.txt", "/ship_ai_v2/"))) then
+		return false
+	end
+
+	local str = files.read("warps.txt", "/ship_ai_v2/")
+
+	local nameTbl = StringSplit(str, "\n")
+	local flag = false
+	for k, v in pairs(nameTbl) do
+		if (StringStartWith(v, name .. "=")) then
+			table.remove(nameTbl, k)
+			flag = true
+			break
+		end
+	end
+	if (flag) then
+		local data = ""
+		for k1, v1 in pairs(nameTbl) do
+			data = data .. "\n" .. v1
+		end
+		files.write("warps.txt", data, "/ship_ai_v2/")
+		return true
+	else
+		return false
+	end
+end
+--
+--End
+--
+
+function ToggleEvacuation()
+	Evacuation = HackBooleanCInvert(Evacuation)
+	StartNet(function()
+		net.writeString("E")
+	end)
+	if (not(Evacuation)) then
+		OPSLoopHackLib.PirateLoop("ShipAI_II_EvaLoop_Stop", Ship.EvaProps, function(v, cur)
+			v.Prop:setSubMaterial(v.ID_LIGHT, "cmats/light")
+			v.Prop:setSubMaterial(v.ID_METAL, "cmats/base_metal_light")
+			v.Emitter:stop()
+		end)
+
+		timer.remove("Ship_AI_EvacuateTimer")
+	else
+		OPSLoopHackLib.PirateLoop("ShipAI_II_EvaLoop_Start", Ship.EvaProps, function(v, cur)
+			v.Prop:setSubMaterial(v.ID_LIGHT, "cmats/flash_red")
+			v.Prop:setSubMaterial(v.ID_METAL, "cmats/flash_red")
+			v.Emitter:setVolume(1)
+			v.Emitter:play()
+		end)
+		aiSay("Evacuation is engaged ; evacuate the ship now !")
+		timer.create("Ship_AI_EvacuateTimer", 10, 0, function()
+			if (not(EvacuationBeam == nil)) then
+				BeamToPoint(EvacuationBeam)
+			end
+			aiSay("Evacuation is engaged ; evacuate the ship now !")
+		end)
+	end
+end
+
+function UpdateAlertStatus(id)
+	if (id == 0) then
+		for k, v in pairs(Ship.EvaProps) do
+			v.Prop:setSubMaterial(v.ID_METAL, "glow/flash_blue")
+			v.Prop:setSubMaterial(v.ID_LIGHT, "cmats/flash_red")
+		end
+	elseif (id == 1) then
+		for k, v in pairs(Ship.EvaProps) do
+			v.Prop:setSubMaterial(v.ID_LIGHT, "glow/flash_blue")
+			v.Prop:setSubMaterial(v.ID_METAL, "glow/flash_blue")
+		end
+	elseif (id == 2) then
+		for k, v in pairs(Ship.EvaProps) do
+			v.Prop:setSubMaterial(v.ID_LIGHT, "glow/flash_blue")
+		end
+	elseif (id == 3) then
+		for k, v in pairs(Ship.EvaProps) do
+			v.Prop:setSubMaterial(v.ID_LIGHT, "cmats/light")
+			v.Prop:setSubMaterial(v.ID_METAL, "cmats/base_metal_light")
+		end
+	end
+end

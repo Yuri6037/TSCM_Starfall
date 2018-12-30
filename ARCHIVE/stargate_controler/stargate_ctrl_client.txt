@@ -1,0 +1,215 @@
+--@name StargateControler_Client
+--@author Yuri6037
+
+--The engine used to display/manage screens
+--@include lanai/libs/screen/screen_engine.txt
+require("lanai/libs/screen/screen_engine.txt")
+
+--@include stargate_controler/dial_screen.txt
+require("stargate_controler/dial_screen.txt")
+
+--@include stargate_controler/lockdown_screen.txt
+require("stargate_controler/lockdown_screen.txt")
+
+require("lanai/libs/screen/safe_net.txt")
+
+SgFontAd = Screen.StandardFont
+local SgFontTi = Screen.TitleFont
+
+local TitFont = render.createFont("federation", 40, 900, false, false, true, false, false)
+
+Data = {}
+StargateAddressList = {}
+DangerGates = {}
+
+StartNet(function()
+	net.writeString("REBOOT")
+end)
+
+function UpdateStargateFont()
+	if (Data.Type == 0) then
+		SgFontAd = render.createFont("Stargate Address Glyphs U", 40, 900, false, false, true, false, false)
+		SgFontTi = render.createFont("Stargate Address Glyphs U", 100, 900, false, false, true, false, false)
+	elseif (Data.Type == 1) then
+		SgFontAd = render.createFont("Stargate Address Glyphs Atl", 18, 900, false, false, true, false, false)
+		SgFontTi = render.createFont("Stargate Address Glyphs Atl", 100, 900, false, false, true, false, false)
+	elseif (Data.Type == 2) then
+		SgFontAd = render.createFont("Stargate Address Glyphs Sg1", 24, 900, false, false, true, false, false)
+		SgFontTi = render.createFont("Stargate Address Glyphs Sg1", 100, 900, false, false, true, false, false)
+	end
+end
+
+local mainScreen = {}
+mainScreen.Name = "Main"
+local id = render.getTextureID("phoenix_storms/wire/pcb_blue")
+function mainScreen:OnRender()
+	gl.glBindColor(133, 133, 133)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(145, 145, 145)
+	gl.glBindFont(TitFont)
+	local n = Data.Name
+	if (n == nil) then n = "" end
+	local w = gl.glTextWidth(n)
+	gl.glText(n, 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	RenderStargateData()
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	if (not(Data.Type == nil)) then
+		local p = "Stargate - ERROR"
+		if (Data.Type == 0) then
+			p = "Stargate - SGU"
+		elseif (Data.Type == 1) then
+			p = "Stargate - SGA"
+		elseif (Data.Type == 2) then
+			p = "Stargate - SG1"
+		end
+
+		gl.glBindFont(Screen.StandardFont)
+		local s = gl.glTextWidth(p)
+		gl.glBindColor(0, 255, 0)
+		gl.glText(p, 256 - s / 2, 470)
+	end
+end
+function mainScreen:OnShow()
+	Screen:AddControl("Button", 10, 440, 128, 32, {Selected = false, Text = "Close", Func = function()
+		StartNet(function()
+			net.writeString("C")
+		end)
+	end})
+	Screen:AddControl("Button", 148, 440, 128, 32, {Selected = false, Text = "Shield", Func = function()
+		StartNet(function()
+			net.writeString("S")
+		end)
+	end})
+
+	Screen:AddControl("Button", 375, 440, 128, 32, {Selected = false, Text = "DialScreen", Func = function()
+		StartNet(function()
+			net.writeString("SWGUI")
+		end)
+	end})
+end
+function mainScreen:OnExit()
+end
+function mainScreen:OnTouched(mouseX, mouseY)
+end
+
+Screen:Register(mainScreen)
+
+Screen:Display("Main")
+
+function RenderStargateData()
+	if (Data.Inbound) then
+		local w = gl.glTextWidth("ATTENTION : INCOMING PASSENGER !")
+		gl.glBindColor(255, 0, 0, 128)
+		gl.glRect(0, 0, 512, 512)
+
+		gl.glBindColor(255, 0, 0, 255)
+		gl.glText("ATTENTION : INCOMING PASSENGER !", 256 - w / 2, 64)
+
+		if (Data.InboundName == nil) then Data.InboundName = "" end
+		local w = gl.glTextWidth("NAME : " .. Data.InboundName)
+		gl.glBindColor(255, 0, 0, 255)
+		gl.glText("NAME : " .. Data.InboundName, 256 - w / 2, 100)
+	end
+
+	gl.glBindColor(0, 255, 0)
+	if (Data.Active and Data.Open) then
+		if (table.hasValue(DangerGates, Data.Address)) then
+			gl.glBindColor(255, 0, 0)
+			local w = gl.glTextWidth("WARNING : UNSAFE DESTINATION !")
+			gl.glText("WARNING : UNSAFE DESTINATION !", 256 - w / 2, 340)
+		else
+			local w = gl.glTextWidth("Connection Established !")
+			gl.glText("Connection Established !", 256 - w / 2, 340)
+		end
+	elseif (Data.Active and not(Data.Open)) then
+		local w = gl.glTextWidth("Establishing Connection...")
+		gl.glText("Establishing Connection...", 256 - w / 2, 340)
+	else
+		local w = gl.glTextWidth("IDLE")
+		gl.glText("IDLE", 256 - w / 2, 340)
+	end
+
+	gl.glBindColor(255, 0, 0)
+	if (Data.Shield) then
+		local w = gl.glTextWidth("Shield is Activated !")
+		gl.glText("Shield is Activated !", 256 - w / 2, 380)
+	else
+		local w = gl.glTextWidth("Shield is Desactivated !")
+		gl.glText("Shield is Desactivated !", 256 - w / 2, 380)
+	end
+
+	if (not(Data.Address == nil)) then
+		if (Data.Inbound) then
+			gl.glBindFont(Screen.StandardFont)
+			local w = gl.glTextWidth("Inbound Address : ")
+			gl.glBindFont(SgFontAd)
+			local w1 = gl.glTextWidth(Data.Address)
+
+			gl.glBindFont(Screen.StandardFont)
+			gl.glBindColor(255, 0, 0, 255)
+			gl.glText("Inbound Address : ", (256 - w / 2) - w1 / 2, 160)
+			gl.glBindFont(SgFontAd)
+			gl.glBindColor(255, 255, 0, 255)
+			gl.glText(Data.Address, (256 - w1 / 2) + w / 2, 160)
+		else
+			gl.glBindFont(Screen.StandardFont)
+			local w = gl.glTextWidth("Dialing Address : ")
+			gl.glBindFont(SgFontAd)
+			local w1 = gl.glTextWidth(Data.Address)
+
+			gl.glBindFont(Screen.StandardFont)
+			gl.glBindColor(255, 255, 255, 255)
+			gl.glText("Dialing Address : ", (256 - w / 2) - w1 / 2, 160)
+			gl.glBindFont(SgFontAd)
+			gl.glBindColor(255, 255, 0, 255)
+			gl.glText(Data.Address, (256 - w1 / 2) + w / 2, 160)
+		end
+	end
+
+	gl.glBindColor(0, 0, 0, 200)
+	gl.glRect(192, 192, 128, 128)
+	gl.glBindFont(SgFontTi)
+	if (Data.Symbol == nil) then Data.Symbol = "" end
+	local w = gl.glTextWidth(Data.Symbol)
+	gl.glBindColor(255, 255, 255)
+	gl.glText(Data.Symbol, 256 - w / 2, 200)
+end
+
+hook("net", "StargateControler_Receiver", function(len)
+	local cmd = net.readString()
+	if (cmd == "UPD") then
+		Data = net.readTable()
+		UpdateStargateFont()
+	elseif (cmd == "UPDST") then
+		StargateAddressList = pirateStargateAddressList(net.readTable())
+	elseif (cmd == "G") then
+		local gui = net.readInt(4, true)
+		if (gui == 0) then
+			Screen:Display("Main")
+		else
+			Screen:Display("Dial")
+		end
+	elseif (cmd == "LOCK") then
+		Screen:Display("Locked")
+	elseif (cmd == "UNLOCK") then
+		Screen:Display("Main")
+	end
+end)

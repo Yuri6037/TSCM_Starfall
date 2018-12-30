@@ -1,0 +1,64 @@
+--@name TimerDeviceManager
+--@author Yuri6037
+
+local IsRunning = false
+local TimeRemaining = 0
+--NOTE : The time is in seconds
+function StartTimerCountdown(time, callback)
+	if (IsRunning) then return end
+	IsRunning = true
+	TimeRemaining = time
+	task.Start(function()
+		local mins = TimeRemaining / 60
+		local secs = TimeRemaining - (mins * 60)
+		for k, v in pairs(Ship.Timers) do
+			v["Reset"] = 1
+			v["Minutes"] = mins
+			v["Seconds"] = secs
+		end
+		TimeRemaining = TimeRemaining - 1
+		if (TimeRemaining < 0) then
+			TimeRemaining = 0
+			IsRunning = false
+			for k, v in pairs(Ship.Timers) do
+				v["Reset"] = 1
+				v["Minutes"] = 0
+				v["Seconds"] = 0
+			end
+			callback()
+			task.End("LanAI_TimerCountdown")
+			return
+		end
+	end, "LanAI_TimerCountdown", 1)
+end
+
+function EndTimerCountdown()
+	task.End("LanAI_TimerCountdown")
+	TimeRemaining = 0
+	IsRunning = false
+	for k, v in pairs(Ship.Timers) do
+		v["Reset"] = 1
+		v["Minutes"] = 0
+		v["Seconds"] = 0
+	end
+end
+
+function IsTimerInProgress()
+	return IsRunning
+end
+
+function AddTime(time)
+    TimeRemaining = TimeRemaining + time
+end
+
+function RemoveTime(time)
+    TimeRemaining = TimeRemaining - time
+end
+
+Ship.Timers = {}
+RegisterDriver({"destiny_timer"}, function(ent)
+	ent:getWirelink()["Disable Use"] = 1
+	ent:getWirelink()["Normal Font"] = 1
+	table.insert(Ship.Timers, ent:getWirelink())
+	return true
+end)

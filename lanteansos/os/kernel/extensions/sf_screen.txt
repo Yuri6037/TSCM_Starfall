@@ -1,0 +1,63 @@
+--@name SF_ScreenKernelExtension
+--@author Yuri6037
+
+--Mouse handling vars
+local FrameMsX = nil
+local FrameMsY = nil
+local prevX = 0
+local prevY = 0
+
+local KernelVars = OS.GetKernelVars()
+
+local Player = KernelVars.Player
+local Self = KernelVars.Self
+
+if (OS.IsScreen()) then
+	local w, h = 512, 512
+	if (render.getIsHighRes()) then
+		w, h = 1024, 1024
+	elseif (render.getIsWidescreen()) then
+		w, h = 1024, 512
+	end
+	ScrW = w
+	ScrH = h
+
+	function OS.MousePos()
+		return FrameMsX, FrameMsY
+	end
+
+	local function SFScreenMainRender()
+		if (KernelVars.KillRender) then return end
+		FrameMsX, FrameMsY = render.cursorPos(Player)
+		if (FrameMsX == nil or FrameMsY == nil) then
+			FrameMsX, FrameMsY = prevX, prevY
+			KernelVars.IsOnScr = false
+		else
+			prevX, prevY = FrameMsX, FrameMsY
+			KernelVars.IsOnScr = true
+		end
+		if (not(KernelVars.CurScreen == nil)) then
+			KernelVars.CurScreen:Render()
+			KernelVars.CurScreen:Update(time.frameTime())
+		end
+	end
+	hook("render", "LanteansOS_Render", SFScreenMainRender)
+
+--621200
+	local Hooked = true
+	timer.create("LanteansOS_RenderCheckArea", 1, 0, function()
+		if (Player:pos():DistToSqr(Self:pos()) >= 30000 and Hooked) then
+			Parametters["LoadTXT"] = "Reconnecting..."
+			OS.SwitchScreen("boot")
+			hook.remove("render", "LanteansOS_Render")
+			Hooked = false
+			net.SendPacket("DISCONNECT")
+		elseif (Player:pos():DistToSqr(Self:pos()) < 30000 and not(Hooked)) then
+			hook("render", "LanteansOS_Render", SFScreenMainRender)
+			Hooked = true
+			net.SendPacket("CONNECT")
+		end
+	end)
+
+	net.SendPacket("CONNECT")
+end

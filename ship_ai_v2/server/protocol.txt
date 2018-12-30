@@ -1,0 +1,104 @@
+--@name Protocol
+--@author Yuri6037
+
+timer.create("ShipAI_II_UpdateWireHooks", 1, 0, function()
+	if (not(Evacuation)) then
+		timer.remove("Ship_AI_EvacuateTimer")
+	end
+	if (not(Ship.Probe == nil)) then
+		if (CurGUI == 1) then
+			Ship.Probe["Activate"] = 1
+		else
+			Ship.Probe["Activate"] = 0
+		end
+	end
+
+	if (not(CurGUI == -1)) then
+		if (CurGUI == 1) then
+			local b, tbl = CheckStatusNeedUpdate()
+			if (b) then
+				StartNet(function()
+					net.writeString("T")
+					net.writeTable(tbl)
+				end)
+			end
+			ForceSend = false
+		elseif (CurGUI == 2) then
+			local b, tbl = CheckResourcesNeedUpdate()
+			if (b) then
+				StartNet(function()
+					net.writeString("T")
+					net.writeTable(tbl)
+				end)
+			end
+			ForceSend = false
+		elseif (CurGUI == 3) then
+			local b, tbl = CheckCombatNeedUpdate()
+			if (b) then
+				StartNet(function()
+					net.writeString("T")
+					net.writeTable(tbl)
+				end)
+			end
+			ForceSend = false
+		end
+	end
+end)
+
+local ShipSides = {
+	"Left",
+	"Right",
+	"Front",
+	"Back",
+	"Up",
+	"Down"
+}
+function GetSideIDFromName(name)
+	if (name == nil) then
+		return -1
+	end
+
+	if (name == "Left") then
+		return 3
+	elseif (name == "Right") then
+		return 4
+	elseif (name == "Front") then
+		return 1
+	elseif (name == "Back") then
+		return 2
+	elseif (name == "Up") then
+		return 5
+	elseif (name == "Down") then
+		return 6
+	end
+end
+hook("think", "AI2_SystemWorker", function()
+	if (not(Ship.Shield == nil) and not(Ship.Core == nil)) then
+		if (Ship.Shield["Active"] == 1) then
+			local energyPerSide = Ship.Shield["Max Charge"] / 6
+			local highestDamagedSide = "Left"
+			for k, v in pairs(ShipSides) do
+				if (Ship.Shield[v] < energyPerSide and Ship.Shield[v] < Ship.Shield[highestDamagedSide]) then
+					highestDamagedSide = v
+				end
+			end
+
+			local toDivertTo = GetSideIDFromName(highestDamagedSide)
+			Ship.Shield["Divert Power"] = toDivertTo
+		else
+			if (Ship.Core["Health"] < Ship.Core["Max Health"]) then
+				Ship.Shield["Activate"] = 1
+				aiSay("Shields have been automaticaly activated to prevent ship destruction !")
+			end
+		end
+	end
+
+	if (not(Ship.Core == nil)) then
+		local percent = Ship.Core["Health"] * 100 / Ship.Core["Max Health"]
+		if (percent <= 20 and not(Evacuation)) then
+			ToggleEvacuation()
+		end
+		local ent = Ship.Core:entity()
+		local min, max = ent:getShipSize()
+	end
+end)

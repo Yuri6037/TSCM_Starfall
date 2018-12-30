@@ -1,0 +1,33 @@
+--@name Ship AI II LibProtocol
+--@author Yuri6037
+
+if (SERVER) then
+	channels.listenPrivate(function(ent, ...)
+		local arg = {...}
+		local cmd = arg[1]
+		if (cmd == "IsLocked") then
+			channels.sendPrivate(screenLocked)
+		elseif (cmd == "GetCore") then
+			channels.sendPrivate(Ship.Core)
+		elseif (cmd == "GetShield") then
+			channels.sendPrivate(Ship.Shield)
+		elseif (cmd == "RegFunc") then
+			local tbl = arg[2]
+			RegisterFunction(tbl.Name, tbl.Func, tbl.Help)
+		elseif (cmd == "GetPad") then
+			channels.sendPrivate(Ship.TP)
+		elseif (cmd == "GetNode") then
+			channels.sendPrivate(Ship.Node)
+		elseif (cmd == "GetWarp") then
+			channels.sendPrivate(Ship.Warp)
+		elseif (cmd == "IsLoaded") then
+			channels.sendPrivate(not(Loading))
+		elseif (cmd == "BackWarpSet") then
+			ShipVars.BackWarp = arg[2]
+		elseif (cmd == "AISay") then
+			aiSay(arg[2])
+		elseif (cmd == "AISayGuest") then
+			aiSay(arg[2])
+		end
+	end)
+end

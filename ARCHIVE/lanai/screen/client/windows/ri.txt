@@ -1,0 +1,58 @@
+--@name WindowRI
+--@author Yuri6037
+
+Screen:RegisterWindow("RI", "Runtime Infos", 256, 256, function()
+	--Open func
+end, function()
+	--Close func
+end, function()
+	--Render func
+
+	--local tsec = time.realTime() - ProcessorInfo.LastUpdated
+	--if (tsec > 5) then
+	--	gl.glBindColor(255, 0, 0)
+	--	gl.glText("Lost connection with processor for " .. tsec .. " seconds.", 20, 160)
+	--	if (tsec > 20) then
+	--		gl.glText("There is a problem with the processor, sounds like it crashed.", 20, 200)
+	--	end
+	--end
+
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 100, 256, 2)
+	gl.glText("Client Instance", 0, 0)
+
+	local p = cpuAverage() * 100 / cpuMax()
+	gl.glText("CPU : " .. math.floor(p) .. "%", 0, 30)
+	local p1 = opsUsed() * 100 / opsMax()
+	gl.glText("OPS : " .. math.floor(p1) .. "%", 0, 60)
+
+	gl.glRect(140, 40, 90, 16)
+	gl.glRect(140, 70, 90, 16)
+	local w = cpuAverage() * 90 / cpuMax()
+	local w1 = opsUsed() * 90 / opsMax()
+	gl.glBindColor(0, 255, 255)
+	gl.glRect(140, 40, w, 16)
+	gl.glRect(140, 70, w1, 16)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glText("Core Instance", 0, 100)
+
+	local p = ProcessorInfo.CPU
+	gl.glText("CPU : " .. p .. "%", 0, 130)
+	local p1 = ProcessorInfo.OPS
+	gl.glText("OPS : " .. p1 .. "%", 0, 160)
+
+	gl.glRect(140, 140, 90, 16)
+	gl.glRect(140, 170, 90, 16)
+	local w = ProcessorInfo.CPU * 90 / 100
+	local w1 = ProcessorInfo.OPS * 90 / 100
+	gl.glBindColor(0, 255, 255)
+	gl.glRect(140, 140, w, 16)
+	gl.glRect(140, 170, w1, 16)
+
+	gl.glBindColor(255, 0, 0)
+	gl.glText("Overheat(s) : " .. ProcessorInfo.CrashNum, 0, 180)
+end, function()
+	--Touch func
+end)

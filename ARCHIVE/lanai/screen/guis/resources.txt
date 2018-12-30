@@ -1,0 +1,118 @@
+--@name ResourcesServerGui
+--@author Yuri6037
+
+RegisterGuiUpdater(2, function()
+	local flag = false
+	--Vars
+	if (not(ShipVars.Energy == Ship.Node["Energy"])) then
+		ShipVars.Energy = Ship.Node["Energy"]
+		flag = true
+	end
+	if (not(ShipVars.Oxygen == Ship.Node["Oxygen"])) then
+		ShipVars.Oxygen = Ship.Node["Oxygen"]
+		flag = true
+	end
+	if (not(ShipVars.Water == Ship.Node["Water"])) then
+		ShipVars.Water = Ship.Node["Water"]
+		flag = true
+	end
+	if (not(ShipVars.Deuter == Ship.Node["Deuterium"])) then
+		ShipVars.Deuter = Ship.Node["Deuterium"]
+		flag = true
+	end
+	--MaxVars
+	if (not(ShipVars.MaxEnergy == Ship.Node["Max Energy"])) then
+		ShipVars.MaxEnergy = Ship.Node["Max Energy"]
+		flag = true
+	end
+	if (not(ShipVars.MaxOxygen == Ship.Node["Max Oxygen"])) then
+		ShipVars.MaxOxygen = Ship.Node["Max Oxygen"]
+		flag = true
+	end
+	if (not(ShipVars.MaxWater == Ship.Node["Max Water"])) then
+		ShipVars.MaxWater = Ship.Node["Max Water"]
+		flag = true
+	end
+	if (not(ShipVars.MaxDeuter == Ship.Node["Max Deuterium"])) then
+		ShipVars.MaxDeuter = Ship.Node["Max Deuterium"]
+		flag = true
+	end
+	if (not(ShipVars.GazGen == Ship.GazGen["Active"])) then
+		ShipVars.GazGen = Ship.GazGen["Active"]
+		flag = true
+	end
+	if (not(ShipVars.EnergyGen == Ship.EnergyGen["Active"])) then
+		ShipVars.EnergyGen = Ship.EnergyGen["Active"]
+		flag = true
+	end
+
+	--Valve
+	if (not(ShipVars.ValveState == GetValveState())) then
+		ShipVars.ValveState = GetValveState()
+		flag = true
+	end
+
+	if (flag) then
+		return true, {Energy = ShipVars.Energy, MaxEnergy = ShipVars.MaxEnergy, Oxygen = ShipVars.Oxygen, MaxOxygen = ShipVars.MaxOxygen, Water = ShipVars.Water, MaxWater = ShipVars.MaxWater, Deuter = ShipVars.Deuter, MaxDeuter = ShipVars.MaxDeuter, GazGen = ShipVars.GazGen, EnergyGen = ShipVars.EnergyGen, ValveState = ShipVars.ValveState}
+	end
+	return false, nil
+end, function()
+	return {Energy = ShipVars.Energy, MaxEnergy = ShipVars.MaxEnergy, Oxygen = ShipVars.Oxygen, MaxOxygen = ShipVars.MaxOxygen, Water = ShipVars.Water, MaxWater = ShipVars.MaxWater, Deuter = ShipVars.Deuter, MaxDeuter = ShipVars.MaxDeuter, GazGen = ShipVars.GazGen, EnergyGen = ShipVars.EnergyGen, ValveState = ShipVars.ValveState}
+end)
+
+--[[function CheckResourcesNeedUpdate()
+	local flag = false
+	--Vars
+	if (not(ShipVars.Energy == Ship.Node["Energy"])) then
+		ShipVars.Energy = Ship.Node["Energy"]
+		flag = true
+	end
+	if (not(ShipVars.Oxygen == Ship.Node["Oxygen"])) then
+		ShipVars.Oxygen = Ship.Node["Oxygen"]
+		flag = true
+	end
+	if (not(ShipVars.Water == Ship.Node["Water"])) then
+		ShipVars.Water = Ship.Node["Water"]
+		flag = true
+	end
+	if (not(ShipVars.Deuter == Ship.Node["Deuterium"])) then
+		ShipVars.Deuter = Ship.Node["Deuterium"]
+		flag = true
+	end
+	--MaxVars
+	if (not(ShipVars.MaxEnergy == Ship.Node["Max Energy"])) then
+		ShipVars.MaxEnergy = Ship.Node["Max Energy"]
+		flag = true
+	end
+	if (not(ShipVars.MaxOxygen == Ship.Node["Max Oxygen"])) then
+		ShipVars.MaxOxygen = Ship.Node["Max Oxygen"]
+		flag = true
+	end
+	if (not(ShipVars.MaxWater == Ship.Node["Max Water"])) then
+		ShipVars.MaxWater = Ship.Node["Max Water"]
+		flag = true
+	end
+	if (not(ShipVars.MaxDeuter == Ship.Node["Max Deuterium"])) then
+		ShipVars.MaxDeuter = Ship.Node["Max Deuterium"]
+		flag = true
+	end
+	if (not(ShipVars.GazGen == Ship.GazGen["Active"])) then
+		ShipVars.GazGen = Ship.GazGen["Active"]
+		flag = true
+	end
+	if (not(ShipVars.EnergyGen == Ship.EnergyGen["Active"])) then
+		ShipVars.EnergyGen = Ship.EnergyGen["Active"]
+		flag = true
+	end
+
+	--Valve
+	if (not(ShipVars.ValveState == GetValveState())) then
+		ShipVars.ValveState = GetValveState()
+		flag = true
+	end
+
+	if (flag or ForceSend) then
+		return true, {Energy = ShipVars.Energy, MaxEnergy = ShipVars.MaxEnergy, Oxygen = ShipVars.Oxygen, MaxOxygen = ShipVars.MaxOxygen, Water = ShipVars.Water, MaxWater = ShipVars.MaxWater, Deuter = ShipVars.Deuter, MaxDeuter = ShipVars.MaxDeuter, GazGen = ShipVars.GazGen, EnergyGen = ShipVars.EnergyGen, ValveState = ShipVars.ValveState}
+	end
+	return false, nil
+end]]--

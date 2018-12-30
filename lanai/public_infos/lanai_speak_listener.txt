@@ -1,0 +1,12 @@
+--@name LanAI Speak Listener
+--@author Yuri6037
+
+--Wanting to listen to LanAI ? Easy just follow those steps :
+--First you have to write a script that renders string messages like chat system,
+--Second just hook to that channel on server : LanAI_MessageSpoken, cf example :
+channels.listen("LanAI_MessageSpoken", function(...)
+	--Now you need this code to retrieve the message as string. NOTE : the message can be null.
+	local args = {...}
+	local msg = args[2] --Here you go this is the message as string you may want to draw.
+	local ply = args[3] --This is the player that should normaly receive the message.
+end)

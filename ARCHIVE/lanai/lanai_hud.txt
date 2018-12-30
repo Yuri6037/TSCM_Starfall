@@ -1,0 +1,313 @@
+--@name LanAI HUD
+--@author Yuri6037
+--@shared
+--@include lanai/libs/screen/gl_lib.txt
+--@include lanai/libs/screen/safe_net.txt
+--@requiresv lanai/processor/api/lanai_api.txt
+--@requirecl lanai/processor/internal/apiview.txt
+--@class hud
+--@autoupdate
+
+if (SERVER) then
+    local curTbl = nil
+	require("lanai/libs/screen/safe_net.txt")
+
+	local plys = {}
+	local plySend = {}
+
+    function InternalCommand(msg, ply)
+        if (msg == "!api") then
+            StartNet(function()
+                net.writeUInt(2, 2)
+            end, ply)
+        elseif (msg == "!history") then
+			StartNet(function()
+				net.writeUInt(3, 2)
+			end, ply)
+        end
+    end
+
+	timer.create("LanAI_HUD", 1, 0, function()
+		if (not(globaltables.player.LanAI_HUD == nil)) then
+			for k, v in pairs(plys) do
+                if (not(curTbl == globaltables.player.LanAI_HUD.AIHelp)) then
+                    curTbl = globaltables.player.LanAI_HUD.AIHelp
+                    if (not(globaltables.player.LanAI_HUD.AIHelp == nil)) then
+                    	StartNet(function()
+                        	net.writeUInt(0, 2)
+                        	net.writeTable(globaltables.player.LanAI_HUD.AIHelp)
+                    	end, k)
+                    end
+                end
+				if (not(globaltables.player.LanAI_HUD[k] == nil) and #globaltables.player.LanAI_HUD[k] > 0) then
+					StartNet(function()
+					    net.writeUInt(1, 2)
+						net.writeTable(globaltables.player.LanAI_HUD[k])
+					end, k)
+					globaltables.player.LanAI_HUD[k] = nil
+			    end
+			end
+		end
+	end)
+	hook("net", "LanAI_HUD_Net", function(len, ply)
+		if (IsValid(ply)) then
+			local c = net.readString()
+			if (c == "LNK") then
+				plys[ply] = true
+				if (not(curTbl == nil)) then
+                    StartNet(function()
+                        net.writeUInt(0, 2)
+                        net.writeTable(globaltables.player.LanAI_HUD.AIHelp)
+                    end, ply)
+				end
+				chat.listen(InternalCommand, ply)
+			elseif (c == "ULNK") then
+				plys[ply] = nil
+				chat.stop(InternalCommand, ply)
+			end
+		end
+	end)
+end
+if (CLIENT) then
+    AIHelp = {}
+    ChatHistory = {}
+
+    function OpenAPIViewGUI()
+        local f = vgui.create("DFrame")
+        f:SetTitle("LanAI Next Internal API View")
+        f:SetSize(1024, 512)
+        local ps = vgui.create("DPropertySheet", f)
+        ps:Dock(1)
+        for k, v in pairs(APIView) do
+            local p = vgui.create("DPanel", ps)
+            if (v.Type == 0) then
+                local lst = vgui.create("DListView", p)
+                lst:SetMultiSelect(false)
+                lst:AddColumn("Function"):SetFixedWidth(128)
+                lst:AddColumn("Parameters"):SetFixedWidth(256)
+                lst:AddColumn("Help"):SetFixedWidth(617)
+                lst:Dock(1)
+                for k1, v1 in pairs(v) do
+                    if (type(v1) == "table") then
+                        lst:AddLine(v1[1], v1[2], v1[3])
+                    end
+                end
+            elseif (v.Type == 1) then
+                local ps1 = vgui.create("DPropertySheet", p)
+                ps1:Dock(1)
+                for k1, v1 in pairs(v) do
+                    if (type(v1) == "table") then
+                        local p1 = vgui.create("DPanel", ps1)
+                        local lst = vgui.create("DListView", p1)
+                        lst:SetMultiSelect(false)
+                        lst:AddColumn("Function"):SetFixedWidth(128)
+                        lst:AddColumn("Parameters"):SetFixedWidth(256)
+                        lst:AddColumn("Help"):SetFixedWidth(597)
+                        lst:Dock(1)
+                        for k2, v2 in pairs(v1) do
+                            lst:AddLine(v2[1], v2[2], v2[3])
+                        end
+                        ps1:AddSheet(k1, p1, "icon16/cross.png")
+                    end
+                end
+            elseif (v.Type == 2) then
+                local lst = vgui.create("DListView", p)
+                lst:SetMultiSelect(false)
+                lst:AddColumn("Variable Name"):SetFixedWidth(128)
+                lst:AddColumn("Variable Type"):SetFixedWidth(256)
+                lst:AddColumn("Variable Description"):SetFixedWidth(617)
+                lst:Dock(1)
+                for k1, v1 in pairs(v) do
+                    if (type(v1) == "table") then
+                        lst:AddLine(v1[1], v1[2], v1[3])
+                    end
+                end
+            end
+            ps:AddSheet(k, p, "icon16/cross.png")
+        end
+        f:Center()
+        f:MakePopup()
+    end
+
+    function OpenHelpGUI()
+        local f = vgui.create("DFrame")
+        f:SetTitle("LanAI Next Command List")
+        f:SetSize(1024, 512)
+        f:replaceMethod("Paint", function(self, w, h)
+        	render.setColor(0, 0, 0, 128)
+        	render.drawRect(0, 0, w, h)
+        	render.setColor(0, 128, 255)
+        	render.drawLine(0, 0, w, 0)
+        	render.drawLine(w - 1, 0, w - 1, h)
+        	render.drawLine(0, h - 1, w - 1, h - 1)
+        	render.drawLine(0, 0, 0, h)
+        end)
+        local ps = vgui.create("DPropertySheet", f)
+        ps:Dock(1)
+        ps:replaceMethod("Paint", function(self, w, h)
+        end)
+        for k, v in pairs(AIHelp) do
+            local p = vgui.create("DPanel", ps)
+            p:replaceMethod("Paint", function(self, w, h)
+            	render.setColor(255, 128, 0)
+            	render.drawLine(0, 0, w, 0)
+            	render.drawLine(w - 1, 0, w - 1, h)
+            	render.drawLine(0, h - 1, w - 1, h - 1)
+            	render.drawLine(0, 0, 0, h)
+            end)
+            local lst = vgui.create("DListView", p)
+            lst:SetMultiSelect(false)
+            lst:AddColumn("Command"):SetFixedWidth(128)
+            lst:AddColumn("Description"):SetFixedWidth(512)
+            lst:AddColumn("Usage"):SetFixedWidth(256)
+            lst:AddColumn("Required Rank"):SetFixedWidth(102)
+            lst:Dock(1)
+            lst:replaceMethod("Paint", function(self, w, h)
+            end)
+            for k1, v1 in pairs(v) do
+                local el = lst:AddLine(k1, v1.Description, v1.Usage, v1.Rank)
+                el.Columns[1]:SetTextColor(Color(255, 255, 255))
+                el.Columns[2]:SetTextColor(Color(255, 255, 255))
+                el.Columns[3]:SetTextColor(Color(255, 255, 255))
+                el.Columns[4]:SetTextColor(Color(255, 255, 255))
+                el:replaceMethod("Paint", function(self, w, h)
+                end)
+            end
+            ps:AddSheet(k, p, "icon16/cross.png")
+        end
+        for k, v in pairs(ps.Items) do
+			if (not(v.Tab == nil)) then
+				v.Tab.Paint = function(self, w, h)
+				end
+			end
+        end
+        f:Center()
+        f:MakePopup()
+    end
+
+    function OpenChatHistory()
+		local f = vgui.create("DFrame")
+		f:SetTitle("Chat history")
+		f:SetSize(1024, 512)
+		local layout = vgui.create("DListLayout", f)
+		layout:SetPaintBackground(true)
+		layout:SetBackgroundColor(Color(255, 255, 255))
+		layout:Dock(1)
+		for k, v in pairs(ChatHistory) do
+			local txt = vgui.create("DHTML", layout)
+			local html = [[
+			<script type='text/javascript'>
+				var isIe = (navigator.userAgent.toLowerCase().indexOf("msie") != -1 || navigator.userAgent.toLowerCase().indexOf("trident") != -1);
+				document.addEventListener('copy', function(e) {
+					var textToPutOnClipboard = "This is some text";
+					if (isIe) {
+						window.clipboardData.setData('Text', textToPutOnClipboard);
+					} else {
+						e.clipboardData.setData('text/plain', textToPutOnClipboard);
+					}
+					e.preventDefault();
+				});
+			</script>
+			]]
+			txt:SetHTML(html)
+			layout:Add(txt)
+		end
+		f:Center()
+		f:MakePopup()
+    end
+
+	require("lanai/libs/screen/safe_net.txt")
+	require("lanai/libs/screen/gl_lib.txt")
+
+	local messages = {}
+
+	hook("hudlink", "LanAI_HudLinked", function(ply)
+		StartNet(function()
+			net.writeString("LNK")
+		end)
+	end)
+	hook("hudunlink", "LanAI_HudUnlinked", function(ply)
+		StartNet(function()
+			net.writeString("ULNK")
+		end)
+	end)
+
+	local StandardFont = gl.glGenFonts("Arial Black", true, 24)
+	local LanteanFont = gl.glGenFonts("Anquietas", true, 24)
+
+	gl.glEnable(GL_BLEND)
+	gl.glEnable(GL_TEXT_SHADOW)
+	gl.glBindFont(StandardFont)
+
+	local prefix = "[LanAI] -> "
+
+	hook("render", "LanAI_HudRender", function()
+		local w, h = render.getScreenRes()
+		local prefixWidth = gl.glTextWidth(prefix)
+		gl.glPushMatrix()
+		gl.glTranslate(w - 600, h - 256)
+		local i = 0
+		for k = #messages, 1, -1 do
+			local v = messages[k]
+			if (k == 1 and time.curTime() - v.Time > 6) then
+				v.Alpha = v.Alpha - time.frameTime() * 100
+				if (v.Alpha <= 0) then table.remove(messages, k) end
+			end
+			gl.glBindColor(0, 255, 255, v.Alpha)
+			gl.glText(prefix, 0, i * 32)
+			gl.glBindColor(0, 133, 255, v.Alpha)
+			gl.glText(v.Msg, prefixWidth, i * 32)
+			for k1, v1 in pairs(v.Sub) do
+				gl.glText(v1, 0, i * 32 + k1 * 24)
+			end
+			i = i - 1
+		end
+		gl.glPopMatrix()
+	end)
+
+	hook("net", "LanAI_HudReceiver", function(len)
+        local id = net.readUInt(2)
+        if (id == 0) then
+            AIHelp = net.readTable()
+        elseif (id == 1) then
+            local tbl = net.readTable()
+            for k, msg in pairs(tbl) do
+                if (msg == "[HELP]") then
+                    --Open HELP VGui
+                    OpenHelpGUI()
+                else
+					if (#ChatHistory == 255) then
+						table.remove(ChatHistory, 1)
+					end
+					table.insert(ChatHistory, prefix .. msg)
+                	--printConsole(prefix .. msg)
+                    local strLen = string.len(msg)
+                    if (strLen > 51) then
+                        local sub0 = {}
+                        local ch = 0
+                        local str = ""
+                        for i = 1, strLen do
+                            ch = ch + 1
+                            str = str .. msg:sub(i, i)
+                            if (ch == 51) then
+                                ch = 0
+                                table.insert(sub0, str)
+                                str = ""
+                            end
+                        end
+                        table.insert(sub0, str)
+                        local m = sub0[1]
+                        table.remove(sub0, 1)
+                        table.insert(messages, {Msg = m, Alpha = 255, Time = time.curTime(), Sub = sub0})
+                    else
+                        table.insert(messages, {Msg = msg, Alpha = 255, Time = time.curTime(), Sub = {}})
+                    end
+                end
+            end
+        elseif (id == 2) then
+            OpenAPIViewGUI()
+        elseif (id == 3) then
+        	OpenChatHistory()
+        end
+	end)
+end

@@ -1,0 +1,61 @@
+--@name JumperControler
+--@author Yuri6037
+--@class processor
+
+local COCKPIT_POS = Vector(19.5255,3.0715,-50.6359)
+
+local tbl = ents.self():getConstraints()
+
+local jump = tbl[2]
+
+function PlayerEnteredJumper(p)
+	print("Entered : " .. tostring(p))
+	for k, v in pairs(tbl) do
+		v:getPhysicsObject():enableMotion(true)
+	end
+	local pos = jump:worldToLocal(p:getPos()) - COCKPIT_POS
+end
+
+function PlayerExitedJumper(p)
+	print("Exited : " .. tostring(p))
+	for k, v in pairs(tbl) do
+		v:getPhysicsObject():enableMotion(false)
+	end
+end
+
+local plys = {}
+local plysDown = {}
+
+-- -4, -2, 14
+
+hook("think", "JumperControler_Updater", function()
+	--local v = ents.owner()
+
+	for k, v in pairs(find.allPlayers()) do
+		if (v:keyDown(input.IN_USE) and not(v:inVehicle()) and IsValid(v:eyeTrace().Entity) and v:eyeTrace().Entity == jump) then
+			plysDown[v] = true
+		elseif (plysDown[v]) then
+			plysDown[v] = nil
+			local pos = jump:worldToLocal(v:getPos()) - COCKPIT_POS
+		if ((pos.x > -20 and pos.x < 100)and(pos.y > -90 and pos.y < 90)and(pos.z > -2 and pos.z < 80)) then
+				if (not(plys[v])) then
+					plys[v] = true
+					PlayerEnteredJumper(v)
+				end
+		end
+		end
+
+		if (plys[v]) then
+			local pos = jump:worldToLocal(v:getPos()) - COCKPIT_POS
+			local dist = pos:Distance(Vector(-4, -2, 14))
+			if (dist <= 4) then
+				plys[v] = false
+				PlayerExitedJumper(v)
+			end
+		end
+	end
+
+	--for k, v in pairs(find.allPlayers()) do
+
+	--end
+end)

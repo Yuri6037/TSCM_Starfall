@@ -1,0 +1,100 @@
+--@name Lanteans OS UltimateEdition (HUD)
+--@author Yuri6037
+--@class hud
+--@autoupdate
+--@shared
+
+Edition = "ultimate"
+--@includedir lanteansos/ultimate/
+
+--Eventualy run initializer for dynamic includes
+--@require lanteansos/lanteans_os.txt
+
+if (SERVER) then
+	DisconnectProtocol()
+	function ChatListener(msg, ply)
+		if (msg == "!os") then
+			net.SendPacket("HUDMgr", ply)
+		end
+	end
+	local PNum = 0
+	net.RegPacket(200, "HUDMgr", function()
+		local t = net.readString()
+		local p = net.readEntity()
+		if (t == "L") then
+			chat.listen(ChatListener, p)
+			PNum = PNum + 1
+			if (PNum == 1) then
+				ConnectProtocol()
+			end
+		elseif (t == "U") then
+			chat.stop(ChatListener, p)
+			PNum = PNum - 1
+			if (PNum <= 0) then DisconnectProtocol() end
+		end
+	end, function() end)
+elseif (CLIENT) then
+	local function KillPanel(pnl)
+		DestroyRTs()
+		pnl:Remove()
+	end
+
+	local Panel = nil
+	local app = {}
+	function app:Init()
+		self:Close()
+		OS.Reboot()
+		if (not(Panel == nil)) then
+			KillPanel(Panel)
+		end
+	end
+	OS.DefineApp("logout", app)
+	OS.AddAppMenuItem("logout", "Logout", "Tools")
+	function LoadVGUI()
+		local w, h = render.getScreenRes()
+		local pnl = vgui.create("DPanel")
+		pnl:SetSize(w, h)
+		pnl:Center()
+		pnl:MakePopup()
+		pnl:SetMouseInputEnabled(true)
+		pnl:SetKeyboardInputEnabled(true)
+		pnl.OnMousePressed = function()
+			KernelMouseDown()
+		end
+		pnl.OnMouseReleased = function()
+			KernelMouseUp()
+		end
+		local caps = false
+		pnl.OnKeyCodeReleased = function(fuck, code)
+			if (code == input.KEY_F2) then KillPanel(pnl) return end
+			KernelKeyPress(code)
+		end
+		PosX, PosY = w / 2 - ScrW / 2, h / 2 - ScrH / 2
+		pnl.Paint = function()
+			local mx, my = pnl:LocalCursorPos()
+			mx = (-mx + w / 2 - 512) * -1
+			my = (-my + h / 2 - 512) * -1
+			KernelDraw(mx, my)
+		end
+		Panel = pnl
+	end
+
+	net.RegPacket(200, "HUDMgr", LoadVGUI, function(args)
+		net.writeString(args[1])
+		net.writeEntity(args[2])
+	end)
+
+	hook("playerbindpress", "LanteansOS_HudOpenKeyBind", function(ply, bind, pressed)
+		if (hud.isLinked() and bind == "gm_showteam") then
+			CreateRTs()
+			LoadVGUI()
+		end
+	end)
+
+	hook("hudlink", "LanteansOS_HudLink", function(ply)
+		net.SendPacket("HUDMgr", "L", ply)
+	end)
+	hook("hudunlink", "LanteansOS_HudUnlink", function(ply)
+		net.SendPacket("HUDMgr", "U", ply)
+	end)
+end

@@ -1,0 +1,29 @@
+--@name MessagesKernelExtension
+--@author Yuri6037
+
+local Messages = {}
+
+function OS.DefineMessage(type, onrecv)
+	if (not(Messages[type] == nil)) then return false end
+	local recvchecked = function(var)
+		local b, err = pcall(onrecv, var)
+		if (not(b)) then
+			OS.Dialog("msg", "Lanteans OS", nil, "Could not execute message '" .. type .. "' : " .. err)
+			return false
+		else
+			return true
+		end
+	end
+	Messages[type] = recvchecked
+	return true
+end
+
+function OS.ExecMessage(type, variable)
+	if (Messages[type] == nil) then return false end
+	return Messages[type](variable)
+end
+
+function OS.Message(type1, variable)
+	if (type(variable) == "table") then error("Table variables are not allowed in messages") end
+	net.SendPacket("MESSAGE", type1, variable)
+end

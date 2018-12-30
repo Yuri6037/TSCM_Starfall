@@ -1,0 +1,7 @@
+--@name LanAI Speak Listener
+--@author Yuri6037
+
+--[[
+Transmission Protocol specifications
+- The protocol uses 
+]]--

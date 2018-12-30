@@ -1,0 +1,69 @@
+--@name ShipRadarApp (SERVER)
+--@author Yuri6037
+
+local CoresData = {}
+local Cores = {}
+
+timer.create("LanteansHUD_ShipCoreRadarFind", 5, 0, function()
+	CoresData = {}
+	Cores = find.byClass("ship_core", function(ent)
+		if (IsValid(ent)) then
+			CoresData[ent] = {Health = 0, Plating = 0, Shield = 0}
+			return true
+		end
+		return false
+	end)
+end)
+
+local function GetTargetShieldData(core)
+	local shield = core:getShield()
+	if (not(IsValid(shield))) then return false, 0 end
+	return shield:isActive(), shield:getTotalCharge() / shield:getMaxCharge()
+end
+
+local function GetTargetHealthData(core)
+	local h = core:entHealth()
+	local mh = core:entMaxHealth()
+	local p = core:platingStrength()
+	return h / mh, p / 100
+end
+
+local function CoreCheckVar(core, name, var)
+	if (not(CoresData[core][name] == var)) then
+		CoresData[core][name] = var
+		SetNeedsUpdate()
+	end
+end
+
+local app = {
+	Update = function(ply)
+		local min = Vector(0, 0, 0)
+		local max = Vector(0, 0, 0)
+		if (PlayerInBox(ply, Pegasus.Min, Pegasus.Max)) then
+			min = Pegasus.Min
+			max = Pegasus.Max
+		elseif (PlayerInBox(ply, Universe.Min, Universe.Max)) then
+			min = Universe.Min
+			max = Universe.Max
+		elseif (PlayerInBox(ply, Milkyway.Min, Milkyway.Max)) then
+			min = Milkyway.Min
+			max = Milkyway.Max
+		end
+		for k, v in pairs(Cores) do
+			if (IsValid(v) and PlayerInBox(v, min, max)) then
+				if (not(CoresData[v] == nil)) then
+					CoreCheckVar(v, "Name", (v:owner():name() or "SF_FAILURE"))
+					local h, p = GetTargetHealthData(v)
+					CoreCheckVar(v, "Health", math.round(h, 2))
+					CoreCheckVar(v, "Plating", math.round(p, 2))
+					local b, s = GetTargetShieldData(v)
+					CoreCheckVar(v, "ShieldOn", b)
+					CoreCheckVar(v, "Shield", math.round(s, 2))
+				end
+			end
+		end
+		CheckVar("Cores", CoresData)
+	end
+}
+
+HUD.DefineApp("ShipRadar", app)

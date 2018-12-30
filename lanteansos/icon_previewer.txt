@@ -1,0 +1,81 @@
+--@name IconPreviewer
+--@author Yuri6037
+
+--@require lanteansos/libs/gui.txt
+
+local square32 = {
+	VERTEX(0, 0),
+	VERTEX(16, 0),
+	VERTEX(16, 16),
+	VERTEX(0, 16)
+}
+
+local Ico32 = {
+	{
+		Color = COLOR(0, 180, 180),
+		Vertices = {
+			VERTEX(0, 450),
+			VERTEX(0, 0),
+			VERTEX(925, -5),
+			VERTEX(925, 325),
+			VERTEX(800, 450)
+		}
+	}
+}
+
+local Ico16 = {
+	{
+		Color = COLOR(0, 180, 180),
+		Vertices = GUI.PolyTransform(Ico32[1].Vertices, 0, 0, 0.5)
+	}
+	--[[{
+		Color = COLOR(255, 0, 0),
+		Vertices = GUI.PolyTransform(Ico32[2].Vertices, 0, 0, 0.5)
+	}]]--
+}
+
+SmallFont = GUI.Font("Federation", 10, true)
+
+if (render.isEmitter()) then
+	local TestPolyVerts = {
+		VERTEX(0, 450),
+		VERTEX(0, 0),
+		VERTEX(925, -5),
+		VERTEX(925, 325),
+		VERTEX(800, 450)
+	}
+	local TestPolyVerts1 = {
+		VERTEX(0, -450),
+		VERTEX(0, 0),
+		VERTEX(925, 5),
+		VERTEX(925, -325),
+		VERTEX(800, -450)
+	}
+	hook("render", "LanteansOS_IconPreviewer", function()
+		local Self = ents.self()
+		local ang = Self:getAngles()
+		local pos = Self:pos()
+		pos = pos + Self:right() * -26
+		pos = pos + Self:up() * 70
+		ang:RotateAroundAxis(Self:right(), 90)
+		ang:RotateAroundAxis(Self:forward(), 90)
+		render.start3D2D(pos, ang, 0.1)
+			GUI.Poly(TestPolyVerts, COLOR(255, 0, 0))
+			GUI.ColoredRect(0, 0, 32, 32, COLOR(0, 0, 0))
+			for k, v in pairs(TestPolyVerts) do
+				render.setTexture(nil)
+				render.setColor(133, 133, 133)
+				render.drawFilledCircle(v.x, v.y, 4, 4)
+				render.setColor(255, 255, 255)
+				GUI.Text(tostring(k), v.x - 4, v.y - 4, SmallFont, COLOR(255, 255, 255))
+			end
+		render.end3D2D()
+	end)
+else
+	hook("render", "LanteansOS_IconPreviewer", function()
+		render.clear(0, 0, 0)
+		GUI.Reset()
+		GUI.Icon(248, 224, Ico32)
+		GUI.Icon(256, 266, Ico16)
+	end)
+end

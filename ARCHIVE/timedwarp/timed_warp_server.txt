@@ -1,0 +1,180 @@
+--@name TimedWarp Server
+--@author Yuri6037
+--@sharedscreen
+
+--@requiresv lanai/processor/api/lanai_api.txt
+--@requiresv lanai/libs/processor/string_lib.txt
+--@requiresv lanai/libs/processor/lanaifiles.txt
+--@requiresv lanai/processor/utilities.txt
+
+--@requirecl timedwarp/timed_warp_client.txt
+
+--@include lanai/libs/screen/safe_net.txt
+
+require("lanai/libs/screen/safe_net.txt")
+
+if (SERVER) then
+	wire.createOutputs({"Minutes", "Seconds", "Disable Use And Normal Font", "Reset"}, {"Normal", "Normal", "Normal", "Normal"})
+	wire.ports["Disable Use And Normal Font"] = 1
+
+	function GetWarpList1()
+		local tbl = {"hiigara", "shakuras", "spaceStation", "hell", "desert", "build", "earth"}
+		for k, v in pairs(GetWarpList()) do
+			table.insert(tbl, v)
+		end
+		return tbl
+	end
+
+	WarpList = {}
+	WarpDevice = nil
+	Ship = {}
+
+	LanAI:SetLoadCallback(function()
+		LanAI:Connect("A4CFD-BGHD2")
+		WarpDevice = LanAI:GetShipWarp()
+		Ship = {Warp = WarpDevice, Node = LanAI:GetShipNode()}
+		LanAI:Disconnect()
+	end)
+
+	function isStrTblEqual(tbl, tbl1)
+		if (not(#tbl == #tbl1)) then return false end
+		for k, v in pairs(tbl) do
+			local s = tbl1[k]
+			if (not(v == s)) then return false end
+		end
+		return true
+	end
+
+	CurLock = false
+	hook("think", "TimedWarpServer_Updater", function()
+		if (not(LanAI:ScreenLocked() == CurLock)) then
+			CurLock = LanAI:ScreenLocked()
+			if (CurLock) then
+				StartNet(function()
+					net.writeString("L")
+				end)
+			else
+				StartNet(function()
+					net.writeString("U")
+				end)
+
+				if (not(CurWarp == nil)) then
+					StartNet(function()
+						net.writeString("W")
+					end)
+				end
+			end
+		end
+		local tbl = GetWarpList1()
+		if (not(isStrTblEqual(WarpList, tbl))) then
+			StartNet(function()
+				net.writeString("UPD")
+				net.writeTable(tbl)
+			end)
+			WarpList = tbl
+		end
+	end)
+
+	CurWarp = nil
+	Time = 0
+
+	hook("net", "TimedWarpServer_Receiver", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "REBOOT") then
+			StartNet(function()
+				net.writeString("UPD")
+				net.writeTable(WarpList)
+			end, ply)
+
+			if (CurLock) then
+				StartNet(function()
+					net.writeString("L")
+				end, ply)
+			else
+				StartNet(function()
+					net.writeString("U")
+				end, ply)
+			end
+
+			if (not(CurWarp == nil)) then
+				StartNet(function()
+					net.writeString("W")
+				end, ply)
+			end
+		elseif (cmd == "WARP") then
+			if (not(IsPlayerInFaction(ply))) then
+				aiSayGuest(ply, "Only faction members can access this function.")
+				return
+			end
+
+			CurWarp = net.readString()
+			Time = net.readInt(16, true)
+
+			StartNet(function()
+				net.writeString("W")
+			end)
+
+			local cnt = 0
+			timer.create("TimedWarp_WarpDelayer", 1, Time + 1, function()
+				local restTime = Time - cnt
+
+				local m = math.floor(restTime / 60)
+				local s = restTime % 60
+				wire.ports["Minutes"] = m
+				wire.ports["Seconds"] = s
+				wire.ports["Reset"] = 1
+				timer.create("TimedWarp_SGUCountdownHacker", 0.5, 1, function()
+					wire.ports["Reset"] = 0
+				end)
+
+				StartNet(function()
+					net.writeString("UPDW")
+					net.writeString("Warp in " .. m .. " mins and " .. s .. "secs.")
+				end)
+
+				cnt = cnt + 1
+
+				if (cnt >= (Time + 1)) then
+					StartNet(function()
+						net.writeString("UW")
+					end)
+
+					if (CurLock) then
+						StartNet(function()
+							net.writeString("L")
+						end)
+					end
+
+					WarpToDefinedDirection(CurWarp)
+
+					CurWarp = nil
+					Time = 0
+					timer.remove("TimedWarp_WarpDelayer")
+					return
+				end
+			end)
+		elseif (cmd == "UNWARP") then
+			if (IsPlayerInFaction(ply)) then
+				timer.remove("TimedWarp_WarpDelayer")
+				wire.ports["Minutes"] = 0
+				wire.ports["Seconds"] = 0
+				wire.ports["Reset"] = 1
+				timer.create("TimedWarp_SGUCountdownHacker", 0.5, 1, function()
+					wire.ports["Reset"] = 0
+					wire.ports["Reset"] = 1
+				end)
+				timer.create("TimedWarp_SGUCountdownHacker", 1, 1, function()
+					wire.ports["Reset"] = 0
+					wire.ports["Reset"] = 1
+				end)
+				StartNet(function()
+					net.writeString("UW")
+				end)
+				CurWarp = nil
+				Time = 0
+			else
+				aiSayGuest(ply, "Only faction members can access this function.")
+			end
+		end
+	end)
+end

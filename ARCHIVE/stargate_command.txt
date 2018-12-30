@@ -1,0 +1,170 @@
+--@name StargateCommander (GDO replacement)
+--@author Yuri6037
+--@class hud
+--@shared
+
+--@requirecl lanai/libs/screen/gl_lib.txt
+
+--@include lanai/libs/screen/safe_net.txt
+
+if (SERVER) then
+	require("lanai/libs/screen/safe_net.txt")
+
+	local plys = {}
+
+	local LinkedPlayers = {}
+
+	hook("think", "StargateCommander_GateCheck", function()
+		for k, v in pairs(LinkedPlayers) do
+			local e = v:eyeTrace().Entity
+			if (IsValid(e)) then
+				if (e:class() == "stargate_sg1" or e:class() == "stargate_atlantis" or e:class() == "stargate_universe") then
+					StartNet(function()
+						net.writeString("AddGet")
+						net.writeString(stargate.address(e))
+					end, v)
+				end
+			end
+			if (not(plys[v] == e)) then
+				if (not(IsValid(e))) then
+					plys[v] = nil
+				elseif (not(e:class() == "stargate_sg1") and not(e:class() == "stargate_atlantis") and not(e:class() == "stargate_universe")) then
+					plys[v] = nil
+				else
+					plys[v] = e
+				end
+			end
+		end
+	end)
+
+	hook("net", "StargateCommander_GateActivater", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "link") then
+			local p = net.readEntity()
+			table.insert(LinkedPlayers, p)
+		elseif (cmd == "unlink") then
+			local p = net.readEntity()
+			for k, v in pairs(LinkedPlayers) do
+				if (v == p) then
+					table.remove(LinkedPlayers, k)
+					break
+				end
+			end
+		elseif (cmd == "OpenGate") then
+			if (plys[ply] == nil) then
+				--chat.tell(ply, Color(0, 255, 0), "You're pointing no oppened stargate currently !")
+				return
+			end
+
+			local p = plys[ply]
+			if (ents.owner() == p:owner()) then
+				stargate.dial(p, "ICARU0DST", 1)
+			end
+		elseif (cmd == "OpenShield") then
+			if (plys[ply] == nil or not(stargate.open(plys[ply]))) then
+				--chat.tell(ply, Color(0, 255, 0), "You're pointing no oppened stargate currently !")
+				return
+			end
+			local allowed = false
+
+			local p = plys[ply]
+
+			stargate.transmit(p, "TRY_" .. ply:index())
+
+			timer.create("StargateCommander_TransmitStop", 1, 1, function()
+				stargate.transmit(p, "")
+			end)
+		end
+	end)
+end
+if (CLIENT) then
+	require("lanai/libs/screen/safe_net.txt")
+
+	local fnt = render.createFont("Anquietas", 32, 900, true, false, false, false, false)
+
+	local sgu = render.createFont("Stargate Address Glyphs U", 40, 900, false, false, true, false, false)
+	local sg1 = render.createFont("Stargate Address Glyphs Sg1", 24, 900, false, false, true, false, false)
+	local sga = render.createFont("Stargate Address Glyphs Atl", 18, 900, false, false, true, false, false)
+
+	local plys = {}
+
+	hook("hudlink", "StargateCommander_HudLink", function(ply)
+		plys[ply] = true
+		StartNet(function()
+			net.writeString("link")
+			net.writeEntity(ply)
+		end)
+	end)
+
+	hook("hudunlink", "StargateCommander_HudUnlink", function(ply)
+		plys[ply] = false
+		StartNet(function()
+			net.writeString("unlink")
+			net.writeEntity(ply)
+		end)
+	end)
+
+	CurSGAddress = nil
+
+	hook("net", "StargateCommander_HudNetUpdater", function(len)
+		local cmd = net.readString()
+		if (cmd == "AddGet") then
+			CurSGAddress = net.readString()
+		end
+	end)
+
+	local ply = ents.player()
+	local ScrW, ScrH = render.getScreenRes()
+
+	hook("render", "StargateCommander_HudRender", function()
+		local e = ply:eyeTrace().Entity
+		if (IsValid(e)) then
+			if (e:class() == "stargate_sg1" or e:class() == "stargate_atlantis" or e:class() == "stargate_universe") then
+				gl.glBindColor(133, 133, 133, 128)
+				local x = ScrW / 2 - 128
+				local y = ScrH / 2 - 128
+				gl.glRoundedRect(x, y, 256, 256, 8)
+				gl.glBindColor(255, 255, 255)
+				gl.glBindFont(fnt)
+				local txt = "ERROR"
+				if (e:class() == "stargate_sg1") then
+					txt = "SG1"
+				elseif (e:class() == "stargate_atlantis") then
+					txt = "Atlantis"
+				elseif (e:class() == "stargate_universe") then
+					txt = "Universe"
+				end
+				local w = gl.glTextWidth("Stargate Type : " .. txt)
+				gl.glText("Stargate Type : " .. txt, (x + 128) - (w / 2), y + 32)
+
+				local w = gl.glTextWidth("-> Address <-")
+				gl.glText("-> Address <-", (x + 128) - (w / 2), y + 128)
+
+				if (e:class() == "stargate_sg1") then
+					gl.glBindFont(sg1)
+				elseif (e:class() == "stargate_atlantis") then
+					gl.glBindFont(sga)
+				elseif (e:class() == "stargate_universe") then
+					gl.glBindFont(sgu)
+				end
+				if (not(CurSGAddress == nil)) then
+					local w = gl.glTextWidth(CurSGAddress)
+					gl.glText(CurSGAddress, (x + 128) - (w / 2), y + 158)
+				end
+			end
+		end
+	end)
+
+	hook("playerbindpress", "StargateCommander_BindPressed", function(ply, bind, pressed)
+		if (not(plys[ply])) then return end
+		if (bind == "+attack2") then
+			StartNet(function()
+				net.writeString("OpenShield")
+			end)
+		elseif (bind == "+attack") then
+			StartNet(function()
+				net.writeString("OpenGate")
+			end)
+		end
+	end)
+end

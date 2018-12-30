@@ -1,0 +1,28 @@
+--@name
+--@author
+
+hud.link()
+
+local mat = Material("color")
+local Model = render.createClientModel("models/the_sniper_9/universe/stargate/universegate.mdl", render.RENDERGROUP_OPAQUE)
+--local ply = find.byClass('stargate_orlin')
+--ply = ply[1]
+local ply = ents.player()
+local aimVec = ply:aimVector()
+
+function renderHud()
+	aimVec = ply:aimVector()
+    --local poss = render.toScreen(ply:pos())
+    -- poss = ents.owner():pos()
+    render.setMaterial(mat)
+    render.start3D()
+        render.suppressEngineLighting(true)
+        --render.drawSphere(aimVec * 12, 4, 16, 16, Color(0, 0, 0))
+        Model:setPos(ply:pos() + ply:forward() * 2000)
+        Model:setAng(ply:getAngles())
+        Model:setScaleVector(Vector(5, 5, 5))
+        Model:drawModel()
+        render.suppressEngineLighting(false)
+    render.end3D()
+end
+hook("render", "DrawStuff", renderHud)

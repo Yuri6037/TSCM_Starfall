@@ -1,0 +1,55 @@
+--@name Lanteans OS AutodestructScreen
+--@author Yuri6037
+
+local texpoly = {
+	VERTEX(0, 0, 0, 0),
+	VERTEX(1, 0, -1, 0),
+	VERTEX(1, 1, -1, 1),
+	VERTEX(0, 1, 0, 1)
+}
+
+local tex = GUI.Texture("phoenix_storms/wire/pcb_red")
+local BC1X = 0
+local BC2X = -ScrW
+local CurVal = 200
+
+local scr = {
+	Render = function(self)
+		GUI.Reset()
+		render.setTexture(tex)
+		render.setColor(128, 0, 0)
+		render.drawTexturedRect(BC1X, 0, ScrW, ScrH)
+		local mat = Matrix()
+		mat:translate(Vector(BC2X, 0))
+		mat:scale(Vector(ScrW, ScrH))
+		render.pushMatrix(mat)
+		render.setTexture(tex)
+		render.drawPoly(texpoly)
+		render.popMatrix()
+
+		--Top/Bottom borders
+		GUI.InvGradiantRect(0, 0, ScrW, 128, COLOR(200, 0, 0))
+		GUI.NormGradiantRect(0, ScrH - 128, ScrW, 128, COLOR(200, 0, 0))
+		--End
+
+		--Texts
+		GUI.Text("Lanteans OS - Autodestruction", 230, 54, StandardFont, COLOR(133, 133, 133))
+		local w = GUI.TextSize("Autodestruction in", StandardFont)
+		GUI.Text("Autodestruction in", ScrW / 2 - w / 2, ScrH / 2 - 50, StandardFont, COLOR(133, 133, 133))
+		local w = GUI.TextSize(Parametters["DestructTime"] .. "s", StandardFont)
+		GUI.Text(Parametters["DestructTime"] .. "s", ScrW / 2 - w / 2, ScrH / 2 - 10, StandardFont, COLOR(200, CurVal, CurVal))
+		--End
+	end,
+	Update = function(self, ticks)
+		BC1X = BC1X + ticks * 64
+		BC2X = BC2X + ticks * 64
+		CurVal = CurVal - ticks * 200
+		if (CurVal <= 0) then CurVal = 200 end
+		if (BC1X >= ScrW) then BC1X = -ScrW end
+		if (BC2X >= ScrW) then BC2X = -ScrW end
+	end,
+	Touched = function(self)
+	end
+}
+
+OS.DefineScreen("autodestruct", scr)

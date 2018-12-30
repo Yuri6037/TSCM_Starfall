@@ -1,0 +1,110 @@
+--@name StatusApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {
+		{
+			Color = COLOR(255, 255, 0),
+			Vertices = {
+				VERTEX(0, 32),
+				VERTEX(16, 0),
+				VERTEX(32, 32)
+			}
+		},
+		{
+			Color = COLOR(0, 255, 0),
+			Vertices = {
+				VERTEX(16, 16),
+				VERTEX(25, 16),
+				VERTEX(32, 32)
+			}
+		}
+	},
+	[16] = {
+		{
+			Color = COLOR(255, 255, 0),
+			Vertices = {
+				VERTEX(0, 16),
+				VERTEX(8, 0),
+				VERTEX(16, 16)
+			}
+		},
+		{
+			Color = COLOR(0, 255, 0),
+			Vertices = {
+				VERTEX(8, 8),
+				VERTEX(13, 8),
+				VERTEX(16, 16)
+			}
+		}
+	}
+}
+
+function ConvertWireBool(b)
+    return b == 1
+end
+
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+    self:SetTitle("Ship Status")
+    self:SetSize(256, 166)
+    self:SetIcon32(ico[32])
+    self:SetIcon16(ico[16])
+    self:SetPos(LOCATION_TOPRIGHT)
+
+    self.EBut = self:AddComponent("button", 10, 32, "Energy", function()
+        AIRunFunc("BASICS", "Energy")
+    end)
+    self.EBut:SetSize(AUTO, 16)
+    self.GBut = self:AddComponent("button", 10, 68, "Refinement", function()
+        AIRunFunc("BASICS", "Gaz")
+    end)
+    self.GBut:SetSize(AUTO, 16)
+    self.LBut = self:AddComponent("button", 10, 104, "Life Support", function()
+        AIRunFunc("BASICS", "Life")
+    end)
+    self.LBut:SetSize(AUTO, 16)
+    self.CBut = self:AddComponent("button", 10, 140, "Cloak", function()
+        AIRunFunc("BASICS", "Cloak")
+    end)
+    self.CBut:SetSize(AUTO, 16)
+
+    --Menu
+    self:AddPullDownMenu("Automation Tools")
+    self:AddPullDownMenuItem("AutoProbe", function()
+		AIRunFunc("AutoProbe")
+    end)
+    self:AddPullDownMenuItem("AutoMode", function()
+    	OS.Dialog("code", "Please enter LanAI admin code :", function(code)
+			AIRunFunc("AutoMode", code)
+		end)
+    end)
+    --End
+end
+function app:OnDataReceived(data)
+	if (data["EnergyActive"] == 1) then
+		self.EBut:SetColors(COLOR(0, 255, 0), COLOR(0, 164, 0, 200), OS.GetTextColor())
+	else
+		self.EBut:SetColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200), OS.GetTextColor())
+	end
+	if (data["RefineActive"] == 1) then
+		self.GBut:SetColors(COLOR(0, 255, 0), COLOR(0, 164, 0, 200), OS.GetTextColor())
+	else
+		self.GBut:SetColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200), OS.GetTextColor())
+	end
+	if (data["LSActive"] == 1) then
+		self.LBut:SetColors(COLOR(0, 255, 0), COLOR(0, 164, 0, 200), OS.GetTextColor())
+	else
+		self.LBut:SetColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200), OS.GetTextColor())
+	end
+	if (data["CloakActive"] == 1) then
+		self.CBut:SetColors(COLOR(0, 255, 0), COLOR(0, 164, 0, 200), OS.GetTextColor())
+	else
+		self.CBut:SetColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200), OS.GetTextColor())
+	end
+	self:NotifyRenderer()
+end
+
+OS.DefineApp("status", app)
+OS.AddAppMenuItem("status", "Status", "Ship", ico[16])

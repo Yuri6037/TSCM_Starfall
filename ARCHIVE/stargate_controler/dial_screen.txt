@@ -1,0 +1,106 @@
+--@name StargateControler_DialScreen
+--@author Yuri6037
+
+local addressToCompose = ""
+local addressToComposeDangerous = false
+
+local dialScreen = {}
+dialScreen.Name = "Dial"
+local id = render.getTextureID("phoenix_storms/wire/pcb_blue")
+function dialScreen:OnRender()
+	gl.glBindColor(133, 133, 133)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(145, 145, 145)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("Dial")
+	gl.glText("Dial", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	RenderDialData()
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	if (not(Data.Type == nil)) then
+		local p = "Stargate - ERROR"
+		if (Data.Type == 0) then
+			p = "Stargate - SGU"
+		elseif (Data.Type == 1) then
+			p = "Stargate - SGA"
+		elseif (Data.Type == 2) then
+			p = "Stargate - SG1"
+		end
+
+		gl.glBindFont(Screen.StandardFont)
+		local s = gl.glTextWidth(p)
+		gl.glBindColor(0, 255, 0)
+		gl.glText(p, 256 - s / 2, 470)
+	end
+end
+function dialScreen:OnShow()
+	addressToCompose = ""
+	addressToComposeDangerous = false
+
+	Screen:AddControl("Button", 236, 440, 256, 32, {Text = "Dial Gate", Func = function()
+		StartNet(function()
+			net.writeString("COMPOSE")
+			net.writeString(addressToCompose)
+		end)
+	end})
+
+	Screen:AddControl("Button", 10, 440, 256, 32, {Text = "Cancel", Func = function()
+		StartNet(function()
+			net.writeString("SWGUI")
+		end)
+	end})
+
+	local names = {}
+	for k, v in pairs(StargateAddressList) do
+		table.insert(names, v.Name)
+	end
+	Screen:AddControl("ListBox", 20, 130, 472, 256, {Data = names, OnSelect = function(key, value)
+		local entry = StargateAddressList[key]
+		addressToCompose = entry.Address
+		addressToComposeDangerous = entry.Danger
+	end})
+end
+function dialScreen:OnExit()
+end
+function dialScreen:OnTouched(mouseX, mouseY)
+end
+
+function RenderDialData()
+	gl.glBindFont(Screen.StandardFont)
+	local w = gl.glTextWidth("Selected Address : ")
+	gl.glBindFont(SgFontAd)
+	local w1 = gl.glTextWidth(addressToCompose)
+
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255, 255)
+	gl.glText("Selected Address : ", (256 - w / 2) - w1 / 2, 400)
+	gl.glBindFont(SgFontAd)
+	gl.glBindColor(255, 255, 0, 255)
+	gl.glText(addressToCompose, (256 - w1 / 2) + w / 2, 400)
+
+	if (addressToComposeDangerous) then
+		gl.glBindFont(Screen.StandardFont)
+		gl.glBindColor(255, 0, 0, 255)
+		local w = gl.glTextWidth("WARNING : DESTINATION IS DANGEROUS !")
+		gl.glText("WARNING : DESTINATION IS DANGEROUS !", (256 - w / 2), 87)
+	end
+end
+
+Screen:Register(dialScreen)

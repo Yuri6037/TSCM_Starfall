@@ -1,0 +1,32 @@
+--@name Lanteans OS DataCard
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"Header", "Data"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+Header = "RandomC"
+Data = [[
+#include <stdio.h>
+
+int		main()
+{
+#ifdef WIN32
+  printf("Hello World\r\n");
+#else
+  printf("Hello World\n");
+#endif
+}
+]]
+--End
+
+--Saving
+Ports["Header"] = Header
+Ports["Data"] = Data
+--End

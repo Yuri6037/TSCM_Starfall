@@ -1,0 +1,165 @@
+--@name PacketRegistry
+--@author Yuri6037
+
+--The Preload system packet
+RegisterPacket("PRELOAD", {
+	ReadData = function(args)
+		local option = args.Option
+		local par = args.Par
+		if (option == "START") then
+			CurScreen = "boot"
+			net.Broadcast("SCREEN", "boot")
+			SetParameter("LoadTXT", "LanAI " .. VERSION_AI .. " is intitializing...")
+		elseif (option == "END") then
+		elseif (option == "UPD") then
+		end
+	end
+})
+
+--The Load system packet
+RegisterPacket("LOAD", {
+	ReadData = function(args)
+		local option = args.Option
+		local par = args.Par
+		CurGui = 0
+		if (option == "START") then
+			SetParameter("LoadTXT", "LanAI " .. VERSION_AI .. " is loading systems...")
+		elseif (option == "END") then
+			SetParameter("LoadTXT", nil)
+			Loading = false
+			CheckDriversLoad()
+		elseif (option == "UPD") then
+			SetParameter("LoadTXT", "LanAI " .. VERSION_AI .. " : Loading systems (" .. math.floor(par) .. "%)")
+		end
+	end
+})
+
+--Screen reload/load packet
+RegisterPacket("RELOAD", {
+	WriteData = function(args)
+		return {Entity = ents.self(), Realm = args[1]}
+	end
+})
+
+RegisterPacket("FUNC", {
+	WriteData = function(args)
+		return {Player = args[1], Option = args[2], Data = args[3]}, true
+	end
+})
+
+local AIHooks = {}
+function AIHook(name, func)
+	if (func == nil or name == nil) then return end
+	AIHooks[name] = func
+end
+
+--The event packet to inform the screen of some action
+RegisterPacket("EVENT", {
+	ReadData = function(args)
+		local o = args.Name
+		if (AIHooks[o] == nil) then
+			return
+		end
+		AIHooks[o](args.Data)
+	end
+})
+
+AIHook("Destruction", function(flag)
+	if (flag) then
+		CurScreen = "autodestruct"
+		SetParameter("DestructTime", 60)
+		net.Broadcast("SCREEN", CurScreen)
+	else
+		if (DriversLoad <= 0) then
+			CurScreen = "logon"
+		end
+		SetParameter("DestructTime", nil)
+		net.Broadcast("SCREEN", CurScreen)
+	end
+end)
+
+AIHook("Evacuation", function(flag)
+	if (flag) then
+		SetParameter("Info", "EVACUATION ENGAGED")
+	else
+		SetParameter("Info", nil)
+	end
+end)
+
+AIHook("Lockdown", function(flag)
+	if (flag) then
+		SetParameter("Info", "LOCKDOWN ENGAGED")
+	else
+		SetParameter("Info", nil)
+	end
+end)
+
+AIHook("Alert", function(id)
+	SetParameter("Alert", id)
+end)
+
+AIHook("DestructionTimer", function(val)
+	SetParameter("DestructTime", val)
+end)
+
+RegisterPacket("RUNTIME_INFO", {
+	ReadData = function(args)
+	    SetParameter("RI", {CPUUsage = args.CPUUsage, OPSUsage = args.OPSUsage, CrashNumber = args.CrashNumber})
+	end
+})
+
+RegisterPacket("PROC", {
+	ReadData = function(args)
+		local t = args.Opt
+		if (t == "START") then
+			SetParameter("PNAME", args.Data)
+			SetParameter("PVAL", 0)
+		elseif (t == "UPD") then
+			SetParameter("PVAL", args.Data)
+		elseif (t == "END") then
+			SetParameter("PNAME", nil)
+			SetParameter("PVAL", 100)
+		end
+	end
+})
+
+RegisterPacket("PLANS", {
+	ReadData = function(args)
+	end
+})
+
+PlayersInsideShipList = {}
+RegisterPacket("SHIP_PLY_LIST", {
+	ReadData = function(args)
+		PlayersInsideShipList = args.PlayerList
+	end
+})
+
+--OS Specific packets
+RegisterPacket("TASK", {
+	WriteData = function(args)
+		return {Action = args[1], Type = args[2]}, true --MUST BE RELIABLE
+	end
+})
+RegisterPacket("DATA", {
+	ReadData = function(args)
+		if (Tasks[args.Type] == nil) then return end
+		net.Broadcast("DATA", args.Type, args.Data)
+		Tasks[args.Type].LastData = args.Data
+	end
+})
+RegisterPacket("LOGIN", {
+	WriteData = function(args)
+		return {Player = args[1], Entity = args[2]}, true
+	end,
+	ReadData = function(args)
+		if (not(ents.self():index() == args.Entity)) then return end
+		if (args.LoginMsg == nil) then
+			SetParameter("LoginMSG", nil)
+			net.SendPacket("SCREEN", args.Player, "main")
+		else
+			SetParameter("LoginMSG", args.LoginMsg)
+		end
+	end
+})
+--End

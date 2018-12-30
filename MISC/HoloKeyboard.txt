@@ -1,0 +1,80 @@
+--@name HoloKeyboard
+--@author Yuri6037
+
+local KeyMap = {
+	{"MJ", "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ""},
+	{"A", "Z", "E", "R", "T", "Y", "U", "I", "O", "P", "é", "è", "à"},
+	{"Q", "S", "D", "F", "G", "H", "J", "K", "L", "M", "ù", "!", "\\n"},
+	{"<", ">", "W", "X", "C", "V", "B", "N", "?", ",", ".", ";", ":"}
+}
+
+local self = ents.self()
+local KeyboardRT = rendertarget.create(512, 512)
+local fnt = render.createFont("Arial Black", 24, 900, true, false, false, false, false)
+
+OverlayX = -1
+OverlayY = -1
+
+function RenderKeyboard()
+	render.clear(0, 0, 0, 0)
+	for k, v in pairs(KeyMap) do
+		for k1, v1 in pairs(v) do
+			if (OverlayX == k1 - 1 and OverlayY == k - 1) then
+				render.setColor(255, 0, 0)
+			else
+				render.setColor(133, 133, 133)
+			end
+			render.drawRect(10 + (k1 - 1) * 17, 10 + (k - 1) * 138, 16, 128)
+			render.setColor(0, 0, 0)
+			local m = Matrix()
+			m:translate(Vector(10 + (k1 - 1) * 17, 10 + (k - 1) * 138))
+			m:scale(Vector(1, 5))
+			render.pushMatrix(m)
+			render.drawText(fnt, 8, 0, v1, render.TEXT_ALIGN_CENTER)
+			render.popMatrix()
+		end
+	end
+end
+
+local scale = 0.2
+local size = 256
+
+local function CalculateMousePos()
+	--Point on the plane
+	local p0 = self:obbCenter()
+	p0:Add(Vector(0, 0, 5))
+	p0 = self:localToWorld(p0)
+	local l = ents.player():aimVector()
+	local l0 = ents.player():aimPos()
+	local n = self:up()
+	if (l:Dot(n) == 0) then return 0, 0 end
+	local d = ((p0 - l0):Dot(n)) / l:Dot(n)
+	local p = d * l + l0
+	p = p - p0
+	p = p / scale
+	p:Rotate(-n:Angle())
+	return p.y, -p.z
+end
+
+KeyboardRT:DrawToTexture(RenderKeyboard)
+
+hook("render", "HoloKeyboard_Render", function()
+	local msx, msy = CalculateMousePos()
+
+	local p = self:obbCenter()
+	p:Add(Vector(0, 0, 5))
+	p = self:localToWorld(p)
+	local a = self:getAngles()
+	a:RotateAroundAxis(a:Up(), 90)
+
+	render.start3D2D(p, a, scale)
+	KeyboardRT:Draw(0, 0, 512, 128)
+	render.setColor(255, 0, 0)
+	render.drawRect(msx, msy, 4, 4)
+	OverlayX = math.floor(msx / 18)
+	OverlayY = math.floor(msy / 17)
+	if (ents.player():keyDown(input.IN_USE)) then
+		KeyboardRT:DrawToTexture(RenderKeyboard)
+	end
+	render.end3D2D()
+end)

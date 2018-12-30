@@ -1,0 +1,54 @@
+--@name WarpGui
+--@author Yuri6037
+
+local selectedElement = nil
+local areaContent = {}
+
+local gui = {}
+
+function gui.Render(x, y)
+	gl.glPushMatrix()
+		gl.glTranslate(0, 0)
+		selectedElement = UI.ListBox(0, x + 10, y, 256, 256, areaContent, 7)
+		UI.SetSkin(1)
+		if (UI.Button("Warp Back", x + 700, y + 20, 256, 32)) then
+			StartNet(function()
+				net.writeString("warpBack")
+			end)
+		end
+		if (UI.Button("Engage Warp", x + 700, y + 210, 256, 32)) then
+			if (not(selectedElement == nil)) then
+				StartNet(function()
+					net.writeString("warp")
+					net.writeString(selectedElement)
+				end)
+			end
+		end
+		UI.SetSkin(0)
+	gl.glPopMatrix()
+end
+
+function gui.CheckInputs(x, y)
+end
+
+--Registry
+function UpdateWarpRegistry(tbl)
+	areaContent = {}
+
+	table.insert(areaContent, "hiigara")
+	table.insert(areaContent, "shakuras")
+	table.insert(areaContent, "spaceStation")
+	table.insert(areaContent, "hell")
+	table.insert(areaContent, "desert")
+	table.insert(areaContent, "build")
+	table.insert(areaContent, "earth")
+	table.insert(areaContent, "secret")
+
+	for k, v in pairs(tbl) do
+		table.insert(areaContent, v)
+	end
+
+	BroadcastTripleScreenPacket("LIST_DATA", "WARP", areaContent)
+end
+
+RegisterGUI(5, 4, 5, "Warp Menu", gui)

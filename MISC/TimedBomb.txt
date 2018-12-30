@@ -1,0 +1,25 @@
+--@name TimedBomb
+--@author Yuri6037
+
+wire.createOutputs({"Effects", "Bomb", "SecsS1", "SecsS2"}, {"Normal", "Normal", "Normal", "Normal"})
+
+Seconds = 99
+CurTime = Seconds
+
+wire.ports["Effects"] = 1
+wire.ports["Bomb"] = 0
+wire.ports["SecsS1"] = (CurTime / 10) % 10
+wire.ports["SecsS2"] = CurTime % 10
+timer.create("TimedBomb", 1, Seconds + 2, function()
+	CurTime = CurTime - 1
+	if (CurTime < 0) then
+		wire.ports["Bomb"] = 0
+		return
+	end
+	wire.ports["SecsS1"] = (CurTime / 10) % 10
+	wire.ports["SecsS2"] = CurTime % 10
+	if (CurTime == 0) then
+		wire.ports["Effects"] = 0
+		wire.ports["Bomb"] = 1
+	end
+end)

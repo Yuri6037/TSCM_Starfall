@@ -1,0 +1,58 @@
+--@name GlassToggeler
+--@author Yuri6037
+--@class processor
+--@autoupdate
+
+wire.createInputs({"Prop", "Activate"}, {"Entity", "Normal"})
+wire.createOutputs({"Active"}, {"Normal"})
+
+local Prop = nil
+local OnMat = "sprops/textures/sprops_rubber"
+local SubMats = {}
+
+function string.StartsWith(String, Start)
+	return string.sub(String, 1, string.len(Start)) == Start
+end
+
+local function FindMaterials()
+	if (string.StartsWith(Prop:model(), "models/smallbridge")) then
+		for k, v in pairs(Prop:getMaterials()) do
+			if (v == "spacebuild/bodyskin") then
+				table.insert(SubMats, {k - 1, "spacebuild/glass", Prop:getSubMaterial(k - 1)})
+			end
+		end
+	else
+		for k, v in pairs(Prop:getMaterials()) do
+			if (v == "cmats/glass" or v == "spacebuild/glass") then
+				table.insert(SubMats, {k - 1, v, OnMat})
+			end
+		end
+	end
+end
+
+Prop = wire.ports["Prop"]
+if (IsValid(Prop)) then
+	FindMaterials()
+end
+
+hook("input", "GlassToggeler", function(inp, val)
+	if (inp == "Prop") then
+		Prop = val
+		SubMats = {}
+		if (IsValid(Prop)) then
+			FindMaterials()
+		end
+	elseif (inp == "Activate" and IsValid(Prop)) then
+		if (val == 1) then
+			for k, v in pairs(SubMats) do
+				Prop:setSubMaterial(v[1], v[3])
+			end
+			wire.ports["Active"] = 1
+		else
+			for k, v in pairs(SubMats) do
+				Prop:setSubMaterial(v[1], v[2])
+			end
+			wire.ports["Active"] = 0
+		end
+	end
+end)

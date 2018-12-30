@@ -1,0 +1,174 @@
+--@name WeaponSamplingResults
+--@author Yuri6037
+--@class hud
+
+--First pass 10 samples
+local RawPass1 = {
+	["Heavy Missile Battery"] = {
+		["Higaran Cluster Torpedo"] = {Shield = 0.1, Hull = 0.0, Armor = 0.8},
+		["Vaygr Heavy Missile"] = {Shield = 0.0, Hull = 0.0, Armor = 0.3}
+	},
+	["Ion Laser"] = {Shield = 0.7, Hull = 0.0, Armor = 0.0},
+	["Keeper Laser"] = {Shield = 0.2, Hull = 0.0, Armor = 0.0},
+	["Pulsar Emitter"] = {
+		["Hiigaran"] = {Shield = 0.1, Hull = 0.0, Armor = 0.0},
+		["Progenitor"] = {Shield = 0.1, Hull = 0.0, Armor = 0.0},
+		["Vaygr"] = {Shield = 0.1, Hull = 0.0, Armor = 0.0}
+	},
+	["Ship Cannon"] = {Shield = 0.2, Hull = 0.0, Armor = 1.1},
+	["Beam Emitter"] = {
+		["Antiproton"] = {Shield = 0.9, Hull = 0.0, Armor = 0.0},
+		["Chroniton"] = {Shield = 0.7, Hull = 0.0, Armor = 0.0},
+		["Destabilising Tetryon"] = {Shield = 0.7, Hull = 0.0, Armor = 0.0},
+		["Disruptor"] = {Shield = 1.1, Hull = 0.0, Armor = 0.0},
+		["Phaser"] = {Shield = 1.1, Hull = 0.0, Armor = 0.0},
+		["Phaser (DSC)"] = {Shield = 1.0, Hull = 0.0, Armor = 0.0},
+		["Phaser (TMP)"] = {Shield = 1.2, Hull = 0.0, Armor = 0.0},
+		["Phaser (TOS)"] = {Shield = 0.7, Hull = 0.0, Armor = 0.0},
+		["Plasma"] = {Shield = 0.2, Hull = 0.0, Armor = 0.0},
+		["Polaron"] = {Shield = 0.9, Hull = 0.0, Armor = 0.0},
+		["Proton"] = {Shield = 0.0, Hull = 0.0, Armor = 1.3},
+		["Protonic Polaron"] = {Shield = 0.0, Hull = 0.0, Armor = 0.6},
+		["Spiral Wave Disruptor"] = {Shield = 1.1, Hull = 0.0, Armor = 0.0},
+		["Tetryon"] = {Shield = 1.0, Hull = 0.0, Armor = 0.0},
+		["Voth Antiproton"] = {Shield = 1.0, Hull = 0.0, Armor = 0.0}
+	},
+	["Phaser I"] = {Shield = 0.7, Hull = 0.0, Armor = 0.0},
+	["Phaser IV"] = {Shield = 0.7, Hull = 0.0, Armor = 0.0},
+	["Pulse Phaser"] = {Shield = 1.7, Hull = 0.0, Armor = 0.0},
+	["Torpedo Launcher"] = {
+		["Biomolecular"] = {Shield = 0.8, Hull = 0.0, Armor = 1.9},
+		["Chroniton"] = {Shield = 0.3, Hull = 0.0, Armor = 0.2},
+		["Photon"] = {Shield = 0.5, Hull = 0.0, Armor = 0.3},
+		["Photon (TMP)"] = {Shield = 0.5, Hull = 0.0, Armor = 0.3},
+		["Photon (TOS)"] = {Shield = 0.6, Hull = 0.0, Armor = 0.3},
+		["Plasma"] = {Shield = 0.5, Hull = 0.0, Armor = 0.4},
+		["Quantum"] = {Shield = 0.5, Hull = 0.0, Armor = 0.3},
+		["Transphasic"] = {Shield = 1.0, Hull = 0.0, Armor = 0.8},
+		["Transphasic Chroniton"] = {Shield = 0.8, Hull = 0.0, Armor = 0.7},
+		["Tricobalt"] = {Shield = 1.0, Hull = 0.0, Armor = 0.8} --Best rendering effect
+	}
+}
+
+--Second pass 100 samples
+local RawPass2 = {
+	["Heavy Missile Battery"] = {
+		["Higaran Cluster Torpedo"] = {Shield = 0.6, Hull = 0.0, Armor = 3.9},
+		["Vaygr Heavy Missile"] = {Shield = 0.9, Hull = 0.0, Armor = 5.6}
+	},
+	["Ion Laser"] = {Shield = 7.7, Hull = 0.0, Armor = 0.0},
+	["Keeper Laser"] = {Shield = 1.0, Hull = 0.0, Armor = 0.0},
+	["Pulsar Emitter"] = {
+		["Hiigaran"] = {Shield = 2.0, Hull = 0.0, Armor = 0.0},
+		["Progenitor"] = {Shield = 2.4, Hull = 0.0, Armor = 0.0},
+		["Vaygr"] = {Shield = 2.5, Hull = 0.0, Armor = 0.0}
+	},
+	["Ship Cannon"] = {Shield = 1.3, Hull = 0.0, Armor = 7.9},
+	["Beam Emitter"] = {
+		["Antiproton"] = {Shield = 9.2, Hull = 0.0, Armor = 0.0},
+		["Chroniton"] = {Shield = 5.5, Hull = 0.0, Armor = 0.0},
+		["Destabilising Tetryon"] = {Shield = 8.4, Hull = 0.0, Armor = 0.0},
+		["Disruptor"] = {Shield = 9.0, Hull = 0.0, Armor = 0.0},
+		["Phaser"] = {Shield = 9.0, Hull = 0.0, Armor = 0.0},
+		["Phaser (DSC)"] = {Shield = 8.3, Hull = 0.0, Armor = 0.0},
+		["Phaser (TMP)"] = {Shield = 11.0, Hull = 0.0, Armor = 0.0},
+		["Phaser (TOS)"] = {Shield = 7.3, Hull = 0.0, Armor = 0.0},
+		["Plasma"] = {Shield = 2.0, Hull = 0.0, Armor = 0.0},
+		["Polaron"] = {Shield = 8.1, Hull = 0.0, Armor = 0.0},
+		["Proton"] = {Shield = 0.0, Hull = 0.0, Armor = 12.1},
+		["Protonic Polaron"] = {Shield = 0.0, Hull = 0.0, Armor = 4.8},
+		["Spiral Wave Disruptor"] = {Shield = 9.0, Hull = 0.0, Armor = 0.0},
+		["Tetryon"] = {Shield = 10.2, Hull = 0.0, Armor = 0.0},
+		["Voth Antiproton"] = {Shield = 8.2, Hull = 0.0, Armor = 0.0}
+	},
+	["Phaser I"] = {Shield = 11.0, Hull = 0.0, Armor = 0.0},
+	["Phaser IV"] = {Shield = 8.6, Hull = 0.0, Armor = 0.0},
+	["Pulse Phaser"] = {Shield = 10.5, Hull = 0.0, Armor = 0.0},
+	["Torpedo Launcher"] = {
+		["Biomolecular"] = {Shield = 2.5, Hull = 0.0, Armor = 1.8},
+		["Chroniton"] = {Shield = 3.1, Hull = 0.0, Armor = 1.9},
+		["Photon"] = {Shield = 4.5, Hull = 0.0, Armor = 2.7},
+		["Photon (TMP)"] = {Shield = 3.5, Hull = 0.0, Armor = 2.1},
+		["Photon (TOS)"] = {Shield = 3.5, Hull = 0.0, Armor = 3.5},
+		["Plasma"] = {Shield = 4.5, Hull = 0.0, Armor = 4.4},
+		["Quantum"] = {Shield = 7.0, Hull = 0.0, Armor = 4.2},
+		["Transphasic"] = {Shield = 10.4, Hull = 0.0, Armor = 8.4},
+		["Transphasic Chroniton"] = {Shield = 10.0, Hull = 0.0, Armor = 8.1},
+		["Tricobalt"] = {Shield = 3.0, Hull = 0.0, Armor = 3.0} --Best rendering effect
+	}
+}
+
+local Pass1Values = {}
+local Pass2Values = {}
+local Pass1Scores = {}
+local Pass2Scores = {}
+
+local function MergTable(tbl, dest)
+	for k, v in pairs(tbl) do
+		if (v.Shield == nil) then
+			for k1, v1 in pairs(v) do
+				v1.Name = k .. " (" .. k1 ..")"
+				table.insert(dest, v1)
+			end
+		else
+			v.Name = k
+			table.insert(dest, v)
+		end
+	end
+end
+MergTable(RawPass1, Pass1Values)
+MergTable(RawPass2, Pass2Values)
+
+local function ComputeScores(tbl, dest)
+	for k, v in pairs(tbl) do
+		table.insert(dest, {Name = v.Name, Score = v.Shield + v.Armor * 2 + v.Hull * 3})
+	end
+end
+ComputeScores(Pass1Values, Pass1Scores)
+ComputeScores(Pass2Values, Pass2Scores)
+
+local function CreateNewTab(parent, name, tbl)
+	local p = vgui.create("DPanel", parent)
+	p.Paint = function(self, w, h)
+		render.setColor(255, 128, 0)
+		render.drawLine(0, 0, w, 0)
+		render.drawLine(w - 1, 0, w - 1, h)
+		render.drawLine(0, h - 1, w - 1, h - 1)
+		render.drawLine(0, 0, 0, h)
+	end
+	local lst = vgui.create("DListView", p)
+	lst:SetMultiSelect(false)
+	lst:AddColumn("Weapon Name")
+	lst:AddColumn("Score")
+	lst:Dock(1)
+	lst.Paint = function(self, w, h) end
+	parent:AddSheet(name, p, "icon16/application.png")
+	for k, v in pairs(tbl) do
+		local el = lst:AddLine(v.Name, v.Score)
+		el.Columns[1]:SetTextColor(Color(255, 255, 255))
+		el.Columns[2]:SetTextColor(Color(255, 255, 255))
+	end
+end
+
+hook("hudlink", "Link", function()
+	local f = vgui.create("DFrame")
+	f:SetTitle("Weapon sampling results")
+	f:SetSize(0, 0)
+	f.Paint = function(self, w, h)
+		render.setColor(0, 0, 0, 128)
+		render.drawRect(0, 0, w, h)
+		render.setColor(0, 128, 255)
+		render.drawLine(0, 0, w, 0)
+		render.drawLine(w - 1, 0, w - 1, h)
+		render.drawLine(0, h - 1, w - 1, h - 1)
+		render.drawLine(0, 0, 0, h)
+	end
+	local ps = vgui.create("DPropertySheet", f)
+	ps:Dock(1)
+	ps.Paint = function(self, w, h) end
+	CreateNewTab(ps, "Pass1 (10 samples)", Pass1Scores)
+	CreateNewTab(ps, "Pass2 (100 samples)", Pass2Scores)
+	f:SetSize(1024, 512)
+	f:Center()
+	f:MakePopup()
+end)

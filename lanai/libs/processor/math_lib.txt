@@ -1,0 +1,85 @@
+--@name MathLib
+--@author Yuri6037
+
+function math.FindGreatest(tbl)
+	local great = tbl[1]
+	local index = 1
+	for k, v in pairs(tbl) do
+	   if (v >= great) then
+		  great = v
+		  index = k
+	   end
+	end
+	return great, index
+end
+
+function math.FindLowest(tbl)
+	local low = tbl[1]
+	local index = 1
+	for k, v in pairs(tbl) do
+	   if (v <= low) then
+		  low = v
+		  index = k
+	   end
+	end
+	return low, index
+end
+
+RENGE_GREATEST_TO_LOWEST = 0
+RENGE_LOWEST_TO_GREATEST = 1
+function math.RengeNumbers(tbl, order)
+	if (order == nil) then order = 0 end
+	local renged = {}
+	if (order == 0) then
+	   while (#tbl > 0) do
+		  local l, i = math.FindLowest(tbl)
+		  table.insert(renged, l)
+		  table.remove(tbl, i)
+	   end
+	else
+	   while (#tbl > 0) do
+		  local l, i = math.FindGreatest(tbl)
+		  table.insert(renged, l)
+		  table.remove(tbl, i)
+	   end
+	end
+	return renged
+end
+
+INFINITY = 1e309
+function math.CreateBoundingBox()
+	local tbl = {
+		Points = 0,
+		Center = Vector(0, 0, 0),
+		Min = Vector(-INFINITY, -INFINITY, -INFINITY),
+		Max = Vector(INFINITY, INFINITY, INFINITY),
+		Encapsulate = function(self, point)
+			if (point.X > self.Min.X) then
+				self.Min.X = point.X
+			end
+			if (point.Y > self.Min.Y) then
+				self.Min.Y = point.Y
+			end
+			if (point.Z > self.Min.Z) then
+				self.Min.Z = point.Z
+			end
+			if (point.X < self.Max.X) then
+				self.Max.X = point.X
+			end
+			if (point.Y < self.Max.Y) then
+				self.Max.Y = point.Y
+			end
+			if (point.Z < self.Max.Z) then
+				self.Max.Z = point.Z
+			end
+		end,
+		IsValid = function(self)
+			if (self.Min.X == -INFINITY or self.Min.Y == -INFINITY or self.Min.Z == -INFINITY or self.Max.X == INFINITY or self.Max.Y == INFINITY or self.Max.Z == INFINITY) then
+				return (false)
+			else
+				return (true)
+			end
+		end
+	}
+	return (tbl)
+end

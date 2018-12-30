@@ -1,0 +1,75 @@
+--@name ValveApp
+--@author Yuri6037
+
+local Ico32 = {
+	{
+		Color = COLOR(0, 180, 180),
+		Vertices = {
+			VERTEX(8, 0),
+			VERTEX(24, 0),
+			VERTEX(32, 8),
+			VERTEX(32, 24),
+			VERTEX(24, 32),
+			VERTEX(8, 32),
+			VERTEX(0, 24),
+			VERTEX(0, 8)
+		}
+	}
+}
+
+local Ico16 = {
+	{
+		Color = COLOR(0, 180, 180),
+		Vertices = GUI.PolyTransform(Ico32[1].Vertices, 0, 0, 0.5)
+	}
+}
+
+local app = {}
+
+function app:Init()
+	self:EnableAINetContext()
+	self:SetIcon32(Ico32)
+	self:SetIcon16(Ico16)
+	self:SetTitle("Ship Valve")
+	self:SetSize(256, 166)
+	self:SetPos(LOCATION_CENTER)
+
+	self:AddPullDownMenu("Target")
+	self:AddPullDownMenuItem("Node", function()
+		OS.Dialog("ply", "Please select a target :", function(ply)
+			AIRunFunc("TargetNode", ply)
+		end)
+	end)
+	self:AddPullDownMenuItem("Clear", function()
+		AIRunFunc("TargetOff")
+	end)
+	local lst = self:AddComponent("listbox", 64, 32)
+	lst:SetSize(128, 75)
+	lst:SetMaxLines(3)
+	lst:SetData({"Energy", "Water", "Deuterium", "Oxygen"})
+	local push = self:AddComponent("button", 20, 117, "Push", function()
+		local id, str = lst:GetSelected()
+		AIRunFunc("ValvePush", str)
+	end)
+	push:SetSize(64, 16)
+	local pull = self:AddComponent("button", 94, 117, "Pull", function()
+		local id, str = lst:GetSelected()
+		AIRunFunc("ValvePull", str)
+	end)
+	pull:SetSize(64, 16)
+	local stop = self:AddComponent("button", 168, 117, "Stop", function()
+		AIRunFunc("ValveOff", str)
+	end)
+	stop:SetSize(64, 16)
+	self.Status = self:AddComponent("label", 20, 137)
+	self.Status:SetFont(LargeFont)
+	self.Status:SetColor(255, 128, 0)
+	self.Status:SetText("Valve is ERROR")
+end
+
+function app:OnDataReceived(data)
+	self.Status:SetText("Valve is " .. (data["Status"] or "NULL"))
+end
+
+OS.DefineApp("valve", app)
+OS.AddAppMenuItem("valve", "Valve", "Ship", Ico16)

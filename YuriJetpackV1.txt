@@ -1,0 +1,289 @@
+--@name YuriJetpackV1
+--@author Yuri6037
+--@class processor
+--@autoupdate
+
+--@require UTIL/AdvDupe2ColorUnfucker.txt
+--@require IntelliHUD/API.txt
+--@require UTIL/StargateTravelHandler.txt
+--@require UTIL/EnvUtils.txt
+
+wire.createInputs({"Pod", "EyePod", "Base", "ZPM", "EffectThruster"}, {"Wirelink", "Wirelink", "Entity", "Wirelink", "Wirelink"})
+wire.createOutputs({"ZPMCon", "ZPMValue"}, {"Normal", "Normal"})
+
+local Pod = nil
+local Base = nil
+local EyePod = nil
+local CurPlayer = nil
+local ZPM = nil
+
+local EffectThruster = nil
+local ThrustSound = nil
+local ThrustStartSound = nil
+
+local CRTS = {}
+
+local CurMult = 0
+
+local VehReg = false
+
+if (not(wire.ports["Pod"] == nil)) then
+	Pod = wire.ports["Pod"]
+end
+if (not(wire.ports["EyePod"] == nil)) then
+	EyePod = wire.ports["EyePod"]
+end
+if (not(wire.ports["ZPM"] == nil)) then
+	ZPM = wire.ports["ZPM"]
+end
+if (not(wire.ports["EffectThruster"] == nil)) then
+	EffectThruster = wire.ports["EffectThruster"]
+end
+if (IsValid(wire.ports["Base"])) then
+	Base = wire.ports["Base"]
+	stargate.SetEntityTravelList({Base})
+	CRTS = Base:getConstraints()
+	ThrustSound = sounds.create(Base, "thrusters/jet03.wav")
+	ThrustSound:setVolume(0.75)
+	ThrustStartSound = sounds.create(Base, "weapons/rpg/rocket1.wav")
+	ThrustStartSound:setVolume(0.5)
+	ThrustStartSound:setPitch(75)
+
+	if (not(ZPM == nil) and not(EyePod == nil)) then
+		local data = intellihud.NewDataStructure(ZPM:entity(), "Jetpack", Color(0, 0, 255), Base)
+		intellihud.RegisterVehicle(Base, data)
+		VehReg = true
+	end
+end
+
+hook("input", "YuriJetpack_Wire", function(inp, var)
+	if (inp == "Pod") then
+		Pod = var
+	elseif (inp == "EyePod") then
+		EyePod = var
+	elseif (inp == "ZPM") then
+		ZPM = var
+		if (IsValid(Base) and not(ZPM == nil) and VehReg) then
+			intellihud.UpdateZPMEntity(Base, ZPM:entity())
+		end
+	elseif (inp == "EffectThruster") then
+		EffectThruster = var
+	elseif (inp == "Base") then
+		Base = var
+		stargate.SetEntityTravelList({Base})
+		if (IsValid(Base)) then
+			CRTS = Base:getConstraints()
+			ThrustSound = sounds.create(Base, "thrusters/jet03.wav")
+			ThrustSound:setVolume(0.75)
+			ThrustStartSound = sounds.create(Base, "weapons/rpg/rocket1.wav")
+			ThrustStartSound:setVolume(0.5)
+			ThrustStartSound:setPitch(75)
+
+			if (not(ZPM == nil) and not(EyePod == nil)) then
+				local data = intellihud.NewDataStructure(ZPM:entity(), "Jetpack", Color(255, 0, 0), Base)
+				intellihud.RegisterVehicle(Base, data)
+			end
+		end
+	end
+end)
+
+local CurW = 0
+local CurS = 0
+local Pump = false
+local Val = 0
+
+local WantedHoverVec = nil
+local HoverMode = false
+
+--ZPM System
+local ZPMCon = false
+local OldZPMValue = 0
+local CurZPMValue = 0
+local function CheckZPM()
+	if (ZPM == nil) then return false end
+	if (not(ZPMCon)) then
+		ZPMCon = true
+		CurZPMValue = 10
+	end
+	if (not(CurZPMValue == OldZPMValue)) then
+		wire.ports["ZPMValue"] = CurZPMValue
+		OldZPMValue = CurZPMValue
+	end
+	if (not(ZPM["P"] == nil) and ZPM["P"] <= 0) then
+		EffectThruster["A"] = 0
+		return false
+	end
+	return true
+end
+
+local function UpdateAngles()
+	local angs = Angle(-EyePod["Y"], -EyePod["X"], 0)
+	Base:setAngles(angs)
+end
+
+local function SwitchHoverModeWhileFlying()
+	HoverMode = not(HoverMode)
+	if (HoverMode) then
+		WantedHoverVec = Base:getPos()
+		CurZPMValue = 100
+	else
+		CurZPMValue = 50
+		WantedHoverVec = nil
+	end
+end
+
+local function Hover()
+	local phys = Base:getPhysicsObject()
+
+	if (phys:isMotionEnabled() and Base:IsInSpace() and not(phys:isGravityEnabled())) then
+		phys:enableGravity(true)
+	end
+
+	if (phys:isMotionEnabled() and phys:isGravityEnabled()) then
+		local angs = Base:getAngles()
+		if (angs.yaw > 1 or angs.yaw < -1 or angs.roll > 1 or angs.roll < -1) then
+			phys:enableMotion(false)
+			Base:setAngles(Angle(0, 0, 0))
+			phys:enableMotion(true)
+			return
+		end
+
+		local tr = trace.trace(Base:obbCenterW(), Base:obbCenterW() + Vector(0, 0, -100), CRTS, trace.MASK_SOLID)
+		local v = tr.HitPos
+		local dist = v:Distance(Base:obbCenterW())
+
+		if (dist < 80) then
+			phys:applyForceCenter(Vector(0, 0, phys:getMass() * 9.81))
+		elseif (dist > 80) then
+			phys:applyForceCenter(Vector(0, 0, phys:getMass() * 7.81))
+		end
+	end
+end
+
+local function MoveForward(mult)
+	if (CurMult < 0 and mult == 0) then
+		if (CurMult < mult) then
+			CurMult = CurMult + 1
+		end
+	elseif (mult > 0) then
+		if (CurMult < mult) then
+			CurMult = CurMult + 1
+		end
+	else
+		if (CurMult > mult) then
+			CurMult = CurMult - 1
+		end
+	end
+
+	local phys = Base:getPhysicsObject()
+	local vel = Base:up() * 9.81 * CurMult
+	phys:setVelocity(vel)
+end
+
+hook("think", "YuriJetpack_UPD", function()
+	if (not(CheckZPM())) then return end
+
+	if (IsValid(Base) and not(EffectThruster == nil) and not(Pod == nil) and IsValid(Pod["Entity"])) then
+		local e = Pod["Entity"]:driver()
+		if (not(CurPlayer == e)) then
+			CurPlayer = e
+		end
+		if (IsValid(e) and e:isPlayer()) then
+			UpdateAngles()
+			if (not(Pod["W"] == CurW)) then
+				CurW = Pod["W"]
+				if (CurW == 1) then
+					if (HoverMode) then
+						SwitchHoverModeWhileFlying()
+					end
+					CurZPMValue = 200
+					ThrustSound:play()
+					ThrustStartSound:play()
+					Base:spriteTrail(Color(200, 200, 200), 15, 0, 1, "trails/smoke")
+					EffectThruster["A"] = 1
+				else
+					CurZPMValue = 50
+					ThrustSound:stop()
+					ThrustStartSound:stop()
+					Base:removeTrail()
+					EffectThruster["A"] = 0
+				end
+			end
+			if (not(Pod["S"] == CurS)) then
+				CurS = Pod["S"]
+				if (CurS == 1) then
+					if (HoverMode) then
+						SwitchHoverModeWhileFlying()
+					end
+					CurZPMValue = 200
+					ThrustSound:play()
+					ThrustStartSound:play()
+					Base:spriteTrail(Color(200, 200, 200), 15, 0, 1, "trails/smoke")
+					EffectThruster["A"] = 1
+				else
+					CurZPMValue = 50
+					ThrustSound:stop()
+					ThrustStartSound:stop()
+					Base:removeTrail()
+					EffectThruster["A"] = 0
+				end
+			end
+
+			if (not(HoverMode) and CurMult == 0 and CurS == 0 and CurW == 0 and not(Base:isVehicleBodyInWater()) and not(Base:IsInSpace())) then
+				SwitchHoverModeWhileFlying()
+			end
+
+			if (HoverMode) then
+				local phys = Base:getPhysicsObject()
+				local dist = WantedHoverVec:Distance(Base:getPos())
+
+				if (dist < 1) then
+					phys:applyForceCenter(Vector(0, 0, phys:getMass() * 9.81))
+				elseif (dist > 1) then
+					phys:applyForceCenter(Vector(0, 0, phys:getMass() * 7.81))
+				end
+			else
+				if (CurW == 1) then
+					if (Pod["Shift"] == 1) then
+						if (not(Pump)) then
+							Pump = true
+							CurZPMValue = 600
+						end
+						MoveForward(600)
+					else
+						if (Pump) then
+							Pump = false
+							CurZPMValue = 200
+						end
+						MoveForward(200)
+					end
+				elseif (CurS == 1) then
+					MoveForward(-200)
+				else
+					MoveForward(0)
+				end
+			end
+		else
+			Hover()
+		end
+	end
+end)
+
+--Gate travel handler
+stargate.IntegrateTravel(function(msg, gate)
+	if (msg == "IRIS") then
+		chat.tell(ents.owner(), Color(0, 128, 255), "[Jetpack] -> This gate has shields up, stopping travel to prevent damage on jetpack.")
+	elseif (msg == "SPAWN") then
+		chat.tell(ents.owner(), Color(0, 128, 255), "[Jetpack] -> This gate is at Spawn ! This is a terrible issue, blocking travel then contacting gate owner !")
+		if (IsValid(gate:owner())) then
+			chat.tell(gate:owner(), Color(255, 0, 0), "[Jetpack] -> What have you done !? Why did you try to destroy me ?")
+		end
+	end
+end)
+
+chat.listen(function(msg, ply)
+	if (IsValid(Base) and msg == "jetpack") then
+		Base:setPos(ply:getPos() + Vector(0, 0, 70))
+	end
+	return false
+end, ents.owner())

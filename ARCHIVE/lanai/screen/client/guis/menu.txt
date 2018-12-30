@@ -1,0 +1,299 @@
+--@name MenuGui
+--@author Yuri6037
+
+local MainButtons = {
+	{
+		Text = "Status",
+		NoAutoMode = true,
+		LogoDraw = function()
+			gl.glBindColor(255, 255, 255)
+			gl.glRect(68, 50, 64, 66)
+
+			gl.glBindColor(0, 255, 0)
+			gl.glRoundedRect(72, 53, 16, 13, 4)
+			gl.glRoundedRect(72, 69, 16, 13, 4)
+			gl.glBindColor(255, 0, 0)
+			gl.glRoundedRect(72, 85, 16, 13, 4)
+			gl.glRoundedRect(72, 101, 16, 13, 4)
+
+			gl.glBindColor(0, 0, 0)
+			gl.glRect(90, 59, 35, 2)
+			gl.glRect(90, 75, 35, 2)
+			gl.glRect(90, 91, 35, 2)
+			gl.glRect(90, 107, 35, 2)
+		end,
+		GuiID = 1
+	},
+	{
+		Text = "Resources",
+		LogoDraw = function()
+			--render.setColor(0, 0, 255)
+			--render.setTexture(nil)
+			--render.drawFilledCircle(125, 90, 24, 10)
+
+			gl.glBindColor(0, 0, 255)
+
+			--Replacing drawFilledCircle with glCircle
+			gl.glCircle(125, 90, 24, 360)
+
+			gl.glVertex(-25, 40, 0, 1)
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(25, 40, 1, 1)
+
+			gl.glDraw(125, 50)
+
+			gl.glBindColor(255, 255, 0)
+			local x = 85
+			local y = 40
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(30, 0, 1, 0)
+			gl.glVertex(0, 50, 1, 1)
+			gl.glVertex(-20, 50, 0, 1)
+
+			gl.glDraw(x, y)
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(20, 0, 1, 0)
+			gl.glVertex(-20, 50, 1, 1)
+
+			x = x + 0
+			y = y + 40
+
+			gl.glDraw(x, y)
+		end,
+		GuiID = 2
+	},
+	{
+		Text = "Tactical",
+		LogoDraw = function()
+			local x = 100
+			local y = 60
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(0, 30, 0, 1)
+			gl.glVertex(-20, 40, 1, 1)
+
+			gl.glBindColor(255, 128, 0)
+			gl.glDraw(x, y)
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(20, 40, 1, 1)
+			gl.glVertex(0, 30, 0, 1)
+
+			gl.glDraw(x, y)
+
+			--render.setColor(255, 0, 0)
+			--render.drawCircle(100, 80, 64, 40)
+			gl.glBindColor(255, 0, 0)
+
+			--Replacing drawCircle with glUnfilledCircle
+			gl.glUnfilledCircle(100, 80, 40, 360)
+
+			gl.glRect(0, 78, 200, 2)
+			gl.glRect(99, 40, 2, 80)
+		end,
+		GuiID = 3
+	},
+	{
+		Text = "Transporter",
+		LogoDraw = function()
+			gl.glBindColor(255, 255, 255)
+			gl.glRoundedRect(10, 45, 178, 50, 8)
+			gl.glBindColor(0, 255, 255)
+			gl.glCircle(48, 70, 32, 360)
+			gl.glCircle(148, 70, 32, 360)
+		end,
+		GuiID = 4
+	},
+	{
+		Text = "Warp",
+		NoAutoMode = true,
+		LogoDraw = function()
+			local x = 100
+			local y = 60
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(0, 30, 0, 1)
+			gl.glVertex(-20, 40, 1, 1)
+
+			gl.glBindColor(133, 133, 133)
+			gl.glDraw(x, y)
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(20, 40, 1, 1)
+			gl.glVertex(0, 30, 0, 1)
+
+			gl.glDraw(x, y)
+
+			gl.glBindColor(0, 128, 255)
+			gl.glRect(80, 50, 2, 70)
+			gl.glRect(90, 50, 2, 70)
+			gl.glRect(100, 50, 2, 70)
+			gl.glRect(110, 50, 2, 70)
+			gl.glRect(120, 50, 2, 70)
+		end,
+		GuiID = 5
+	},
+	{
+		Text = "Ship Maps",
+		NoAutoMode = true,
+		LogoDraw = function()
+			gl.glBindColor(255, 255, 255)
+			gl.glRoundedRect(10, 45, 178, 70, 8)
+			gl.glBindColor(0, 0, 0)
+			gl.glCircle(148, 70, 32, 360)
+
+			local x = 70
+			local y = 60
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(0, 30, 0, 1)
+			gl.glVertex(-20, 40, 1, 1)
+
+			gl.glBindColor(0, 255, 0)
+			gl.glDraw(x, y)
+
+			gl.glVertex(0, 0, 0, 0)
+			gl.glVertex(20, 40, 1, 1)
+			gl.glVertex(0, 30, 0, 1)
+
+			gl.glDraw(x, y)
+		end,
+		GuiID = 7
+	},
+	{
+		Text = "Sensor",
+		LogoDraw = function()
+
+		end,
+		GuiID = 4
+	},
+	{
+		Text = "AutomaticMode",
+		LogoDraw = function()
+
+		end,
+		GuiID = 8
+	}
+}
+
+local gui = {}
+
+local Buts = #MainButtons
+local CurLineButs = 0
+local function RecalculateCurLineButs()
+	if (Buts - 5 >= 0) then
+		CurLineButs = 5
+	else
+		CurLineButs = Buts
+	end
+end
+
+function gui.Render(x, y)
+	Buts = #MainButtons
+	CurLineButs = 0
+	RecalculateCurLineButs()
+
+	local gridX = 1
+	local gridY = 0
+	for k, v in pairs(MainButtons) do
+		local flag = true
+		if (v.NoAutoMode and SubInfos["AUTOMODE"]) then
+			flag = false
+		end
+		if (flag) then
+			local x1 = (502 - (CurLineButs * 100)) + 10 + ((gridX - 1) * 200)
+			local y1 = (gridY * 128) + y + 20
+
+			gl.glPushMatrix()
+				gl.glTranslate(x1, y1)
+				if (Screen:IsMouseInRect(x1, y1, 200, 128)) then
+					gl.glBindColor(0, 0, 255, 128)
+				else
+					gl.glBindColor(0, 0, 0, 128)
+				end
+				gl.glRect(0, 0, 200, 128)
+				gl.glBindColor(255, 255, 255)
+				gl.glUnfilledRect(0, 0, 200, 128, 2)
+				gl.glBindColor(0, 0, 0)
+				gl.glBindFont(Screen.StandardFont)
+				local w = gl.glTextWidth(v.Text)
+				gl.glText(v.Text, 100 - w / 2, 10)
+				v.LogoDraw()
+			gl.glPopMatrix()
+
+			gridX = gridX + 1
+			if (gridX == 6) then
+				gridX = 0
+				Buts = Buts - 7
+				RecalculateCurLineButs()
+				gridY = gridY + 1
+			end
+		end
+	end
+
+	--Special Buttons draw
+	--Evacuate but
+		gl.glBindColor(255, 0, 0)
+	if (Screen:IsMouseInRect(x + 562, y + 230, 128, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRoundedRect(x + 562, y + 230, 128, 32, 8)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Evacuate", x + 569, y + 230)
+	--Autodestruction
+	gl.glBindColor(255, 0, 0)
+	if (Screen:IsMouseInRect(x + 700, y + 230, 270, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRoundedRect(x + 700, y + 230, 270, 32, 8)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Start autodestruction", x + 702, y + 230)
+end
+
+function gui.CheckInputs(x, y)
+	Buts = #MainButtons
+	CurLineButs = 0
+	RecalculateCurLineButs()
+
+	local gridX = 1
+	local gridY = 0
+	for k, v in pairs(MainButtons) do
+		local flag = true
+		if (v.NoAutoMode and SubInfos["AUTOMODE"]) then
+			flag = false
+		end
+		if (flag) then
+			local x1 = (502 - (CurLineButs * 100)) + 10 + ((gridX - 1) * 200)
+			local y1 = (gridY * 128) + y + 20
+
+			if (Screen:IsMouseInRect(x1, y1, 200, 128)) then
+				StartNet(function()
+					net.writeString("GuiChange")
+					net.writeInt(v.GuiID, 4, true)
+				end)
+			end
+
+			gridX = gridX + 1
+			if (gridX == 6) then
+				gridX = 0
+				Buts = Buts - 7
+				RecalculateCurLineButs()
+				gridY = gridY + 1
+			end
+		end
+	end
+
+	--Special Buttons inputs
+	if (Screen:IsMouseInRect(x + 562, y + 230, 128, 32)) then
+		StartNet(function()
+			net.writeString("ToggleEva")
+		end)
+	elseif (Screen:IsMouseInRect(x + 700, y + 230, 270, 32)) then
+		StartNet(function()
+			net.writeString("DestroyToggle")
+		end)
+	end
+end
+
+RegisterGUI(6, -1, -1, "Main Menu", gui)

@@ -1,0 +1,48 @@
+--@name TSCMSeatDetector
+--@author Yuri6037
+
+local plys = {}
+
+wire.createInputs({"Seat"}, {"Entity"})
+
+wire.createOutputs({"SeatingPlayer"}, {"Entity"})
+
+local Seat = nil
+
+hook("think", "TSCMSeatDetector", function()
+	for k, v in pairs(find.allPlayers()) do
+		if (v:inVehicle() and v:vehicle() == Seat and not(plys[v])) then
+			wire.ports["SeatingPlayer"] = v
+			plys[v] = true
+		elseif (not(v:inVehicle()) and plys[v]) then
+			wire.ports["SeatingPlayer"] = nil
+			plys[v] = false
+		end
+	end
+
+	if (not(wire.ports["Seat"] == Seat)) then
+		Seat = wire.ports["Seat"]
+		if (not(Seat == nil)) then
+			Seat = wire.ports["Seat"]
+			Seat:getWirelink()["Relative to chair"] = 1
+			Seat:getWirelink()["Exit Pos"] = Vector(40, 0, 0)
+		end
+	end
+end)
+
+hook("PreEntityCopy", "TSCMSeatDetector_Save", function(data)
+	if (not(Seat == nil)) then
+		data.Seat = Seat:index()
+	end
+end)
+
+hook("PostEntityPaste", "TSCMSeatDetector_Load", function(data, tbl)
+	local idx = data.Seat
+	if (not(tbl[idx] == nil) and tbl[idx]:isValid()) then
+		Seat = tbl[idx]
+		timer.create("DoorIndicator_LoadResolver", 1, 1, function()
+			Seat:getWirelink()["Relative to chair"] = 1
+			Seat:getWirelink()["Exit Pos"] = Vector(40, 0, 0)
+		end)
+	end
+end)

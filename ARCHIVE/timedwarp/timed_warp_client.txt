@@ -1,0 +1,191 @@
+--@name TimedWarp Client
+--@author Yuri6037
+
+--@include lanai/libs/screen/screen_engine.txt
+
+--@include timedwarp/lockdown_screen.txt
+
+require("lanai/libs/screen/screen_engine.txt")
+
+require("timedwarp/lockdown_screen.txt")
+
+require("lanai/libs/screen/safe_net.txt")
+
+ChoosedTime = 0
+WarpList = {}
+
+WarpDir = ""
+
+local main = {}
+main.Name = "Main"
+local id = render.getTextureID("phoenix_storms/wire/pcb_green")
+function main:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindColor(255, 255, 0)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("Warp")
+	gl.glText("Warp", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Made by Yuri6037"
+
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+
+
+	--Rendering special stuff
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(156, 400, 200, 32)
+	gl.glBindColor(0, 0, 0)
+	gl.glText(tostring(ChoosedTime) .. "s", 156, 400)
+end
+function main:OnShow()
+	 Screen:AddControl("Button", 156, 350, 200, 32, {Text = "Start Warp", Func = function()
+		StartNet(function()
+			net.writeString("WARP")
+			net.writeString(WarpDir)
+			net.writeInt(ChoosedTime, 16, true)
+		end)
+	end})
+
+
+	Screen:AddControl("Button", 284, 432, 32, 32, {Text = "+", Func = function()
+		if (ChoosedTime >= 3599) then
+			ChoosedTime = 3599
+			return
+		end
+		ChoosedTime = ChoosedTime + 10
+	end})
+	Screen:AddControl("Button", 324, 432, 32, 32, {Text = "-", Func = function()
+		if (ChoosedTime <= 0) then
+			ChoosedTime = 0
+			return
+		end
+		ChoosedTime = ChoosedTime - 10
+	end})
+
+	Screen:AddControl("ListBox", 20, 130, 472, 200, {Data = WarpList, OnSelect = function(key, value)
+		WarpDir = value
+	end})
+end
+function main:OnExit()
+end
+function main:OnTouched(mouseX, mouseY)
+end
+
+Screen:Register(main)
+
+local WaitWarpText = nil
+local waitW = {}
+waitW.Name = "Wait"
+function waitW:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindColor(255, 255, 0)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("Warp")
+	gl.glText("Warp", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Made by Yuri6037"
+
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+
+
+	--Rendering special stuff
+	if (not(WaitWarpText == nil)) then
+		gl.glBindColor(255, 255, 255)
+		local w = gl.glTextWidth(WaitWarpText)
+		gl.glText(WaitWarpText, 256 - w / 2, 256 - 32)
+	else
+		gl.glBindColor(255, 255, 255)
+		local w = gl.glTextWidth("Waiting for server response...")
+		gl.glText("Waiting for server response...", 256 - w / 2, 256 - 32)
+	end
+end
+function waitW:OnShow()
+	Screen:AddControl("Button", 156, 350, 200, 32, {Text = "Cancel Timer", Func = function()
+		StartNet(function()
+			net.writeString("UNWARP")
+		end)
+	end})
+end
+function waitW:OnExit()
+end
+function waitW:OnTouched(mouseX, mouseY)
+end
+
+Screen:Register(waitW)
+
+StartNet(function()
+	net.writeString("REBOOT")
+end)
+
+hook("net", "TimedWarpClient_Receiver", function(len)
+	local cmd = net.readString()
+	if (cmd == "UPD") then
+		WarpList = net.readTable()
+		Screen:Display("Main")
+	elseif (cmd == "L") then
+		Screen:Display("Locked")
+	elseif (cmd == "U") then
+		Screen:Display("Main")
+	elseif (cmd == "W") then
+		Screen:Display("Wait")
+	elseif (cmd == "UW") then
+		Screen:Display("Main")
+		WaitWarpText = nil
+	elseif (cmd == "UPDW") then
+		WaitWarpText = net.readString()
+	end
+end)

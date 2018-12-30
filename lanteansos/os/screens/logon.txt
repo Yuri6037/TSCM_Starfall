@@ -1,0 +1,91 @@
+--@name Lanteans OS LogonScreen
+--@author Yuri6037
+
+local texpoly = {
+	VERTEX(0, 0, 0, 0),
+	VERTEX(1, 0, -1, 0),
+	VERTEX(1, 1, -1, 1),
+	VERTEX(0, 1, 0, 1)
+}
+
+local tex = GUI.Texture("models/props_lab/cornerunit_cloud")
+local BC1X = 0
+local BC2X = -ScrW
+
+local scr = {
+	Render = function(self)
+		if (not(OS.IsEmitter())) then
+			local b = false
+			local col = COLOR(0, 255, 0)
+			if (Parametters["Info"] == "EVACUATION ENGAGED" or Parametters["Info"] == "LOCKDOWN ENGAGED") then
+				col = COLOR(255, 0, 0)
+			elseif (Parametters["Alert"] == 2) then --Low alert
+				col = COLOR(0, 255, 255)
+			elseif (Parametters["Alert"] == 1) then --Normal alert
+				col = COLOR(150, 255, 0)
+			elseif (Parametters["Alert"] == 0) then --High alert
+				col = COLOR(255, 255, 255)
+			else
+				b = true
+			end
+			GUI.TexturedRect(BC1X, 0, ScrW, ScrH, tex, col)
+			local mat = Matrix()
+			mat:translate(Vector(BC2X, 0))
+			mat:scale(Vector(ScrW, ScrH))
+			render.pushMatrix(mat)
+			render.setTexture(tex)
+			render.drawPoly(texpoly)
+			render.popMatrix()
+			if (b) then
+				GUI.ColoredRect(0, 0, ScrW, ScrH, COLOR(0, 0, 255, 100))
+			end
+		end
+
+		--Top/Bottom borders
+		GUI.RoundedRect(10, 10, ScrW - 20, 64, COLOR(255, 255, 255, 200))
+		GUI.RoundedRect(10, ScrH - 54, ScrW - 20, 44, COLOR(255, 255, 255, 200))
+		--End
+
+		--Texts
+		local w = GUI.TextSize("Welcome to Lanteans OS", StandardFont)
+		GUI.Text("Welcome to Lanteans OS", ScrW / 2 - w / 2, 22, StandardFont, COLOR(0, 0, 0))
+		if (not(Parametters["LoginMSG"] == nil)) then
+			GUI.Text(Parametters["LoginMSG"], 20, ScrH - 44, LargeFont, COLOR(255, 0, 0))
+		else
+			GUI.Text("Enter session", 20, ScrH - 44, LargeFont, COLOR(0, 0, 0))
+		end
+		local w = GUI.TextSize("V" .. VERSION_OS, LargeFont)
+		GUI.Text("V" .. VERSION_OS, ScrW - 30 - w, ScrH - 44, LargeFont, COLOR(0, 0, 0))
+    	--End
+
+		--Drawing session access buttons
+		GUI.RoundedRect(ScrW / 2 - 128, ScrH / 2 - 32, 258, 66, COLOR(0, 0, 0, 170))
+		if (GUI.MouseInRect(ScrW / 2 - 128, ScrH / 2 - 32, 256, 64)) then
+			GUI.RoundedRect(ScrW / 2 - 128, ScrH / 2 - 32, 256, 64, COLOR(61, 134, 254, 200))
+		else
+			GUI.RoundedRect(ScrW / 2 - 128, ScrH / 2 - 32, 256, 64, COLOR(255, 255, 255))
+		end
+		local w = GUI.TextSize("Login", StandardFont)
+		GUI.Text("Login", ScrW / 2 - w / 2, ScrH / 2 - 20, StandardFont, COLOR(0, 0, 0))
+		--End
+	end,
+	Update = function(self, ticks)
+		BC1X = BC1X + ticks * 64
+		BC2X = BC2X + ticks * 64
+		if (BC1X >= ScrW) then BC1X = -ScrW end
+		if (BC2X >= ScrW) then BC2X = -ScrW end
+	end,
+	Touched = function(self)
+		if (GUI.MouseInRect(ScrW / 2 - 128, ScrH / 2 - 32, 256, 64)) then
+			if (Edition == "personal") then
+				OS.SwitchScreen("main")
+			elseif (not(SingleApp == nil)) then
+				OS.SwitchScreen("exclusivefullscreen")
+			else
+				AIRunFunc("login")
+			end
+		end
+	end
+}
+
+OS.DefineScreen("logon", scr)

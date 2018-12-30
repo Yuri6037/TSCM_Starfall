@@ -1,0 +1,10 @@
+--@name StargateDialAppUpdater
+--@author Yuri6037
+
+DefineOSApp("sgdial", nil, function()
+	local namelst, dangerlst, addrlst = GetGateAddrList()
+	TasksData[CurApp] = {}
+	TasksData[CurApp][1] = namelst
+	TasksData[CurApp][2] = dangerlst
+	TasksData[CurApp][3] = addrlst
+end)

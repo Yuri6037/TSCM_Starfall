@@ -1,0 +1,27 @@
+--@name ShipSensorHack
+--@author Yuri6037
+
+sensorHacker = {}
+function sensorHacker.PirateShieldsCharge()
+	local t = Ship.Sensor:outputType("Shield Emitter")
+	if (t == nil) then
+		return 0
+	end
+	return Ship.Sensor["Shield Emitter"]
+end
+
+function sensorHacker.PirateMaxShieldsCharge()
+	local t = Ship.Sensor:outputType("Max Shields")
+	if (t == nil) then
+		return -1
+	end
+	return Ship.Sensor["Max Shields"]
+end
+
+function sensorHacker.PirateShieldsActive()
+	local t = Ship.Sensor:outputType("Shield Active")
+	if (t == nil) then
+		return -1
+	end
+	return Ship.Sensor["Shield Active"]
+end

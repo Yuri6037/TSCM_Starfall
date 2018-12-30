@@ -1,0 +1,74 @@
+--@name ShipAutoInitializer
+--@author Yuri6037
+
+local AutoPrepareShip = false
+local WaterProbe = nil
+
+aiRegisterAction("Start Energy", function(ply)
+	Ship.EnergyGen["Activate"] = 1
+end)
+
+function StartShipAutoPrepare(ent)
+	WaterProbe = ent:getWirelink()
+	AutoPrepareShip = true
+end
+
+HookPostLoad(function()
+	if (Ship.Core == nil) then return end
+	local pe = Ship.Node["Energy"] * 100 / Ship.Node["Max Energy"]
+	if (pe <= 10) then
+		aiSetAction("Start Energy")
+		CanAskPrepare = true
+	end
+end)
+
+local State = nil
+HookUpdateLoop(function()
+	if (AutoPrepareShip) then
+		if (State == nil) then
+			aiSay("Starting ship auto load process...")
+			State = 0
+		end
+		if (State == 0) then
+			local pe = Ship.Node["Energy"] / Ship.Node["Max Energy"]
+			if (pe >= 0.05 and WaterProbe["Active"] == 0) then
+				WaterProbe["Activate"] = 1
+				State = 1
+				aiSay("Activated water collector !")
+			end
+		elseif (State == 1) then
+			local pw = Ship.Node["Water"] / Ship.Node["Max Water"]
+			if (pw >= 0.05) then
+				Ship.GazGen["Activate"] = 1
+				State = 2
+				aiSay("Activated air generator !")
+			end
+		elseif (State == 2) then
+			local pw = Ship.Node["Water"] / Ship.Node["Max Water"]
+			if (pw <= 0.01) then
+				State = 1
+				Ship.GazGen["Activate"] = 0
+				aiSay("Deactivated air generator !")
+			end
+			local po = Ship.Node["Oxygen"] / Ship.Node["Max Oxygen"]
+			local pe = Ship.Node["Energy"] / Ship.Node["Max Energy"]
+			if (po >= 0.25 and pe >= 0.50) then
+			   State = 3
+			   Ship.LS["Activate"] = 1
+			   aiSay("Activated life support !")
+			end
+		elseif (State == 3) then
+			local o = Ship.LS["Oxygen Level"] --Min : 16%
+			local co2 = Ship.LS["CO2 Level"]
+			local t = Ship.LS["Temperature"] --Min : 0°C Max : 40°C
+			local g = Ship.LS["Gravity"] --Min : 70%
+			t = math.round(t - 273.15)
+			g = g * 100
+			if (o >= 16 and t >= 0 and t <= 40 and g >= 70) then
+				AutoPrepareShip = false
+				State = 0
+				aiSay("Thanks to believe in me, the ship has been prepared !")
+			end
+		end
+	end
+end)

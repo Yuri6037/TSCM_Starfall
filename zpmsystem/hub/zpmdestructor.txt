@@ -1,0 +1,56 @@
+--@name ZPMDestructorHUB
+--@author Yuri6037
+--@class processor
+--@model models/pg_props/pg_stargate/pg_asuran_hub.mdl
+--@autoupdate
+
+--@require zpmsystem/hub/hublib.txt
+
+local Mat = ""
+
+local hub = {
+	Model = "models/pg_props/pg_stargate/pg_asuran_hub.mdl",
+	ZPMModel = "models/pg_props/pg_zpm/pg_zpm.mdl",
+	ZPMCount = 1,
+	GetZPMStart = function(self, zpm)
+		return self:obbCenterW() + self:forward() * 2 + self:up() * 20, self:ang()
+	end,
+	GetZPMEnd = function(self, zpm)
+		return self:obbCenterW() + self:forward() * 2 + self:up() * 10, self:ang()
+	end,
+	OnSpawned = function(self)
+		self:setSkin(1)
+		Mat = self:material()
+	end,
+	OnActivated = function(self)
+		self:setMaterial("spacebuild/fusion5")
+		timer.create("ZPMDestructorHUB_DelayRun", 1, 1, function()
+			for k, v in pairs(hubs.GetLinkedZPMs()) do
+				if (v.WireLink["P"] <= 0) then
+					self:setMaterial(Mat)
+					self:setSkin(0)
+					break
+				end
+				v.WireLink["VALUE"] = 999
+				timer.create("ZPMDestructorHUB", 1, 0, function()
+					local ef = effects.effectData()
+					ef:setEntity(self)
+					ef:setOrigin(self:obbCenterW() + self:forward() * 2 + self:up() * 20)
+					effects.createEffect("smoke", ef, true)
+					if (v.WireLink["P"] <= 0) then
+						self:setMaterial(Mat)
+						self:setSkin(0)
+						timer.remove("ZPMDestructorHUB")
+						effects.finishParticle(self)
+					end
+				end)
+				break
+			end
+		end)
+	end,
+	OnDeactivated = function(self)
+		self:setMaterial(Mat)
+		self:setSkin(1)
+	end
+}
+hubs.Define(hub)

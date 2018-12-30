@@ -1,0 +1,6 @@
+--@name WarpAppUpdater
+--@author Yuri6037
+
+DefineOSApp("warp", nil, function()
+	TasksData[CurApp] = Points.WarpList
+end)

@@ -1,0 +1,499 @@
+--@name MalpControler
+--@author Yuri6037
+--@class processor
+--@autoupdate
+
+--@require IntelliHUD/API.txt
+--@require UTIL/StargateTravelHandler.txt
+
+wire.createInputs({"SeatEntity", "Front Wheel Left", "Front Wheel Right", "BaseEntity", "User", "Wheel1", "Wheel2", "BackWheelLeft", "BackWheelRight", "WheelDamageDetector", "BaseDamageDetector", "ZPM"}, {"Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Entity", "Wirelink", "Wirelink", "Wirelink"})
+wire.createOutputs({"ZPMValue", "ZPMCon"}, {"Normal", "Normal"})
+
+local function VectorInBox(vec, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = vec.x
+	local cY = vec.y
+	local cZ = vec.z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+FrontWheelLeft = nil
+FrontWheelRight = nil
+Wheel1 = nil
+Wheel2 = nil
+BackWheelLeft = nil
+BackWheelRight = nil
+BaseEntity = nil
+DamageDetectors = {
+	Base = nil,
+	Wheels = nil
+}
+
+CurUser = nil
+
+MALPSpeed = 2000
+MALPHealth = {
+	Base = 2500,
+	Armor = 2,
+	ArmorHolo = nil,
+	Wheels = nil
+}
+MALPEntsToRemove = {}
+
+OldMalpSpeed = MALPSpeed
+
+MoveLeft = false
+MoveRight = false
+
+Hover = false
+
+local butPressed = false
+
+local InitialSeatPos = nil
+Seat = nil
+
+--ZPM System
+local ZPM = nil
+local ZPMCon = false
+function CheckZPM()
+	if (ZPM == nil) then return false end
+	if (not(ZPMCon)) then
+		ZPMCon = true
+		wire.ports["ZPMValue"] = 5
+		wire.ports["ZPMCon"] = 1
+	end
+	if (ZPM["P"] <= 0) then
+		return false
+	end
+	return true
+end
+--End
+
+function IsPlayerInsideEnvironment(ply)
+	local tr = find.inSphere(ply:getPos(), 0.1, function(e)
+		return e:class() == "stargazer_environment"
+	end)
+	local e = tr[1]
+	if (IsValid(e)) then
+		return true, e
+	end
+	return false, nil
+end
+
+local CurEnv = nil
+hook("think", "MalpControler_WaitForEntities", function()
+	if (not(FrontWheelLeft == wire.ports["Front Wheel Left"])) then
+		FrontWheelLeft = wire.ports["Front Wheel Left"]
+	end
+	if (not(FrontWheelRight == wire.ports["Front Wheel Right"])) then
+		FrontWheelRight = wire.ports["Front Wheel Right"]
+	end
+	if (not(BaseEntity == wire.ports["BaseEntity"])) then
+		BaseEntity = wire.ports["BaseEntity"]
+		stargate.SetGateTravelCheckEntity(BaseEntity)
+	end
+
+	if (not(Wheel1 == wire.ports["Wheel1"])) then
+		Wheel1 = wire.ports["Wheel1"]
+	end
+	if (not(Wheel2 == wire.ports["Wheel2"])) then
+		Wheel2 = wire.ports["Wheel2"]
+	end
+	if (not(BackWheelLeft == wire.ports["BackWheelLeft"])) then
+		BackWheelLeft = wire.ports["BackWheelLeft"]
+	end
+	if (not(BackWheelRight == wire.ports["BackWheelRight"])) then
+		BackWheelRight = wire.ports["BackWheelRight"]
+	end
+
+	if (not(ZPM == wire.ports["ZPM"])) then
+		ZPM = wire.ports["ZPM"]
+
+		if (IsValid(Seat) and not(ZPM == nil)) then
+			intellihud.UpdateZPMEntity(Seat, ZPM:entity())
+		end
+	end
+
+	if (not(Seat == wire.ports["SeatEntity"])) then
+		Seat = wire.ports["SeatEntity"]
+
+		if (IsValid(Seat)) then
+			InitialSeatPos = Seat:getPos()
+			if (not(ZPM == nil)) then
+				local data = intellihud.NewDataStructure(ZPM:entity(), "M.A.L.P", Color(0, 0, 255))
+				intellihud.RegisterVehicle(Seat, data)
+			end
+		end
+	end
+
+	if (not(DamageDetectors.Base == wire.ports["BaseDamageDetector"])) then
+		DamageDetectors.Base = wire.ports["BaseDamageDetector"]
+		if (not(DamageDetectors.Base == nil)) then
+			DamageDetectors.Base:addOutputCallback("BaseDamageDetect", function(wire, out, var)
+				if (out == "Clk") then
+					local ent = DamageDetectors.Base["Victim"]
+					local amount = DamageDetectors.Base["Damage"] + 20
+
+					OnEntityTakeDamage(ent, amount)
+				end
+			end)
+		end
+	end
+	if (not(DamageDetectors.Wheels == wire.ports["WheelDamageDetector"])) then
+		DamageDetectors.Wheels = wire.ports["WheelDamageDetector"]
+		if (not(DamageDetectors.Wheels == nil)) then
+			DamageDetectors.Wheels:addOutputCallback("BaseDamageDetect", function(wire, out, var)
+				if (out == "Clk") then
+					local ent = DamageDetectors.Wheels["Victim"]
+					local amount = DamageDetectors.Wheels["Damage"] + 20
+
+					OnEntityTakeDamage(ent, amount)
+				end
+			end)
+		end
+	end
+
+
+	if (not(CheckZPM())) then return end
+
+	if (IsValid(wire.ports["User"])) then
+		local veh = wire.ports["User"]
+		if (IsValid(veh:driver()) and not(veh:driver() == CurUser)) then
+			CurUser = veh:driver()
+			wire.ports["ZPMValue"] = 250
+		elseif (not(IsValid(veh:driver())) and IsValid(CurUser)) then
+			CurUser = nil
+			if (not(Seat:getPos() == InitialSeatPos)) then
+				Seat:setPos(InitialSeatPos)
+			end
+			wire.ports["ZPMValue"] = 5
+		end
+	end
+
+	if (IsValid(BaseEntity) and IsValid(FrontWheelRight) and IsValid(FrontWheelLeft) and IsValid(BackWheelLeft) and IsValid(BackWheelRight)) then --Control the malp here
+		if (MALPHealth.Wheels == nil) then
+			MALPHealth.Wheels = {
+				[Wheel1] = 1000,
+				[Wheel2] = 1000,
+				[FrontWheelRight] = 1000,
+				[FrontWheelLeft] = 1000,
+				[BackWheelLeft] = 1000,
+				[BackWheelRight] = 1000
+			}
+		end
+	elseif (IsValid(BaseEntity) and Hover) then
+		Hover = false
+		if (IsValid(BackWheelLeft)) then
+			local phys3 = BackWheelLeft:getPhysicsObject()
+			phys3:enableGravity(true)
+		end
+		if (IsValid(BackWheelRight)) then
+			local phys4 = BackWheelRight:getPhysicsObject()
+			phys4:enableGravity(true)
+		end
+		if (IsValid(FrontWheelLeft)) then
+			local phys1 = FrontWheelLeft:getPhysicsObject()
+			phys1:enableGravity(true)
+		end
+		if (IsValid(FrontWheelRight)) then
+			local phys2 = FrontWheelRight:getPhysicsObject()
+			phys2:enableGravity(true)
+		end
+		if (IsValid(Wheel1)) then
+			local phys5 = Wheel1:getPhysicsObject()
+			phys5:enableGravity(true)
+		end
+		if (IsValid(Wheel2)) then
+			local phys6 = Wheel2:getPhysicsObject()
+			phys6:enableGravity(true)
+		end
+
+		local phys = BaseEntity:getPhysicsObject()
+		phys:enableGravity(true)
+	end
+
+	if (IsValid(CurUser) and IsValid(BaseEntity)) then --Control the malp here
+
+		if (IsValid(Seat)) then
+			if (Seat:getPos():Distance(BaseEntity:getPos()) > 1000) then
+				local p = BaseEntity:getPos()
+				--p.z = p.z + 150
+				Seat:setPos(p)
+			end
+		end
+
+		if (CurUser:keyDown(input.IN_SPEED)) then
+			MALPSpeed = OldMalpSpeed * 4
+		else
+			MALPSpeed = OldMalpSpeed
+		end
+
+		local phys = BaseEntity:getPhysicsObject()
+
+		if (CurUser:keyDown(input.IN_FORWARD)) then
+			if (Hover) then
+				local dir = BaseEntity:forward() * (MALPSpeed / 4)
+				phys:setVelocity(dir)
+			else
+				local dir = BaseEntity:forward() * MALPSpeed
+				phys:applyForceCenter(dir)
+			end
+		elseif (CurUser:keyDown(input.IN_BACK)) then
+			if (Hover) then
+				local dir = BaseEntity:forward() * (-MALPSpeed / 4)
+				phys:setVelocity(dir)
+			else
+				local dir = BaseEntity:forward() * -MALPSpeed
+				phys:applyForceCenter(dir)
+			end
+		elseif (CurUser:keyDown(input.IN_JUMP) and Hover) then
+			if (IsValid(FrontWheelLeft) and IsValid(FrontWheelRight) and IsValid(BackWheelLeft) and IsValid(BackWheelRight)) then
+				local phys3 = BackWheelLeft:getPhysicsObject()
+				local phys4 = BackWheelRight:getPhysicsObject()
+				local phys1 = FrontWheelLeft:getPhysicsObject()
+				local phys2 = FrontWheelRight:getPhysicsObject()
+
+				local dir = Vector(0, 0, 2500)
+				phys1:applyForceCenter(dir)
+				phys2:applyForceCenter(dir * 2.5)
+
+				dir = Vector(0, 0, 2390)
+				phys3:applyForceCenter(dir)
+				phys4:applyForceCenter(dir * 2.5)
+			end
+		elseif (CurUser:keyDown(input.IN_DUCK)) then
+			butPressed = true
+		elseif (not(CurUser:keyDown(input.IN_DUCK)) and butPressed) then
+			butPressed = false
+			if (IsValid(FrontWheelLeft) and IsValid(FrontWheelRight) and IsValid(BackWheelLeft) and IsValid(BackWheelRight) and IsValid(Wheel1) and IsValid(Wheel2)) then
+				Hover = not(Hover)
+				local phys3 = BackWheelLeft:getPhysicsObject()
+				local phys4 = BackWheelRight:getPhysicsObject()
+				local phys1 = FrontWheelLeft:getPhysicsObject()
+				local phys2 = FrontWheelRight:getPhysicsObject()
+				local phys5 = Wheel1:getPhysicsObject()
+				local phys6 = Wheel2:getPhysicsObject()
+				if (Hover) then
+					phys:enableGravity(false)
+					phys1:enableGravity(false)
+					phys2:enableGravity(false)
+					phys3:enableGravity(false)
+					phys4:enableGravity(false)
+					phys5:enableGravity(false)
+					phys6:enableGravity(false)
+				else
+					phys:enableGravity(true)
+					phys1:enableGravity(true)
+					phys2:enableGravity(true)
+					phys3:enableGravity(true)
+					phys4:enableGravity(true)
+					phys5:enableGravity(true)
+					phys6:enableGravity(true)
+				end
+			end
+		end
+
+		if (IsValid(FrontWheelLeft)) then
+			local phys1 = FrontWheelLeft:getPhysicsObject()
+
+			if (MoveLeft) then
+				if (Hover) then
+					local dir = BaseEntity:right() * -2000
+					phys1:applyForceOffset(dir, FrontWheelLeft:getPos())
+				else
+					local dir = BaseEntity:right() * -2000
+					phys1:applyForceOffset(dir, FrontWheelLeft:getPos())
+				end
+			end
+		end
+
+		if (IsValid(FrontWheelRight)) then
+			local phys2 = FrontWheelRight:getPhysicsObject()
+
+			if (MoveRight) then
+				if (Hover) then
+					local dir = BaseEntity:right() * 2000
+					phys2:applyForceOffset(dir, FrontWheelRight:getPos())
+				else
+					local dir = BaseEntity:right() * 2000
+					phys2:applyForceOffset(dir, FrontWheelRight:getPos())
+				end
+			end
+		end
+
+		if (Hover) then
+			local angs = BaseEntity:getAngles()
+			angs.roll = 0
+			angs.pitch = 0
+			BaseEntity:setAngles(angs)
+		end
+
+		if (not(MoveRight == CurUser:keyDown(input.IN_MOVERIGHT))) then
+			MoveRight = CurUser:keyDown(input.IN_MOVERIGHT)
+		end
+
+		if (not(MoveLeft == CurUser:keyDown(input.IN_MOVELEFT))) then
+			MoveLeft = CurUser:keyDown(input.IN_MOVELEFT)
+		end
+	end
+end)
+
+--Gate handler
+stargate.IntegrateTravel(function(msg, gate)
+end)
+stargate.SetTravelListener(function(from, dest)
+	local p = nil
+	local p1 = nil
+	local p2 = nil
+	local p3 = nil
+	local pl = nil
+	local pr = nil
+
+	if (IsValid(Wheel1)) then
+		Wheel1:getPhysicsObject():enableMotion(false)
+		p = BaseEntity:worldToLocal(Wheel1:getPos())
+	end
+	if (IsValid(Wheel2)) then
+		Wheel2:getPhysicsObject():enableMotion(false)
+		p1 = BaseEntity:worldToLocal(Wheel2:getPos())
+	end
+	if (IsValid(BackWheelLeft)) then
+		BackWheelLeft:getPhysicsObject():enableMotion(false)
+		p2 = BaseEntity:worldToLocal(BackWheelLeft:getPos())
+	end
+	if (IsValid(BackWheelRight)) then
+		BackWheelRight:getPhysicsObject():enableMotion(false)
+		p3 = BaseEntity:worldToLocal(BackWheelRight:getPos())
+	end
+	if (IsValid(FrontWheelLeft)) then
+		FrontWheelLeft:getPhysicsObject():enableMotion(false)
+		pl = BaseEntity:worldToLocal(FrontWheelLeft:getPos())
+	end
+	if (IsValid(FrontWheelRight)) then
+		FrontWheelRight:getPhysicsObject():enableMotion(false)
+		pr = BaseEntity:worldToLocal(FrontWheelRight:getPos())
+	end
+
+	BaseEntity:getPhysicsObject():enableMotion(false)
+	BaseEntity:setPos(dest:obbCenterW())
+
+	if (not(p == nil)) then
+		p = BaseEntity:localToWorld(p)
+		Wheel1:setPos(p)
+	end
+	if (not(p1 == nil)) then
+		p1 = BaseEntity:localToWorld(p1)
+		Wheel2:setPos(p1)
+	end
+	if (not(p2 == nil)) then
+		p2 = BaseEntity:localToWorld(p2)
+		BackWheelLeft:setPos(p2)
+	end
+	if (not(p3 == nil)) then
+		p3 = BaseEntity:localToWorld(p3)
+		BackWheelRight:setPos(p3)
+	end
+	if (not(pl == nil)) then
+		pl = BaseEntity:localToWorld(pl)
+		FrontWheelLeft:setPos(pl)
+	end
+	if (not(pr == nil)) then
+		pr = BaseEntity:localToWorld(pr)
+		FrontWheelRight:setPos(pr)
+	end
+
+	timer.create("MalpControler_EnableMotionBack", 1, 1, function()
+		if (IsValid(Wheel1)) then
+			Wheel1:getPhysicsObject():enableMotion(true)
+		end
+		if (IsValid(Wheel2)) then
+			Wheel2:getPhysicsObject():enableMotion(true)
+		end
+		if (IsValid(BackWheelLeft)) then
+			BackWheelLeft:getPhysicsObject():enableMotion(true)
+		end
+		if (IsValid(BackWheelRight)) then
+			BackWheelRight:getPhysicsObject():enableMotion(true)
+		end
+		if (IsValid(FrontWheelLeft)) then
+			FrontWheelLeft:getPhysicsObject():enableMotion(true)
+		end
+		if (IsValid(FrontWheelRight)) then
+			FrontWheelRight:getPhysicsObject():enableMotion(true)
+		end
+
+		BaseEntity:getPhysicsObject():enableMotion(true)
+	end)
+end)
+
+timer.create("MalpEntsDamagedRemove", 0.1, 0, function()
+	for k, v in pairs(MALPEntsToRemove) do
+		v.Alpha = v.Alpha - 4
+		v.Entity:setAlpha(v.Alpha)
+		if (v.Alpha <= 0) then
+			v.Entity:remove()
+			table.remove(MALPEntsToRemove, k)
+		end
+	end
+end)
+
+function OnEntityTakeDamage(ent, amount)
+	local damaged = false
+	if (ent == Wheel1 or ent == Wheel2 or ent == BackWheelLeft or ent == BackWheelRight or ent == FrontWheelLeft or ent == FrontWheelRight) then
+		if (MALPHealth.Wheels[ent] == nil) then return end
+
+		MALPHealth.Wheels[ent] = MALPHealth.Wheels[ent] - amount
+		if (MALPHealth.Wheels[ent] <= 0) then
+			MALPHealth.Wheels[ent] = nil
+			table.insert(MALPEntsToRemove, {Entity = ent, Alpha = 255})
+		end
+
+		print("DamagedWheel : " .. tostring(ent))
+	elseif (ent == BaseEntity) then
+		if (MALPHealth.Base == nil) then return end
+
+		MALPHealth.Base = MALPHealth.Base - amount / MALPHealth.Armor
+		damaged = true
+		if (MALPHealth.Base <= 0) then
+			MALPHealth.Base = nil
+			table.insert(MALPEntsToRemove, {Entity = ent, Alpha = 255})
+		end
+
+		print("DamagedBase : " .. tostring(ent))
+	end
+
+	if (damaged) then
+		MALPHealth.Armor = MALPHealth.Armor - 0.1
+		if (MALPHealth.Armor < 1) then
+			MALPHealth.Armor = 1
+		end
+
+		if (MALPHealth.Armor > 1 and holograms.canSpawn() and MALPHealth.ArmorHolo == nil) then
+			local p = BaseEntity:getPos()
+			MALPHealth.ArmorHolo = holograms.create(p, BaseEntity:getAngles(), BaseEntity:model(), 1.2)
+			MALPHealth.ArmorHolo:setMaterial("models/alyx/emptool_glow")
+			MALPHealth.ArmorHolo:setParent(BaseEntity)
+
+			timer.create("ArmorHolo_Remove", 2, 1, function()
+				MALPHealth.ArmorHolo:remove()
+				MALPHealth.ArmorHolo = nil
+			end)
+		end
+	end
+end

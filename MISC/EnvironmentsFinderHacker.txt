@@ -1,0 +1,138 @@
+--@name EnvironmentsFinderHacker
+--@author Yuri6037
+
+--@require lanai/constants.txt
+
+print(faction.getFactions())
+
+local function VectorInBox(vec, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = vec.x
+	local cY = vec.y
+	local cZ = vec.z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+local function FixCoord(n)
+	if (n < 0) then
+		return -n
+	end
+	return n
+end
+
+local function tprint (tbl, indent)
+  if not indent then indent = 0 end
+  for k, v in pairs(tbl) do
+	formatting = string.rep("  ", indent) .. k .. ": "
+	if type(v) == "table" then
+	  print(formatting)
+	  tprint(v, indent+1)
+	elseif type(v) == 'boolean' then
+	  print(formatting .. tostring(v))
+	else
+	  print(formatting .. v)
+	end
+  end
+end
+
+hook("think", "EnvironmentFinderHacker", function()
+	--for k, v in pairs(find.byClass("stargazer_environment")) do
+	--	v:remove()
+	--end
+	--[[local v = ents.owner()
+
+	if (v:keyDown(input.IN_ATTACK)) then
+		for k1, v1 in pairs(find.inSphere(v:getPos(), 8)) do
+			if (v1:class() == "stargazer_environment") then
+				local p = v1:getPos()
+				local s = v1:obbSize()
+				if (VectorInBox(p, Pegasus.Min, Pegasus.Max)) then
+					local clX = FixCoord(p.x)
+					local clY = FixCoord(p.y)
+					local x = (clX * 984) / 32000
+					local y = (clY * 310) / 16000
+
+					chat.tell(v, "Planet pos is : " .. x .. ", " .. y .. ".")
+
+					clX = FixCoord(s.x)
+					clY = FixCoord(s.y)
+					x = (clX * 984) / 32000
+					y = (clY * 310) / 16000
+
+					x = x / 2
+					y = y / 2
+
+					timer.create("HackerMessage", 2, 1, function()
+						chat.tell(v, "Planet size is : " .. x .. ", " .. y .. ".")
+					end)
+				elseif (VectorInBox(p, Milkyway.Min, Milkyway.Max)) then
+					local clX = FixCoord(p.x)
+					local clY = FixCoord(p.y)
+					local x = (clX * 984) / 32000
+					local y = (clY * 310) / 15970
+
+					chat.tell(v, "Planet pos is : " .. x .. ", " .. y .. ".")
+
+					clX = FixCoord(s.x)
+					clY = FixCoord(s.y)
+					x = (clX * 984) / 32000
+					y = (clY * 310) / 15970
+
+					x = x / 2
+					y = y / 2
+
+					timer.create("HackerMessage", 2, 1, function()
+						chat.tell(v, "Planet size is : " .. x .. ", " .. y .. ".")
+					end)
+				elseif (VectorInBox(p, Universe.Min, Universe.Max)) then
+					local clX = FixCoord(p.x)
+					local clY = FixCoord(p.y)
+					local x = (clX * 984) / 32768
+					local y = (clY * 310) / 32768
+
+					chat.tell(v, "Planet pos is : " .. x .. ", " .. y .. ".")
+
+					clX = FixCoord(s.x)
+					clY = FixCoord(s.y)
+					x = (clX * 984) / 32768
+					y = (clY * 310) / 32768
+
+					x = x / 2
+					y = y / 2
+
+					timer.create("HackerMessage", 2, 1, function()
+						chat.tell(v, "Planet size is : " .. x .. ", " .. y .. ".")
+					end)
+				end
+				break
+			end
+		end
+	elseif (v:keyDown(input.IN_ATTACK2)) then
+		--[[for k, v in pairs(v:getEnvironmentData()) do
+			if (type(v) == "table") then
+				for k, v in pairs(v) do
+					print("------   " .. tostring(k) .. "-" .. tostring(v))
+				end
+			else
+				print(tostring(k) .. "-" .. tostring(v))
+			end
+		end]]--
+		--chat.tell(v, v:getEnvironmentData().air.Oxygen)
+	--end]]--
+end)

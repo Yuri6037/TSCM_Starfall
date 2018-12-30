@@ -1,0 +1,109 @@
+--@name StatusGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.Render(x, y)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render shields status
+	gl.glText("Shields are : ", 20, 10)
+	local str = ""
+	if (Net.Shields == 1) then
+		str = "ONLINE"
+		gl.glBindColor(0, 255, 0)
+	else
+		str = "OFFLINE"
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glText(str, 190, 10)
+
+	--Render LifeSupport status
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Life Support is : ", 20, 50)
+	local str = ""
+	if (Net.LifeSupport == 1) then
+		str = "ONLINE"
+		gl.glBindColor(0, 255, 0)
+	else
+		str = "OFFLINE"
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glText(str, 230, 50)
+
+	 --Render Cloack status
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Cloak is : ", 20, 90)
+	local str = ""
+	if (Net.Cloak == 1) then
+		str = "ONLINE"
+		gl.glBindColor(0, 255, 0)
+	else
+		str = "OFFLINE"
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glText(str, 155, 90)
+
+	--Render buttons
+	--The ShieldToggle
+	if (Net.Shields == 1) then
+		gl.glBindColor(0, 255, 0)
+	else
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRoundedRect(715, 10, 256, 32, 8)
+	--The LifeSupportToggle
+	if (Net.LifeSupport == 1) then
+		gl.glBindColor(0, 255, 0)
+	else
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRoundedRect(715, 50, 256, 32, 8)
+	--The CloakToggle
+	if (Net.Cloak == 1) then
+		gl.glBindColor(0, 255, 0)
+	else
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRoundedRect(715, 90, 256, 32, 8)
+
+	--Atmospheric check
+	gl.glBindColor(0, 0, 0)
+	gl.glRoundedRect(20, 140, 954, 128, 8)
+	gl.glBindColor(255, 255, 255)
+	if (not(Net.POxygen == nil) and not(Net.PNitrogen == nil) and not(Net.PHydrogen == nil) and not(Net.PCO2 == nil) and not(Net.PGravity == nil) and not(Net.PTemperature == nil)) then
+		gl.glText("Env Oxygen : " .. Net.POxygen .. "%", 40, 150)
+		gl.glText("Env Nitrogen : " .. Net.PNitrogen .. "%", 40, 180)
+		gl.glText("Env Hydrogen : " .. Net.PHydrogen .. "%", 40, 210)
+		gl.glText("Env CO2 : " .. Net.PCO2 .. "%", 400, 150)
+		gl.glText("Env Gravity : " .. Net.PGravity .. "%", 400, 180)
+		gl.glText("Env Temperature : " .. Net.PTemperature .. "°C", 400, 210)
+
+		if (Net.PGravity >= 70 and Net.POxygen >= 16 and Net.PTemperature >=0 and Net.PTemperature <= 40) then
+			gl.glBindColor(0, 255, 0)
+			gl.glText("Life Supported", 700, 150)
+		else
+			gl.glBindColor(255, 0, 0)
+			gl.glText("Life Unsupported", 700, 150)
+		end
+	end
+end
+
+function gui.CheckInputs(x, y)
+	if (Screen:IsMouseInRect(x + 715, y + 10, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleShields")
+		end)
+	elseif (Screen:IsMouseInRect(x + 715, y + 50, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleLife")
+		end)
+	elseif (Screen:IsMouseInRect(x + 715, y + 90, 256, 32)) then
+		StartNet(function()
+			net.writeString("ToggleCloak")
+		end)
+	end
+end
+
+RegisterGUI(1, 0, 1, "Status", gui)

@@ -1,0 +1,16 @@
+--@name Monitor1_ResourceGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.ComputeNetStream(tbl)
+	return tbl
+end
+
+function gui.Render(x, y)
+end
+
+function gui.CheckInputs(x, y)
+end
+
+RegisterSecondaryGUI(2, gui)

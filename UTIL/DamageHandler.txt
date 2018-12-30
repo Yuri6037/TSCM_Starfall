@@ -1,0 +1,31 @@
+--@name DamageHandling Library
+--@author Yuri6037
+
+--Server side only library that implements damage on Starfall based entities
+
+EMaterial = {
+	METAL = {Type = "spark", Hardness = 0.1},
+	WOOD = {Type = "smoke", Hardness = 0.5},
+	COMPUTER = {Type = "spark", Hardness = 0.9}
+}
+
+local DMG_ENTS = {}
+
+function AddDamageable(ent, mat)
+	DMG_ENTS[ent] = {Health = 100, Material = mat}
+end
+
+hook("EntityTakeDamage", "DamageHandler", function(ent, inflictor, attacker, amount)
+	print(ent:class())
+	if (not(DMG_ENTS[ent] == nil)) then
+
+		local tbl = DMG_ENTS[ent]
+		tbl.Health = tbl.Health - amount * tbl.Material.Hardness
+		effects.attachParticle(tbl.Material.Type, ent)
+		if (tbl.Health <= 0) then
+			ent:remove()
+		end
+	end
+end)
+
+AddDamageable(ents.self(), EMaterial.COMPUTER)

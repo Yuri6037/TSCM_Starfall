@@ -1,0 +1,25 @@
+--@name MiniHUB
+--@author Yuri6037
+--@model models/props_junk/PropaneCanister001a.mdl
+--@autoupdate
+
+--@require UTIL/AdvDupe2ColorUnfucker.txt
+--@require zpmsystem/hub/hublib.txt
+
+--Actual code
+local tbl = {
+	Model = "models/props_junk/PropaneCanister001a.mdl",
+	ZPMModel = "models/pg_props/pg_zpm/pg_zpm.mdl",
+	ZPMCount = 1,
+	GetZPMStart = function(self, zpm)
+		local ang = self:ang()
+		ang:RotateAroundAxis(self:right(), -90)
+		return self:obbCenterW() + self:forward() * 10, ang
+	end,
+	GetZPMEnd = function(self, zpm)
+		local ang = self:ang()
+		ang:RotateAroundAxis(self:right(), -90)
+		return self:obbCenterW() + self:forward() * 2, ang
+	end
+}
+hubs.Define(tbl)

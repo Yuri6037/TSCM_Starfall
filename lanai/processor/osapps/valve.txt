@@ -1,0 +1,6 @@
+--@name ValveAppUpdater
+--@author Yuri6037
+
+DefineOSApp("valve", function()
+	CheckVar("Status", GetValveState())
+end)

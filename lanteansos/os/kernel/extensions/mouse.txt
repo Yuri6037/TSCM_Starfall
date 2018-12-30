@@ -1,0 +1,58 @@
+--@name MouseKernelExtension
+--@author Yuri6037
+
+local MsDown = false
+local KernelVars = OS.GetKernelVars()
+local Self = KernelVars.Self
+local Player = KernelVars.Player
+
+if (OS.IsHUD()) then
+	function KernelMouseDown()
+		if (not(KernelVars.CurScreen == nil)) then
+			KernelVars.CurScreen:Touched()
+		end
+		if (not(timer.exists("LanteansOS_Input_WaitDown"))) then
+			timer.create("LanteansOS_Input_WaitDown", 0.1, 1, function()
+				MsDown = true
+			end)
+		end
+	end
+	function KernelMouseUp()
+		if (timer.exists("LanteansOS_Input_WaitDown")) then
+			timer.remove("LanteansOS_Input_WaitDown")
+		end
+		MsDown = false
+	end
+else
+	hook("keypress", "LanteansOS_Input_Down", function(ply, key)
+		if (Player:pos():DistToSqr(Self:pos()) > 30000) then return end
+		if (ply == Player and (key == input.IN_USE or key == input.IN_ATTACK) and KernelVars.IsOnScr) then
+			if (not(timer.exists("LanteansOS_Input_WaitDown"))) then
+				timer.create("LanteansOS_Input_WaitDown", 0.1, 1, function()
+					MsDown = true
+				end)
+			end
+		end
+	end)
+	hook("keyrelease", "LanteansOS_Input_Up", function(ply, key)
+		if (Player:pos():DistToSqr(Self:pos()) > 30000) then return end
+		if (ply == Player and (key == input.IN_USE or key == input.IN_ATTACK) and KernelVars.IsOnScr) then
+			if (timer.exists("LanteansOS_Input_WaitDown")) then
+				timer.remove("LanteansOS_Input_WaitDown")
+			end
+			MsDown = false
+		end
+	end)
+	hook("playerbindpress", "LanteansOS_Input", function(ply, bind, pressed)
+		if (Player:pos():DistToSqr(Self:pos()) > 30000) then return end
+		if ((bind == "+use" or bind == "+attack") and KernelVars.IsOnScr) then
+			if (not(KernelVars.CurScreen == nil)) then
+				KernelVars.CurScreen:Touched()
+			end
+		end
+	end)
+end
+
+function OS.MouseDown()
+	return MsDown
+end

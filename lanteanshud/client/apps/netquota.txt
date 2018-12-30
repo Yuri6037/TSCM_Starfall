@@ -1,0 +1,20 @@
+--@name NetQuotaViewApp (CLIENT)
+--@author Yuri6037
+
+local Quota = 0
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {
+	},
+	Render = function()
+		local txt = "NetQuota : " .. Quota * 100 .. "%"
+		local w = GUI.TextSize(txt, SmallFont)
+		GUI.Text(txt, ScrW / 2 - w / 2, ScrH - 24, SmallFont, COLOR(255, 255, 255))
+	end,
+	OnDataReceived = function(data)
+		Quota = data.Quota
+	end
+}
+
+HUD.DefineApp("NetQuotaInfo", app)

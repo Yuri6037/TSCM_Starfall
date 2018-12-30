@@ -1,0 +1,89 @@
+--@name NumSelectComponent
+--@author Yuri6037
+
+local numselect = {}
+
+function numselect:Init()
+	self.MinVal = 0
+	self.MaxVal = 1
+	self.Step = 0.1
+	self.CurVal = 0
+	self.Suffix = ""
+	self.Prefix = ""
+	self:SetColors(COLOR(255, 255, 255), OS.GetTextColor())
+	self:SetButtonColors(COLOR(255, 255, 255), COLOR(61, 134, 254, 200))
+	self:SetFont(SmallFont)
+end
+
+function numselect:SetBounds(min, max, def)
+	self.MinVal = min
+	self.MaxVal = max
+	self.CurVal = def or min
+end
+
+function numselect:SetColors(base, text)
+	self.BaseColor = base
+	self.TxColor = text
+end
+
+function numselect:SetFont(fnt)
+	self.Font = fnt
+end
+
+function numselect:SetButtonColors(base, over)
+	self.ButOver = over
+	self.ButBase = base
+end
+
+function numselect:SetDecorations(prefix, suffix)
+	self.Suffix = suffix
+	self.Prefix = prefix
+end
+
+function numselect:GetValue()
+	return self.CurVal
+end
+
+function numselect:SetValue(val)
+	self.CurVal = val
+end
+
+function numselect:SetStep(step)
+	self.Step = step
+end
+
+function numselect:Touched(x, y)
+	if (GUI.MouseInRect(x, y, self.W, 32) and self.CurVal < self.MaxVal) then
+		self.CurVal = self.CurVal + self.Step
+	elseif (GUI.MouseInRect(x, y + self.H - 32, self.W, 32) and self.CurVal > self.MinVal) then
+		self.CurVal = self.CurVal - self.Step
+	end
+end
+
+function numselect:Render(x, y)
+	GUI.RoundedRect(0, 0, self.W + 2, 30, COLOR(0, 0, 0, 170))
+	if (GUI.MouseInRect(x, y, self.W, 28)) then
+		GUI.RoundedRect(0, 0, self.W, 28, self.ButOver)
+		if (OS.MouseDown() and self.CurVal < self.MaxVal) then
+			self.CurVal = self.CurVal + self.Step
+		end
+	else
+		GUI.RoundedRect(0, 0, self.W, 28, self.ButBase)
+	end
+	GUI.RoundedRect(0, self.H - 28, self.W + 2, 30, COLOR(0, 0, 0, 170))
+	if (GUI.MouseInRect(x, y + self.H - 28, self.W, 28)) then
+		GUI.RoundedRect(0, self.H - 28, self.W, 28, self.ButOver)
+		if (OS.MouseDown() and self.CurVal > self.MinVal) then
+			self.CurVal = self.CurVal - self.Step
+		end
+	else
+		GUI.RoundedRect(0, self.H - 28, self.W, 28, self.ButBase)
+	end
+	GUI.Text("+", self.W / 2, 16, self.Font, self.TxColor)
+	GUI.Text("-", self.W / 2, self.H - 16, self.Font, self.TxColor)
+	GUI.ColoredRect(0, 32, self.W + 2, self.H - 62, COLOR(0, 0, 0, 170))
+	GUI.ColoredRect(0, 32, self.W, self.H - 64, self.BaseColor)
+	GUI.Text(self.Prefix .. self.CurVal .. self.Suffix, 0, self.H / 2 - 8, self.Font, self.TxColor)
+end
+
+DefineComponent("numselect", numselect)

@@ -1,0 +1,33 @@
+--@name PermissionsCommands
+--@author Yuri6037
+
+HookPostPromote(function(ply, rnk)
+	chat.tell(ply, Color(0, 255, 255), "[LanAI] -> ", Color(0, 133, 255), "You've been promoted to the rank ", Color(0, 255, 0), permissions.GetRankName(rnk), Color(0, 133, 255), " !")
+end)
+HookPostDemote(function(ply, rnk)
+	chat.tell(ply, Color(0, 255, 255), "[LanAI] -> ", Color(0, 133, 255), "You've been demoted to the rank ", Color(0, 255, 0), permissions.GetRankName(rnk), Color(0, 133, 255), " !")
+end)
+
+AIRegisterCommand("promote", function(args, ply)
+	local b = args[1]:AIPromote()
+	if (b) then
+		return Command.PASSING, "Promoted player " .. args[1]:name() .. " to rank " .. permissions.GetRankName(args[1]:AIGetRank()) .. "."
+	else
+		return Command.PASSING, "Unable to promote player " .. args[1]:name() .. "."
+	end
+	return true
+end, {"Promotes a player.", "<command> <player>"}, {"player"})
+
+AIRegisterCommand("demote", function(args, ply)
+	local b = args[1]:AIDemote()
+	if (b) then
+		return Command.PASSING, "Demoted player " .. args[1]:name() .. " to rank "  .. permissions.GetRankName(args[1]:AIGetRank()) .. "."
+	else
+		return Command.PASSING, "Unable to demote player " .. args[1]:name() .. "."
+	end
+	return Command.ERROR_GENERIC
+end, {"Demotes a player.", "<command> <player>"}, {"player"})
+
+AIRegisterCommand("status", function(args, ply)
+	return Command.PASSING, args[1]:name() .. " is currently " .. permissions.GetRankName(args[1]:AIGetRank()) .. "."
+end, {"Returns the status of a player.", "<command> <player>"}, {"player"})

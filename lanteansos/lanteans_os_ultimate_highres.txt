@@ -1,0 +1,12 @@
+--@name Lanteans OS UltimateEdition (HighRes)
+--@author Yuri6037
+--@class screen
+--@autoupdate
+--@sharedscreen
+--@highres
+
+Edition = "ultimate"
+--@includedir lanteansos/ultimate/
+
+--Eventualy run initializer for dynamic includes
+--@require lanteansos/lanteans_os.txt

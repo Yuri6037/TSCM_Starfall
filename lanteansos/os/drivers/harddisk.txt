@@ -1,0 +1,417 @@
+--@name Lanteans OS HDD Driver
+--@author Yuri6037
+
+if (SERVER) then
+	PushDriver("DHDD", "Wirelink")
+	local Reading = false
+	local FileSys = {Count = 0, Table = {}}
+	local HDDLocalData = {}
+	local HDD = nil
+	local HDDSize = 0
+	local HDDMaxSize = 0
+	local HDDMaxSectors = 0
+	local ReadStack = {}
+	local HDDLastData = nil
+
+	--FilSystem structure
+	--FileContent : max 4096
+	--Primary Sector -> "LOFS" (Lanteans OS FileSystem)
+	--Sector 2 -> Begin file table
+	--File table :
+		-- Sector +0 : FileCount(n) [Limit : 32] 12
+		-- Sector +1-#n : SectorID(nbr 0-HDDMaxSize):Path [Limit : 16 chars]
+
+	--Hard Disk handler
+	function HDDWrite(address, data)
+		HDD["Data"] = data
+		HDD["Address"] = address
+		HDD["Write"] = 1
+		HDDLocalData[address] = data
+		HDDSize = HDD["Size"]
+	end
+	function HDDRead(address, func)
+		local req = {Addr = address, Callback = func}
+		if (#ReadStack == 0) then
+			HDD["Address"] = address
+			HDD["Read"] = 1
+		end
+		table.insert(ReadStack, req)
+		return HDD["Data"]
+	end
+	function HDDGet(address)
+		return HDDLocalData[address] or ""
+	end
+
+	function HDDFormat()
+		HDDWrite(1, "LOFS")
+		HDDWrite(2, "" .. FileSys.Count .. "")
+	end
+
+	function HDDConnected()
+		HDDMaxSectors = HDD["MaxSectors"]
+		HDDMaxSize = HDD["MaxSize"]
+		HDDSize = HDD["Size"]
+		if (HDDSize == 0) then HDDFormat() end
+		Reading = true
+		timer.create("LanteansOS_HDDDriver", 1, 0, function()
+			if (not(HDD["Data"] == HDDLastData)) then
+				if (#ReadStack <= 0) then
+					if (Reading) then
+						Reading = false
+						PopDriver()
+						for k, v in pairs(find.allPlayers()) do
+							lofs.SendTable(v)
+						end
+					end
+					return
+				end
+				HDDLastData = HDD["Data"]
+				local req = ReadStack[1]
+				req.Callback(HDDLastData, req.Addr)
+				table.remove(ReadStack, 1)
+				HDDLastData = nil
+				if (#ReadStack > 0) then
+					local req = ReadStack[1]
+					HDD["Address"] = req.Addr
+					HDD["Read"] = 1
+				end
+			end
+		end)
+		for i = 1, 2 + FileSys.Count do
+			HDDRead(i, function(data, addr)
+				HDDLocalData[addr] = data
+				if (addr == 1 and not(data == "LOFS")) then HDDFormat() end
+				if (addr == 2) then
+					FileSys.Count = tonumber(data)
+					if (FileSys.Count > 0) then
+						for i = 1, FileSys.Count do
+							HDDRead(i + 2, function(data, addr)
+								HDDLocalData[addr] = data
+								local t = string.Split(data, ":")
+								FileSys.Table[t[2]] = tonumber(t[1])
+								HDDRead(tonumber(t[1]), function(data, addr)
+									HDDLocalData[addr] = data
+								end)
+							end)
+						end
+					end
+				end
+			end)
+		end
+	end
+
+	if (wire.ports["DHDD"] == nil) then
+		PopDriver()
+	else
+		HDD = wire.ports["DHDD"]
+		if (starfall.isSpawnedFromDuplicator()) then
+			timer.create("LanteansOS_HDDDriver_AdvDupeHacker", 30, 1, HDDConnected)
+		else
+			HDDConnected()
+		end
+	end
+
+	--Lanteans OS FileSystem library (ServerSide)
+	lofs = {}
+	function lofs.WriteFile(path, content)
+		local len = string.len(content)
+		if (FileSys.Count * 2 > HDDMaxSectors - 3 or len > 4096 or HDDSize + len > HDDMaxSize) then return end
+		if (not(FileSys.Table[path] == nil)) then --A file already exists at the given path
+			HDDWrite(FileSys.Table[path], content)
+		else --No file exists at the given path : create it !
+			FileSys.Count = FileSys.Count + 1
+			HDDWrite(2, "" .. FileSys.Count .. "")
+			FileSys.Table[path] = HDDMaxSectors - FileSys.Count
+			HDDWrite(2 + FileSys.Count, (HDDMaxSectors - FileSys.Count) .. ":" .. path)
+			HDDWrite(HDDMaxSectors - FileSys.Count, content)
+			net.Broadcast("LOFS_TABLE")
+		end
+	end
+	function lofs.DeleteFile(path)
+		if (not(FileSys.Table[path] == nil)) then
+			HDDWrite(FileSys.Table[path], "")
+			FileSys.Table[path] = nil
+			FileSys.Count = FileSys.Count - 1
+			HDDWrite(2, "" .. FileSys.Count .. "")
+			local n = 1
+			for k, v in pairs(FileSys.Table) do
+				HDDWrite(2 + n, (HDDMaxSectors - n) .. ":" .. k)
+				n = n + 1
+			end
+			HDDWrite(2 + n, "")
+			net.Broadcast("LOFS_TABLE")
+		end
+	end
+	function lofs.FileExists(path)
+		return not(FileSys.Table[path] == nil)
+	end
+	function lofs.FileSize(path)
+		if (FileSys.Table[path] == nil) then return 0 end
+		return string.len(HDDGet(FileSys.Table[path]))
+	end
+	function lofs.ReadFile(path)
+		if (FileSys.Table[path] == nil) then return nil end
+		return FileSys.Table[path], HDDGet(FileSys.Table[path])
+	end
+	function lofs.FileNum()
+		return FileSys.Count
+	end
+	function lofs.SpaceUsed()
+		return HDDSize
+	end
+	function lofs.MaxSpace()
+		return HDDMaxSize
+	end
+	function lofs.SendTable(ply)
+		net.SendPacket("LOFS_TABLE", ply)
+	end
+
+	net.RegPacket(254, "LOFS_TABLE", nil, function(args)
+		net.writeTable(FileSys)
+		net.writeUInt(16, HDDMaxSize)
+		net.writeUInt(16, HDDSize)
+		net.writeUInt(16, HDDMaxSectors)
+	end, true)
+	net.RegPacket(253, "LOFS_FILE_READ", nil, function(args)
+		net.writeUInt(16, args[1])
+		net.writeString(args[2])
+	end, true)
+	net.RegPacket(252, "LOFS_FILE_WRITE", function()
+		local path = net.readString()
+		local data = net.readString()
+		lofs.WriteFile(path, data)
+	end, nil, true)
+	net.RegPacket(251, "LOFS_FILE_RM", function()
+		lofs.DeleteFile(net.readString())
+	end, nil, true)
+	net.RegPacket(250, "LOFS_FILE_REQ", function(ply)
+		local path = net.readString()
+		local sector, str = lofs.ReadFile(path)
+		net.SendPacket("LOFS_FILE_READ", ply, sector, str)
+	end, nil, true)
+else
+	local HDDSpaceMax = 0
+	local HDDSpaceUsed = 0
+	local HDDMaxSectors = 0
+	local FileSys = {}
+	local FilesData = {}
+	local FileAssocs = {}
+	local Callbacks = {}
+
+	net.RegPacket(254, "LOFS_TABLE", function()
+		FileSys = net.readTable()
+		HDDSpaceMax = net.readUInt(16)
+		HDDSpaceUsed = net.readUInt(16)
+		HDDMaxSectors = net.readUInt(16)
+	end, nil, true)
+	net.RegPacket(253, "LOFS_FILE_READ", function()
+		local addr = net.readUInt(16)
+		local data = net.readString()
+		FilesData[addr] = data
+		if (not(Callbacks[addr] == nil)) then
+			for k, v in pairs(Callbacks[addr]) do
+				v()
+			end
+			Callbacks[addr] = nil
+		end
+	end, nil, true)
+	net.RegPacket(252, "LOFS_FILE_WRITE", nil, function(args)
+		net.writeString(args[1])
+		net.writeString(args[2])
+	end, true)
+	net.RegPacket(251, "LOFS_FILE_RM", nil, function(args)
+		net.writeString(args[1])
+	end, true)
+	net.RegPacket(250, "LOFS_FILE_REQ", nil, function(args)
+		net.writeString(args[1])
+	end)
+
+	--Client side
+	FS = {ERR_NO_EXIST = 1, ERR_SYNCING = 2, ERR_LIMIT = 3, ERR_NO_MEMORY = 4, ERR_NO_EXT = 5, ERR_NO_EMPTY = 6, ERR_NONE = 0}
+	FS.ErrorString = {
+		[1] = "File does not exist",
+		[2] = "File has not been requested",
+		[3] = "FileSystem generic error (you probably reached maximum sector number)",
+		[4] = "No enough space on hard disk",
+		[5] = "File does not have an extension",
+		[6] = "Directory is not empty"
+	}
+	local function CalcTableEntry(path, addr)
+		return tostring(HDDMaxSectors - addr) .. ":" .. path
+	end
+	local function WriteFileInternal(path, content)
+		local len = string.len(content)
+		if (FileSys.Count * 2 >= HDDMaxSectors - 2 or len > 4096) then return FS.ERR_LIMIT end
+		if (string.find(path, ":", 1, true)) then return FS.ERR_LIMIT end
+		if (HDDSpaceUsed + len + string.len(CalcTableEntry(path, FileSys.Count + 1)) > HDDSpaceMax) then return FS.ERR_NO_MEMORY end
+		if (not(FileSys.Table[path] == nil)) then --A file already exists at the given path
+			FilesData[FileSys.Table[path]] = content
+		else
+			HDDSpaceUsed = HDDSpaceUsed + len + string.len(CalcTableEntry(path, FileSys.Count + 1))
+			FileSys.Count = FileSys.Count + 1
+			FileSys.Table[path] = HDDMaxSectors - FileSys.Count
+			FilesData[HDDMaxSectors - FileSys.Count] = content
+		end
+		net.SendPacket("LOFS_FILE_WRITE", path, content)
+		return FS.ERR_NONE
+	end
+	local function CleanPath(path)
+		if (path == "/") then return path end
+		while (path:sub(1, 1) == "/") do path = path:sub(2) end
+		local outstr = ""
+		for i = 1, path:len() do
+			if (path:sub(i, i) == "/") then
+				if (not(outstr:sub(outstr:len(), outstr:len()) == "/")) then
+					outstr = outstr .. "/"
+				end
+			else
+				outstr = outstr .. path:sub(i, i)
+			end
+		end
+		return outstr
+	end
+	local function FileExistsInternal(path)
+		return not(FileSys.Table[path] == nil)
+	end
+	function FS.WriteFile(path, content)
+		path = CleanPath(path)
+		if (FS.FileExtension(path) == "") then return FS.ERR_NO_EXT end
+		local id = string.GetLastIndexOfChar(path, "/")
+		if (not(id == -1) and not(FS.FileExists(path:sub(1, id) .. "/__dir__"))) then return FS.ERR_NO_EXIST end
+		return WriteFileInternal(path, content)
+	end
+	function FS.CreateDirectory(path)
+		path = CleanPath(path)
+		if (path:sub(path:len(), path:len()) == "/") then
+			if (FS.FileExists(path .. "__dir__")) then return FS.ERR_LIMIT end
+			return WriteFileInternal(path .. "__dir__", "")
+		else
+			if (FS.FileExists(path .. "/__dir__")) then return FS.ERR_LIMIT end
+			return WriteFileInternal(path .. "/__dir__", "")
+		end
+	end
+	function FS.DeleteFile(path)
+		path = CleanPath(path)
+		if (not(FileSys.Table[path] == nil)) then
+			FileSys.Table[path] = nil
+			FileSys.Count = FileSys.Count - 1
+			net.SendPacket("LOFS_FILE_RM", path)
+			return FS.ERR_NONE
+		else
+			return FS.ERR_NO_EXIST
+		end
+	end
+	function FS.DeleteDirectory(path)
+		local finder = FS.NewFinder()
+		finder:SetAll()
+		if (#FS.ListFiles(path, finder) > 0) then
+			return FS.ERR_NO_EMPTY
+		end
+		return FS.DeleteFile(path .. "/__dir__")
+	end
+	function FS.RequestFile(path, callback)
+		path = CleanPath(path)
+		if (FS.FileExtension(path) == "") then return FS.ERR_NO_EXT end
+		if (not(FileExistsInternal(path))) then return FS.ERR_NO_EXIST end
+		if (not(callback == nil)) then
+			if (Callbacks[FileSys.Table[path]] == nil) then
+				Callbacks[FileSys.Table[path]] = {}
+			end
+			table.insert(Callbacks[FileSys.Table[path]], callback)
+		end
+		net.SendPacket("LOFS_FILE_REQ", path)
+		return FS.ERR_NONE
+	end
+	function FS.ReadFile(path)
+		path = CleanPath(path)
+		if (FS.FileExtension(path) == "") then return FS.ERR_NO_EXT end
+		if (not(FileExistsInternal(path))) then return FS.ERR_NO_EXIST end
+		if (FilesData[FileSys.Table[path]] == nil) then return FS.ERR_SYNCING end
+		local str = FilesData[FileSys.Table[path]]
+		FilesData[FileSys.Table[path]] = nil
+		return FS.ERR_NONE, str
+	end
+	function FS.FileExists(path)
+		path = CleanPath(path)
+		return not(FileSys.Table[path] == nil)
+	end
+	function FS.FileSize(path)
+		path = CleanPath(path)
+		if (not(FileExistsInternal(path))) then return FS.ERR_NO_EXIST end
+		if (FilesData[FileSys.Table[path]] == nil) then return FS.ERR_SYNCING end
+		return FS.ERR_NONE, string.len(FilesData[FileSys.Table[path]])
+	end
+	function FS.FileCount()
+		return FileSys.Count
+	end
+	function FS.FileMax()
+		return 32
+	end
+	function FS.FileExtension(path)
+		path = CleanPath(path)
+		local id = string.GetIndexOfChar(path, ".")
+		if (id == -1) then return "" end
+		return path:sub(id + 1)
+	end
+	function FS.FileName(path)
+		path = CleanPath(path)
+		local id = string.GetLastIndexOfChar(path, "/")
+		if (id == -1) then return path end
+		return path:sub(id + 1)
+	end
+	function FS.IsDirectory(path)
+		path = CleanPath(path)
+		local id = string.GetLastIndexOfChar(path, ".")
+		return id == -1
+	end
+	function FS.ListFiles(path, finder)
+		path = CleanPath(path)
+		if (not(path:sub(path:len(), path:len()) == "/")) then
+			path = path .. "/"
+		end
+		if (not(path:sub(1, 1) == "/")) then
+			path = "/" .. path
+		end
+		local data = {}
+		for k1, v in pairs(FileSys.Table) do
+			if (not(k1:sub(1, 1) == "/")) then k1 = "/" .. k1 end
+			if (FS.FileName(k1) == "__dir__") then
+				k1 = k1:sub(1, k1:len() - 8)
+			end
+			if (k1:sub(1, string.GetLastIndexOfChar(k1, "/")) == path and (finder["*"] or finder[FS.FileExtension(k1)])) then
+				table.insert(data, FS.FileName(k1))
+			end
+		end
+		return data
+	end
+	function FS.NewFinder()
+		return {
+			SetAll = function(self)
+				self["*"] = true
+			end,
+			AddExtension = function(self, extname)
+				if (extname:len() > 3) then return end
+				self[extname] = true
+			end
+		}
+	end
+	function FS.SpaceMax()
+		return HDDSpaceMax
+	end
+	function FS.SpaceUsed()
+		return HDDSpaceUsed
+	end
+	function FS.MaxSectors()
+		return HDDMaxSectors
+	end
+	function FS.SectorsUsed()
+		return FileSys.Count * 2 + 2
+	end
+	function FS.RegisterFileAssociation(ext, appid)
+		if (ext:len() > 3) then return end
+		FileAssocs[ext] = appid
+	end
+	function FS.GetFileAssociation(ext)
+		return (FileAssocs[ext])
+	end
+end

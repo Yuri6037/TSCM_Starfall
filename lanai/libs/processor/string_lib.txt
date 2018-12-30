@@ -1,0 +1,131 @@
+--@name StringLib
+--@author Yuri6037
+
+function string.StartsWith(String, Start)
+   return string.sub(String, 1, string.len(Start)) == Start
+end
+
+function string.Replace(str, toFind, repBy)
+	return string.gsub(str, toFind, repBy)
+end
+
+function string.Split(inputstr, sep)
+	local t = {}
+	local i = 1
+	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+		t[i] = str
+		i = i + 1
+	end
+	return t
+end
+
+function string.SplitLeaveChar(inputstr, sep, c)
+	local tbl = {}
+	local openBypass = false
+	local curWord = ""
+	for c1 in inputstr:gmatch"." do
+		if (c1 == c) then
+			openBypass = not(openBypass)
+		else
+			curWord = curWord .. c1
+		end
+		if (c1 == sep and not(openBypass)) then
+			curWord = curWord:sub(1, string.len(curWord) - 1)
+			table.insert(tbl, curWord)
+			curWord = ""
+		end
+	end
+	if (not(curWord == "")) then
+		table.insert(tbl, curWord)
+		curWord = ""
+	end
+	return tbl
+end
+
+function string.AreSimilar(str, str1)
+	local s = string.Split(string.upper(str), " ")[1]
+	local s1 = string.upper(str1)
+	if (s == s1) then
+		return true
+	end
+	if (string.find(s, s1)) then
+		return true
+	end
+	return false
+end
+
+function string.AllignCharNumber(str, num)
+	local n = string.len(str)
+	if (n > num) then
+		return str:sub(1, (num - n) - 1)
+	else
+		local toAdd = ""
+		for i =1, (num - n) do
+			toAdd = toAdd .. "\0"
+		end
+		return str .. toAdd
+	end
+end
+
+function string.CalculateEqualPercentage(str, str1)
+	local total = string.len(str)
+	if (string.len(str1) > total) then
+		total = string.len(str1)
+	end
+	local similar = total
+	for i = 1, total do
+	   local c = str:sub(i, i)
+	   local c1 = str1:sub(i, i)
+	   if (not (c == c1)) then
+		  similar = similar - 1
+	   end
+	end
+	return similar * 100 / total
+end
+
+function string.GetMostSimilar(str, lst)
+	local strs = {}
+	local numLst = {}
+	str = string.lower(str)
+	str = string.Replace(str, ' ', '')
+	for k, v in pairs(lst) do
+		local old = v
+		local t = str
+		v = string.lower(v)
+		v = string.Replace(v, ' ', '')
+		strs[k] = old
+		numLst[k] = string.CalculateEqualPercentage(v, t)
+		if (numLst[k] == 100) then
+			return old, 100
+		end
+	end
+	local g, i = math.FindGreatest(numLst)
+	local best = strs[i]
+	if (numLst[i] <= 50) then
+		return best, numLst[i]
+	end
+	if (numLst[i] == 0) then
+	   return nil, 0
+	end
+	return best, numLst[i]
+end
+
+function string.GetIndexOfChar(str, c)
+	for i = 1, string.len(str) do
+		local c1 = str:sub(i, i)
+		if (c1 == c) then
+			return i
+		end
+	end
+	return -1
+end
+
+function string.GetLastIndexOfChar(str, c)
+	for i = string.len(str), 1, -1 do
+		local c1 = str:sub(i, i)
+		if (c1 == c) then
+			return i
+		end
+	end
+	return -1
+end

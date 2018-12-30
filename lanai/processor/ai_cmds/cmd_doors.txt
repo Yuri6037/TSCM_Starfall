@@ -1,0 +1,16 @@
+--@name DoorsCommands
+--@author Yuri6037
+
+AIRegisterCommand("unlock", function(args, ply)
+	local ent = ply:eyeTrace().Entity
+	if (IsValid(ent) and ent:class() == "sbep_base_door_controller") then
+		ent:getWirelink()["Lock_1"] = 0
+		timer.create("LanAI_RelockPointedDoor", UNLOCK_TIME, 1, function()
+			ent:getWirelink()["Open_1"] = 1
+			ent:getWirelink()["Lock_1"] = 1
+		end)
+		return Command.PASSING, "Unlocked door for " .. UNLOCK_TIME .. " seconds"
+	else
+		return Command.ERROR_GENERIC
+	end
+end, {"Unlock pointed door for limited time.", "<command>"}, {}, {}, 0)

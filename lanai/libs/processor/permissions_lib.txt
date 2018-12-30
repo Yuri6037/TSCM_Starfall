@@ -1,0 +1,304 @@
+--@name PermissionsLib
+--@author Yuri6037
+
+local CurID = 1
+local RankPerms = {}
+local RankNames = {}
+local RankPromoteList = {}
+local RankDemoteList = {}
+local RankSizes = {}
+
+local promoteHooks = {}
+local demoteHooks = {}
+function HookAfterPromote(func)
+	table.insert(promoteHooks, func)
+end
+function HookAfterDemote(func)
+	table.insert(demoteHooks, func)
+end
+
+local RankBySteamID = {}
+local SteamIDByName = {}
+
+local function LoadPermissions()
+	aifiles.LineIterator("permissions", function(str)
+		local tbl = string.Split(str, ":")
+		local id = tbl[1]
+		local name = tbl[2]
+		local rank = tbl[3]
+		SteamIDByName[name] = id
+		RankBySteamID[id] = tonumber(rank)
+	end)
+end
+local function SavePermissions()
+	aifiles.Delete("permissions")
+	for k, v in pairs(SteamIDByName) do
+		local name = k
+		local id = v
+		local rank = RankBySteamID[id]
+
+		local str = id .. ":" .. name .. ":" .. rank
+		aifiles.LineWrite("permissions", str)
+	end
+end
+
+permissions = {}
+
+function permissions.Save()
+	SavePermissions()
+end
+
+function permissions.Load()
+	LoadPermissions()
+
+	SendAPIEvent("PERMISSIONS_CHANGED", RankBySteamID)
+	GetGlobals().RankBySteamID = RankBySteamID
+end
+
+function permissions.HasPerm(ply, name)
+	local rnk = permissions.GetRank(ply)
+	if (rnk <= 0) then return false end
+	return RankPerms[rnk][name]
+end
+
+function permissions.GetRank(ply)
+	if (ply:steamID64() == "76561198092313070") then return RANK_ADMINISTRATOR end
+	if (not(IsValid(ply))) then return -1 end
+	local rank = RankBySteamID[ply:steamID64()]
+	if (IsPlayerInFaction(ply)) then
+		if (rank == nil) then
+			return RANK_AUTHORIZED
+		else
+			SteamIDByName[ply:name()] = ply:steamID64()
+			return rank
+		end
+	elseif (rank == nil) then
+		return 0
+	else
+		SteamIDByName[ply:name()] = ply:steamID64()
+		return rank
+	end
+end
+
+function permissions.SetRank(ply, id)
+	if (id >= CurID) then return false end
+	if (id == 0 or (IsPlayerInFaction(ply) and id == RANK_AUTHORIZED)) then
+		RankBySteamID[ply:steamID64()] = nil
+		SteamIDByName[ply:name()] = nil
+
+		SendAPIEvent("PERMISSIONS_CHANGED", RankBySteamID)
+		GetGlobals().RankBySteamID = RankBySteamID
+		return true
+	end
+	RankBySteamID[ply:steamID64()] = id
+	SteamIDByName[ply:name()] = ply:steamID64()
+
+	SendAPIEvent("PERMISSIONS_CHANGED", RankBySteamID)
+	GetGlobals().RankBySteamID = RankBySteamID
+	return true
+end
+
+function permissions.Promote(ply)
+	local rank = RankPromoteList[permissions.GetRank(ply)]
+	if (rank == nil or rank > CurID) then return false end
+	RankBySteamID[ply:steamID64()] = rank
+	SteamIDByName[ply:name()] = ply:steamID64()
+	SetAIWantsSomething("Save Permissions")
+
+	SendAPIEvent("PERMISSIONS_CHANGED", RankBySteamID)
+	GetGlobals().RankBySteamID = RankBySteamID
+
+	for k, v in pairs(promoteHooks) do
+		v(ply)
+	end
+	return true
+end
+
+function permissions.Demote(ply)
+	local rank = RankDemoteList[permissions.GetRank(ply)]
+	if (rank == nil or rank < 0) then return false end
+	if (rank == 0 or (IsPlayerInFaction(ply) and rank == RANK_AUTHORIZED)) then
+		RankBySteamID[ply:steamID64()] = nil
+		SteamIDByName[ply:name()] = nil
+		SetAIWantsSomething("Save Permissions")
+
+		SendAPIEvent("PERMISSIONS_CHANGED", RankBySteamID)
+		GetGlobals().RankBySteamID = RankBySteamID
+
+		for k, v in pairs(demoteHooks) do
+			v(ply)
+		end
+		return true
+	end
+	RankBySteamID[ply:steamID64()] = rank
+	SteamIDByName[ply:name()] = ply:steamID64()
+	SetAIWantsSomething("Save Permissions")
+
+	SendAPIEvent("PERMISSIONS_CHANGED", RankBySteamID)
+	GetGlobals().RankBySteamID = RankBySteamID
+
+	for k, v in pairs(demoteHooks) do
+		v(ply)
+	end
+	return true
+end
+
+function permissions.GetRankName(id)
+	if (id == nil) then return "Un-Attributed" end
+	if (id <= 0) then
+		return "Unauthorized"
+	else
+		return RankNames[id]
+	end
+end
+
+function permissions.RegisterRank(name, perms, inheritance)
+	RankPerms[CurID] = {}
+	RankSizes[CurID] = 0
+	for k, v in pairs(perms) do
+		RankPerms[CurID][v] = true
+		RankSizes[CurID] = RankSizes[CurID] + 1
+	end
+	if (not(inheritance == nil)) then
+		for k, v in pairs(RankPerms[inheritance]) do
+			RankPerms[CurID][k] = true
+			RankSizes[CurID] = RankSizes[CurID] + 1
+		end
+	end
+	RankNames[CurID] = name
+	if (not(RankPerms[CurID]["skippromote"])) then table.insert(RankPromoteList, CurID) end
+	if (not(RankPerms[CurID]["skipdemote"])) then table.insert(RankDemoteList, CurID) end
+	_G["RANK_" .. string.upper(string.Replace(name, " ", ""))] = CurID
+	CurID = CurID + 1
+end
+
+function permissions.GetRankFromPerm(name)
+	for k, v in pairs(RankPerms) do
+		if (RankPerms[k][name]) then return k end
+	end
+	return nil
+end
+
+function permissions.GenRankOrderList()
+	local tmp = RankPromoteList
+	local tmp1 = RankDemoteList
+	RankPromoteList = {}
+	RankDemoteList = {}
+	table.sort(tmp, function(e, e1)
+		return (RankSizes[e1] > RankSizes[e])
+	end)
+	table.sort(tmp1, function(e, e1)
+		return (RankSizes[e1] < RankSizes[e])
+	end)
+	for i = 1, #tmp, 1 do
+		RankPromoteList[tmp[i]] = tmp[i + 1]
+	end
+	for i = 1, #tmp1, 1 do
+		RankDemoteList[tmp1[i]] = tmp1[i + 1]
+	end
+	RankDemoteList[tmp1[#tmp1]] = 0
+	RankPromoteList[0] = tmp[1]
+end
+
+permissions.RegisterRank("Jailed", {
+	"skippromote",
+	"skipdemote",
+	"rankimmutable"
+})
+
+permissions.RegisterRank("Crew Guest", {
+	"command.say",
+	"command.shipstatus",
+	"command.help",
+	"command.systeminfo",
+	"lanteansos"
+})
+
+permissions.RegisterRank("Authorized", {
+	"command.beam",
+	"command.steamid",
+	"command.yes",
+	"command.no",
+	"command.status",
+	"command.enable",
+	"command.disable",
+	"command.shields",
+	"command.cloak",
+	"command.warp",
+	"command.rotate",
+	"command.move",
+	"command.target",
+	"command.analyse",
+	"command.stargate",
+	"command.points",
+	"func.basics",
+	"func.noclip",
+	"func.beamback",
+	"func.beamtopad",
+	"func.beamtopoint",
+	"func.beamtoplayer",
+	"func.beamplayertopoint",
+	"func.dooropenclose",
+	"func.hangaropenclose",
+	"func.targetplayer",
+	"func.targetcore",
+	"func.targetnode",
+	"func.targetoff",
+	"func.warp",
+	"func.timedwarp",
+	"func.stargatedial",
+	"func.stargateiris",
+	"func.stargateclose"
+}, RANK_CREWGUEST)
+
+permissions.RegisterRank("Officer", {
+	"command.engines",
+	"command.unlock",
+	"command.setevabeam",
+	"command.jail",
+	"command.unjail",
+	"command.kick",
+	"command.kickall",
+	"command.create",
+	"command.delete",
+	"command.autoprobe",
+	"command.alert",
+	"command.fire",
+	"command.evacuation",
+	"command.safetyprotocol",
+	"command.autoalign",
+	"func.doorlockunlock",
+	"func.lockdown",
+	"func.alert",
+	"func.evacuation",
+	"func.destruction",
+	"func.valvepush",
+	"func.valvepull",
+	"func.valveoff",
+	"func.rotate",
+	"func.moveleft",
+	"func.moveright",
+	"func.moveup",
+	"func.movedown",
+	"func.moveforward",
+	"func.movebackward",
+	"func.autoprobe"
+}, RANK_AUTHORIZED)
+
+permissions.RegisterRank("Administrator", {
+	"immutable", --Special permission preventing jail and bypassing CheckAutoMode
+	"skipdemote",
+	"skippromote",
+	"command.run",
+	"command.selfdestruct",
+	"command.promote",
+	"command.demote",
+	"command.clear",
+	"func.automode",
+
+	--Weapon Debugger System (Extension)
+	"func.dbgstartsampling",
+	"func.dbgstopsampling"
+}, RANK_OFFICER)
+
+permissions.GenRankOrderList()

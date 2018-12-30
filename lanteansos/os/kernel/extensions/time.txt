@@ -1,0 +1,10 @@
+--@name TimeKernelExtension
+--@author Yuri6037
+
+function OS.Time()
+	return os.date("%X")
+end
+
+function OS.Date()
+	return ""
+end

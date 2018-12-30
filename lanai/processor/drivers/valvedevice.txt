@@ -1,0 +1,60 @@
+--@name ValveDeviceManager
+--@author Yuri6037
+
+function GetValveState()
+	if (Ship.Valve == nil) then
+		return "ERROR"
+	end
+	local cur = Ship.Valve["Current Push Rate"]
+	local cur1 = Ship.Valve["Current Pull Rate"]
+	if (cur > 0) then
+		return "PUSHING..."
+	elseif (cur1 > 0) then
+		return "PULLING..."
+	end
+	return "OFFLINE"
+end
+
+function EnableValve(resource, method, rate)
+	local state = GetValveState()
+	if (not(IsValid(Target.Node)) or not(Target.Node:class() == "stargazer_node")) then
+		aiSay("No ship's node is targeted !")
+		return
+	end
+	local node = Target.Node
+	if (node:getPos():Distance(Ship.Node:entity():getPos()) > 2048) then
+		aiSay("The target node is too far away !")
+		return
+	end
+
+	Ship.Valve:entity():link(Ship.Node:entity())
+	Ship.Valve:entity():link(node)
+
+	if (method == "Push") then
+		Ship.Valve["Push Resource"] = resource
+		Ship.Valve["Push Flow Rate"] = rate
+		aiSay("Valve enabled for " .. resource .. " push, at rate " .. rate .. ".")
+	elseif (method == "Pull") then
+		Ship.Valve["Pull Resource"] = resource
+		Ship.Valve["Pull Flow Rate"] = rate
+		aiSay("Valve enabled for " .. resource .. " pull, at rate " .. rate .. ".")
+	end
+end
+
+function DisableValve()
+	Ship.Valve["Push Resource"] = ""
+	Ship.Valve["Push Flow Rate"] = 0
+	Ship.Valve["Pull Resource"] = ""
+	Ship.Valve["Pull Flow Rate"] = 0
+	Ship.Valve:entity():unlink()
+	aiSay("Valve disabled.")
+end
+
+RegisterDriver({"stargazer_valve"}, function(ent)
+	Ship.Valve = ent:getWirelink()
+	return true
+end)
+
+OSAddFunction("ValvePush", function(var) EnableValve(var, "Push", 5000) end)
+OSAddFunction("ValvePull", function(var) EnableValve(var, "Pull", 5000) end)
+OSAddFunction("ValveOff", DisableValve)

@@ -1,0 +1,101 @@
+--@name StazeModuleCoreII
+--@author Yuri6037
+--@autoupdate
+
+wire.createInputs({"Activate", "DoorA", "DoorB"}, {"Normal", "Entity", "Entity"})
+wire.createOutputs({"Active"}, {"Normal"})
+
+local da = wire.ports["DoorA"]
+local db = wire.ports["DoorB"]
+local val = wire.ports["Activate"]
+
+if (val == 1) then
+	if (IsValid(da)) then
+		da:setAlpha(255)
+		da:setCollisionGroup(ents.COLLISION_GROUP_NONE)
+	end
+	if (IsValid(db)) then
+		db:setAlpha(255)
+		db:setCollisionGroup(ents.COLLISION_GROUP_NONE)
+	end
+else
+	if (IsValid(da)) then
+		da:setAlpha(0)
+		da:setCollisionGroup(ents.COLLISION_GROUP_WORLD)
+	end
+	if (IsValid(db)) then
+		db:setAlpha(0)
+		db:setCollisionGroup(ents.COLLISION_GROUP_WORLD)
+	end
+end
+
+local ESelf = ents.self()
+
+local function CreateDoorHolo(ent)
+	local mainholo = holograms.create(ESelf:pos(), ESelf:ang(), ESelf:model(), 1)
+	mainholo:setParent(ESelf)
+	local holo = holograms.create(ent:pos(), ent:ang(), ent:model(), 1)
+	holo:setParent(mainholo)
+	holo:setMaterial(ent:material())
+	holo:setDrawTranslucent(true)
+	return (mainholo)
+end
+
+local function DoorOpen(openang, vel)
+	if (timer.exists("StazeModuleCoreII")) then timer.remove("StazeModuleCoreII") end
+	holograms.removeAll()
+	local da = wire.ports["DoorA"]
+	local db = wire.ports["DoorB"]
+	if (not(IsValid(da)) or not(IsValid(db))) then return end
+	local hda = CreateDoorHolo(da)
+	local hdb = CreateDoorHolo(db)
+	da:setAlpha(0)
+	db:setAlpha(0)
+	da:setCollisionGroup(ents.COLLISION_GROUP_WORLD)
+	db:setCollisionGroup(ents.COLLISION_GROUP_WORLD)
+	hda:setAngVel(Angle(0, vel, 0))
+	hdb:setAngVel(Angle(0, -vel, 0))
+	timer.create("StazeModuleCoreII", 1, 0, function()
+		local ay = ESelf:worldToLocalAngles(hda:ang()).Y
+		if (ay >= openang) then
+			holograms.removeAll()
+			timer.remove("StazeModuleCoreII")
+		end
+	end)
+end
+
+local function DoorClose(openang, vel)
+	if (timer.exists("StazeModuleCoreII")) then timer.remove("StazeModuleCoreII") end
+	holograms.removeAll()
+	local da = wire.ports["DoorA"]
+	local db = wire.ports["DoorB"]
+	if (not(IsValid(da)) or not(IsValid(db))) then return end
+	local hda = CreateDoorHolo(da)
+	local hdb = CreateDoorHolo(db)
+	hda:setAng(ESelf:localToWorldAngles(Angle(0, openang, 0)))
+	hdb:setAng(ESelf:localToWorldAngles(Angle(0, -openang, 0)))
+	hda:setAngVel(Angle(0, -vel, 0))
+	hdb:setAngVel(Angle(0, vel, 0))
+	timer.create("StazeModuleCoreII", 1, 0, function()
+		local ay = ESelf:worldToLocalAngles(hda:ang()).Y
+		if (ay <= 0) then
+			holograms.removeAll()
+			timer.remove("StazeModuleCoreII")
+			da:setAlpha(255)
+			db:setAlpha(255)
+			da:setCollisionGroup(ents.COLLISION_GROUP_NONE)
+			db:setCollisionGroup(ents.COLLISION_GROUP_NONE)
+		end
+	end)
+end
+
+hook("input", "StazeModuleCoreII", function(name, val)
+	if (name == "Activate") then
+		wire.ports["Active"] = val
+		if (val == 1) then
+			DoorClose(90, 10)
+		else
+			DoorOpen(90, 10)
+		end
+	end
+end)

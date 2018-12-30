@@ -1,0 +1,320 @@
+--@name BeamDeviceManager
+--@author Yuri6037
+
+local InBeam = false
+local BeamDelay = 0
+task.Start(function()
+	if (InBeam) then
+		BeamDelay = BeamDelay + 1
+		if (BeamDelay >= 1) then
+			Ship.TP["TargetLocation"] = Vector(0, 0, 0)
+			Ship.TP["Target1"] = nil
+			Ship.TP["Target2"] = nil
+			Ship.TP["Target3"] = nil
+			Ship.TP["Target4"] = nil
+			Ship.TP["Target5"] = nil
+			Ship.TP["Target6"] = nil
+			Ship.TP["Target Pad"] = nil
+			Ship.TP["Beam to vector"] = 0
+			Ship.TP["Beam from pads"] = 0
+			Ship.TP["Beam to pads"] = 0
+			InBeam = false
+			BeamDelay = 0
+		end
+	end
+end, "LanAI_BeamManager", 1)
+
+local SecureBeam = true
+local BFunc = nil
+local BVar = nil
+aiRegisterAction("Force Beam", function()
+	SecureBeam = false
+	BFunc(BVar)
+	SecureBeam = true
+end)
+
+local function TryForce(var, fnc)
+	aiSay("This location is dangerous...")
+	BVar = var
+	BFunc = fnc
+	aiSetAction("Force Beam")
+	return false
+end
+
+--Beaming functions
+function BeamToPoint(pt)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+
+	local vec = GetBeamPointFromName(pt)
+	if (vec == nil) then
+		aiSay("No such beam point name !")
+		return false
+	end
+
+	if (stargate.locationJammed(vec)) then
+		aiSay("This point is in a jammed location !")
+		return false
+	end
+
+	if (SecureBeam and IsDangerLocation(vec)) then
+		return TryForce(pt, BeamToPoint)
+	end
+
+	Ship.TP["TargetLocation"] = vec
+	Ship.TP["Beam from pads"] = 1
+	InBeam = true
+	return true
+end
+function BeamToVector(vec)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+
+	if (stargate.locationJammed(vec)) then
+		aiSay("This vector is in a jammed location !")
+		return false
+	end
+
+	if (SecureBeam and IsDangerLocation(vec)) then
+		return TryForce(vec, BeamToVector)
+	end
+
+	Ship.TP["TargetLocation"] = vec
+	Ship.TP["Beam from pads"] = 1
+	InBeam = true
+	return true
+end
+function BeamPlayer(ply)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	if (not(IsValid(ply))) then
+		aiSay("You can't beam a NULL player !")
+		return false
+	end
+
+	if (stargate.locationJammed(ply:getPos())) then
+		aiSay("This player is in a jammed location !")
+		return false
+	end
+
+	Ship.TP["Target1"] = ply
+	Ship.TP["Beam to pads"] = 1
+	InBeam = true
+	return true
+end
+function BeamToPad(pad)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	if (not(IsValid(pad))) then
+		aiSay("You can't beam to a NULL pad !")
+		return false
+	end
+
+	if (stargate.locationJammed(pad:getPos())) then
+		aiSay("This pad is in a jammed location !")
+		return false
+	end
+
+	if (SecureBeam and IsDangerLocation(pad:getPos())) then
+		return TryForce(pad, BeamToPad)
+	end
+
+	Ship.TP["Target Pad"] = pad
+	Ship.TP["Beam from pads"] = 1
+	InBeam = true
+	return true
+end
+--End
+
+function BeamEntityToVector(ent, vec)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	if (not(IsValid(ent))) then
+		aiSay("You can't beam a NULL entity !")
+		return false
+	end
+
+	if (stargate.locationJammed(vec)) then
+		aiSay("This vector is in a jammed location !")
+		return false
+	end
+
+	if (SecureBeam and IsDangerLocation(vec)) then
+		return TryForce({ent, vec}, function(var) BeamEntityToVector(var[1], var[2]) end)
+	end
+
+	Ship.TP["Target1"] = ent
+	Ship.TP["TargetLocation"] = vec
+	Ship.TP["Beam to vector"] = 1
+	InBeam = true
+	return true
+end
+
+function BeamEntityToPoint(ent, pt)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	if (not(IsValid(ent))) then
+		aiSay("You can't beam a NULL entity !")
+		return false
+	end
+	local vec = GetBeamPointFromName(pt)
+	if (vec == nil) then
+		aiSay("No such beam point name !")
+		return false
+	end
+
+	if (stargate.locationJammed(vec)) then
+		aiSay("This point is in a jammed location !")
+		return false
+	end
+
+	if (SecureBeam and IsDangerLocation(vec)) then
+		return TryForce({ent, pt}, function(var) BeamEntityToPoint(var[1], var[2]) end)
+	end
+
+	Ship.TP["Target1"] = ent
+	Ship.TP["TargetLocation"] = vec
+	Ship.TP["Beam to vector"] = 1
+	InBeam = true
+	return true
+end
+
+local BeamSequenceTargetMax = 0
+local BeamCycle = 0
+function BeamEntityListToVector(lst, vec)
+	if (BeamCycle > 0) then return false end
+	if (#lst > BeamSequenceTargetMax) then return false end --Driver does not support mass beaming
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+
+	if (stargate.locationJammed(vec)) then
+		aiSay("This vector is in a jammed location !")
+		return false
+	end
+
+	if (SecureBeam and IsDangerLocation(vec)) then
+		return TryForce({lst, vec}, function(var) BeamEntityListToVector(var[1], var[2]) end)
+	end
+
+	for k, v in pairs(lst) do
+		Ship.TP["Target" .. k] = v
+	end
+	Ship.TP["Beam to pads"] = 1
+	InBeam = true
+	BeamCycle = 1
+	task.Start(function()
+		if (not(InBeam) and BeamCycle == 1 and Ship.TP["Energising"] == 0) then
+			Ship.TP["TargetLocation"] = vec
+			Ship.TP["Beam from pads"] = 1
+			InBeam = true
+			BeamCycle = 2
+		elseif (not(InBeam) and BeamCycle == 2 and Ship.TP["Energising"] == 0) then
+			BeamCycle = 0
+			task.End("LanAI_BeamEntListToVecCycle", true) --Immediatly kill beam cycling task
+		end
+	end, "LanAI_BeamEntListToVecCycle", 1)
+	return true
+end
+
+--TODO : Add location jammed check
+function BeamEntityList(lst)
+	if (#lst > BeamSequenceTargetMax) then return false end --Driver does not support mass beaming
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.TP == nil) then
+		aiSay("This ship has no beaming device !")
+		return false
+	end
+	for k, v in pairs(lst) do
+		Ship.TP["Target" .. k] = v
+	end
+	Ship.TP["Beam to pads"] = 1
+	InBeam = true
+	return true
+end
+
+Ship.DynamicBeams = {}
+RegisterDriver({"transporter_pad", "gmod_wire_gps"}, function(ent)
+	if (ent:class() == "transporter_pad") then
+		Ship.TP = ent:getWirelink()
+		for k, v in pairs(Ship.TP:inputs()) do
+			if (string.StartsWith(v, "Target") and not(v == "TargetLocation") and not(v == "Target Pad")) then
+				BeamSequenceTargetMax = BeamSequenceTargetMax + 1
+			end
+		end
+		util.Log("Drivers.Beam", LOG_INFO, "Beam sequence maximum target number is ", BeamSequenceTargetMax)
+	elseif (ent:class() == "gmod_wire_gps") then
+		if (ent:getWireName() == nil or ent:getWireName() == "") then
+			util.Log("Drivers.Beam", LOG_WARN, "Attempted to register a NULL dynamic beam point name")
+		else
+			local tbl = {
+				Name = ent:getWireName(),
+				Wirelink = ent:getWirelink(),
+				GetPos = function(Wirelink)
+					return Vector(Wirelink["X"], Wirelink["Y"], Wirelink["Z"] + 2)
+				end
+			}
+			Ship.DynamicBeams[tbl.Name] = tbl
+		end
+	end
+	return true
+end)
+
+OSAddFunction("BeamBack", BeamPlayer)
+OSAddFunction("BeamToPad", function(var)
+	for k, v in pairs(find.byClass("transporter_pad")) do
+		if (v:owner() == var) then
+			if (BeamToPad(v)) then
+				aiSay("Beaming players to external pad.")
+			end
+			return
+		end
+	end
+end)
+OSAddFunction("BeamToPoint", BeamToPoint)
+OSAddFunction("BeamToPlayer", function(var) BeamToVector(var:pos() + Vector(50, 50, 0)) end)
+OSAddFunction("BeamPlayerToPoint", function(var) BeamEntityToPoint(var[1], var[2]) end)

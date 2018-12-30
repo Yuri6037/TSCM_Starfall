@@ -1,0 +1,227 @@
+--@name StargateApp
+--@author Yuri6037
+
+local SGUniverse = {
+	Color = COLOR(50, 50, 50),
+	RingA = GUI.PregenCircleNoArtifact(128, 128, 110, 16),
+	RingB = GUI.PregenCircleNoArtifact(128, 128, 80, 16),
+	EHColor = COLOR(140, 140, 200),
+	EHColorIncoming = COLOR(255, 70, 100)
+}
+local SGAtlantis = {
+	Color = COLOR(50, 50, 133),
+	RingA = GUI.PregenCircleNoArtifact(128, 128, 110, 16),
+	RingB = GUI.PregenCircleNoArtifact(128, 128, 80, 16),
+	EHColor = COLOR(0, 0, 255),
+	EHColorIncoming = COLOR(255, 0, 128)
+}
+local SGSG1 = {
+	Color = COLOR(133, 133, 133),
+	RingA = GUI.PregenCircleNoArtifact(128, 128, 110, 16),
+	RingB = GUI.PregenCircleNoArtifact(128, 128, 80, 16),
+	EHColor = COLOR(0, 0, 255),
+	EHColorIncoming = COLOR(255, 0, 128)
+}
+local Circles = {
+	GUI.PregenCircleNoArtifact(20, 128, 4, 8),
+	GUI.PregenCircleNoArtifact(236, 128, 4, 8)
+}
+
+local SG = SGUniverse
+local SGActive = false
+local SGOpen = false
+local SGIncoming = false
+local SGTargetAddr = ""
+local SGTargetOwner = ""
+local SGTargetName = ""
+local SGTargetIris = false
+local SGAddr = ""
+local SGName = ""
+
+local function Render3DModel()
+	render.clear(0, 0, 0)
+	GUI.Poly(SG.RingA, SG.Color)
+	if (SGOpen) then
+		if (SGIncoming) then
+			GUI.Poly(SG.RingB, SG.EHColorIncoming)
+		else
+			GUI.Poly(SG.RingB, SG.EHColor)
+		end
+	else
+		if (SGActive) then
+			GUI.Poly(SG.RingB, COLOR(255, 255, 0))
+		else
+			GUI.Poly(SG.RingB, COLOR(0, 0, 0))
+		end
+	end
+end
+
+local SGDialApp = nil
+local SGStatApp = nil
+
+local sgstatus = {}
+function sgstatus:Init()
+	if (OS.GetTaskCount(self.Type)) > 1 then self:Close() return end
+	self.AI = self:AddComponent("lanai")
+	self.AI:Connect()
+	self:SetTitle("Stargate Status")
+	self:SetSize(256, 350)
+	self:SetBackground(COLOR(0, 0, 0))
+	self:SetPos(LOCATION_CENTER)
+	self.SGRT = rendertarget.create(false, 256, 256)
+	self.SGRT:drawToTexture(Render3DModel)
+
+	self:AddPullDownMenu("Target Gate Infos")
+	self:AddPullDownMenuItem("Target Owner", function()
+		local msg = "No target gate found"
+		if (SGOpen) then
+			msg = "Target gate is owned by " .. (SGTargetOwner or "SF_FAILURE")
+		end
+		OS.Dialog("msg", "Stargate Status", nil, msg)
+	end)
+	self:AddPullDownMenuItem("Target Name", function()
+		local msg = "No target gate found"
+		if (SGOpen) then
+			msg = "Target gate name is " .. (SGTargetName or "SF_FAILURE")
+		end
+		OS.Dialog("msg", "Stargate Status", nil, msg)
+	end)
+
+	local b = self:AddComponent("button", 10, 290, "Close", function()
+		AIRunFunc("StargateClose")
+	end)
+	b:SetSize(236, 24)
+	local b = self:AddComponent("button", 10, 318, "Shield", function()
+		AIRunFunc("StargateIris")
+	end)
+	b:SetSize(128, 24)
+
+	self.Indicator = self:AddComponent("indicator", 222, 318)
+	self.Indicator:SetSize(24, 24)
+
+	self.PrevX = 0
+	self.PrevY = 0
+	SGStatApp = self
+end
+function sgstatus:OnDataReceived(data)
+	local t = data.Type
+	if (t == 1) then
+		SG = SGAtlantis
+	elseif (t == 2) then
+		SG = SGUniverse
+	else
+		SG = SGSG1
+	end
+	SGTargetAddr = data.SGTargetAddr
+	SGTargetOwner = data.SGTargetOwner
+	SGTargetName = data.SGTargetName
+	SGTargetIris = data.SGTargetIris
+	SGOpen = (data.SGOpen == 1)
+	SGActive = (data.SGActive == 1)
+	SGIncoming = (data.SGIncoming == 1)
+	if (SGTargetAddr == nil) then SGActive = false end
+	SGAddr = data.SGAddr
+	SGName = data.SGName
+	self.Indicator:SetActive(data.Iris == 1)
+	self.SGRT:drawToTexture(Render3DModel)
+	self:NotifyRenderer()
+end
+function sgstatus:OnClose()
+	if (not(self.SGRT == nil)) then
+		self.SGRT:freeRT()
+	end
+	SGStatApp = nil
+end
+function sgstatus:PreRender()
+	if (not(SGDialApp == nil) and (not(self.X == self.PrevX) or not(self.Y == self.PrevY))) then
+		SGDialApp:SetPos(self.X + self.Width + 10, self.Y)
+		SGDialApp:NotifyRenderer()
+		self.PrevX = self.X
+		self.PrevY = self.Y
+	end
+	self.SGRT:draw(self.X, self.Y + 32, 256, 256)
+	if (SGActive) then
+		if (SGIncoming) then
+			local w = GUI.TextSize("/!\\ INCOMING /!\\", SmallFont)
+			GUI.Text("/!\\ INCOMING /!\\", self.Width / 2 - w / 2, 270, SmallFont, COLOR(255, 0, 0))
+		end
+		local txt = ""
+		if (SGOpen) then
+			txt = "Dialed " .. SGTargetAddr
+		elseif (SGActive) then
+			txt = "Dialing " .. SGTargetAddr
+		end
+		local w = GUI.TextSize(txt, SmallFont)
+		GUI.Text(txt, self.Width / 2 - w / 2, 250, SmallFont, COLOR(255, 255, 255))
+		if (SGTargetIris) then
+			w = GUI.TextSize("/!\\ IRIS /!\\", SmallFont)
+			GUI.Text("/!\\ IRIS /!\\", self.Width / 2 - w / 2, 270, SmallFont, COLOR(255, 0, 0))
+		end
+	end
+	local w = GUI.TextSize(SGName, SmallFont)
+	GUI.Text(SGName, self.Width / 2 - w / 2, 32, SmallFont, COLOR(255, 255, 255))
+	local w = GUI.TextSize(SGAddr, SmallFont)
+	GUI.Text(SGAddr, self.Width / 2 - w / 2, 50, SmallFont, COLOR(255, 255, 255))
+end
+
+local sgdial = {}
+function sgdial:Init()
+	if (OS.GetTaskCount(self.Type)) > 1 then self:Close() return end
+	self:SetTitle("Stargate Dial")
+	self:SetSize(350, 256)
+	self:EnableAINetContext()
+
+	self.Lst = self:AddComponent("listbox", 10, 32)
+	self.Lst:SetSize(330, 180)
+	self.Lst:SetMaxLines(10)
+	self.But = self:AddComponent("button", 10, 226, "Dial NULL", function()
+		local id, str = self.Lst:GetSelected()
+		if (self.AL[id] == nil) then
+			OS.Dialog("msg", "Stargate Dial", nil, "No target gate selected !")
+			return
+		end
+		AIRunFunc("StargateDial", self.AL[id])
+	end)
+	self.But:SetSize(236, 24)
+	self.AL = {}
+	self.DL = {}
+	self.CurID = 0
+
+	SGDialApp = self
+end
+function sgdial:OnClose()
+	SGDialApp = nil
+end
+function sgdial:OnDataReceived(data)
+	self.Lst:SetData(data[1])
+	self.DL = data[2]
+	self.AL = data[3]
+end
+function sgdial:PostRender()
+	if (self.DL[self.CurID]) then
+		local w = GUI.TextSize("Dangerous location detected", SmallFont)
+		GUI.Text("Dangerous location detected", self.Width / 2 - w / 2, 206, SmallFont, COLOR(255, 0, 0))
+	end
+end
+function sgdial:OnTouched(x, y)
+	self.Lst:RecalculateSelected()
+	local id, str = self.Lst:GetSelected()
+	self.CurID = id
+	self.But:SetText("Dial " .. (self.AL[id] or "NULL"))
+end
+
+local sgall = {}
+function sgall:Init()
+	self:Close()
+	OS.StartApp("sgstatus")
+	timer.create("SGALL_Deffered", 0.2, 1, function()
+		OS.StartApp("sgdial")
+	end)
+end
+
+OS.DefineApp("sgstatus", sgstatus)
+OS.DefineApp("sgdial", sgdial)
+OS.DefineApp("sgall", sgall)
+OS.AddAppMenuItem("sgstatus", "Status", "Stargate")
+OS.AddAppMenuItem("sgdial", "Dial", "Stargate")
+OS.AddAppMenuItem("sgall", "Open All", "Stargate")

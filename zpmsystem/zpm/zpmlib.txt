@@ -1,0 +1,58 @@
+--@name ZPMLib
+--@author Yuri6037
+
+self = ents.self()
+zpms = {}
+local CurZPM = {}
+local EntTbl = GetTypeDef("Entity")
+local CurVars = {
+	CON = 0
+}
+CurEnergyValue = 0
+local function RecomputeZPMLevel()
+	wire.ports["P"] = CurEnergyValue * 100 / CurZPM.MaxEnergyValue
+end
+local function OnWireInputChanged(name, new)
+	if (name == "CON") then
+		if (new == 0) then
+			wire.ports["P"] = 0
+			CurZPM.OnDisconnected()
+		elseif (new == 1) then
+			RecomputeZPMLevel()
+			CurZPM.OnConnected()
+		end
+	end
+end
+
+local BuggySF = 0
+function zpms.Define(tbl)
+	CurZPM = tbl
+
+	CurEnergyValue = CurZPM.MaxEnergyValue
+	wire.ports["P"] = 0
+
+	wire.createInputs({"VALUE", "CON"}, {"Normal", "Normal"})
+	wire.createOutputs({"P"}, {"Normal"})
+	hook("input", "ZPM_API", function(inp, val)
+		if (inp == "CON") then
+			CurVars.CON = val
+			OnWireInputChanged("CON", CurVars.CON)
+		elseif (inp == "VALUE") then
+			BuggySF = val
+		end
+	end)
+	timer.create("ZPM_API", 1, 0, function()
+		if (CurVars.CON == 1 and BuggySF > 0) then
+			if (CurEnergyValue > 0) then
+				CurEnergyValue = CurEnergyValue - BuggySF
+				RecomputeZPMLevel()
+				CurZPM.OnPumpedEnergy(CurVars.VALUE)
+			else
+				CurEnergyValue = 0
+				wire.ports["P"] = 0
+			end
+		end
+	end)
+
+	CurZPM.OnEntitySpawned()
+end

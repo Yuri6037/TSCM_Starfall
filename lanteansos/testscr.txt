@@ -1,0 +1,13 @@
+--@name BeamScreen
+--@author Yuri6037
+--@class screen
+--@autoupdate
+--@widescreen
+--@sharedscreen
+
+Edition = "ultimate"
+SingleApp = "status"
+--@includedir lanteansos/ultimate/
+
+--Eventualy run initializer for dynamic includes
+--@require lanteansos/lanteans_os.txt

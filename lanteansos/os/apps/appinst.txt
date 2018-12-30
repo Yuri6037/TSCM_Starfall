@@ -1,0 +1,59 @@
+--@name InstallerApp
+--@author Yuri6037
+
+local app = {}
+
+function app:Init()
+	self:SetSize(256, 166)
+	self:SetTitle("Generic Installer")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	self.Status = self:AddComponent("label", 10, 32)
+	self.Status:SetColor(255, 255, 0)
+	self.Status:SetText("Downloading...")
+end
+
+function app:DownloadEnd(appcode)
+	self.Status:SetText("Install application ?")
+	local bad = self:AddComponent("button", 128, 140, "Refuse", function()
+		self:Close()
+	end)
+	bad:SetSize(128, 16)
+	self.ok = self:AddComponent("button", 0, 140, "Accept", function()
+		self.Status:SetText("Installing...")
+		self.Status:SetColor(0, 255, 0)
+		self:RemoveComponents({bad, self.ok})
+		self:Compile(appcode)
+	end)
+	self.ok:SetSize(128, 16)
+end
+
+function app:Compile(appcode)
+	local app, err = load(appcode, self.AppName)
+	if (not(err == nil)) then
+		self.Status:SetText("Install failed with error :")
+		self.Status:SetColor(255, 0, 0)
+		local lbl = self:AddComponent("label", 10, 42)
+		lbl:SetColor(255, 0, 0)
+		lbl:SetText(err)
+	else
+		local b, err = pcall(app)
+		if (not(b)) then
+			self.Status:SetText("Install failed with error :")
+			self.Status:SetColor(255, 0, 0)
+			local lbl = self:AddComponent("label", 10, 42)
+			lbl:SetColor(255, 0, 0)
+			lbl:SetText(err)
+		else
+			self.Status:SetText("Successfully installed app !")
+			self.Status:SetColor(0, 255, 0)
+		end
+	end
+	local fin = self:AddComponent("button", 128, 140, "Finish", function()
+		self:Close()
+	end)
+	fin:SetSize(128, 16)
+end
+
+OS.DefineApp("installer", app)

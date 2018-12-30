@@ -1,0 +1,27 @@
+--@name ButtonLib
+--@author Yuri6037
+
+local Buttons = {}
+
+--Args X, Y, Width, Height, String caption, Function on pressed with args X and Y cursor pos
+
+function AddButton(x, y, w, h, text, func)
+	local t = {x, y, w, h, text, func}
+	table.insert(Buttons, t)
+end
+
+function RMButton(id)
+	table.remove(Buttons, id)
+end
+
+function RenderButtons()
+	local x, y = render.cursorPos()
+	if (x == nil or y == nil) then return end
+	for k, v in pairs(Buttons) do
+		render.setColor(255, 0, 0)
+		render.drawRect(v[1], v[2], v[3], v[4])
+		if (x >= v[1] and x <= v[1] + v[3] and y >= v[2] and y <= v[4]) then
+			v[6](x, y)
+		end
+	end
+end

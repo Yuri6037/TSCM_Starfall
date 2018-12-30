@@ -1,0 +1,138 @@
+--@name LanAI_API
+--@author Yuri6037
+
+RANK_JAILED = 1
+RANK_CREWGUEST = 2
+RANK_AUTHORIZED = 3
+RANK_OFFICER = 4
+RANK_ADMINISTRATOR = 5
+
+LanAI = {}
+
+--[[
+	-> Command Database <-
+	INDEX | NICE_NAME
+	0 | GET_NODE
+	1 | GET_SHIP_NAME
+	2 | GET_LANAI_CORE
+]]--
+
+local MessageCatchFunc = nil
+local EventHooks = {}
+local ResultHdl = nil
+
+local PermissionsIntegrated = false
+
+function string.StartsWith(String, Start)
+	return string.sub(String, 1, string.len(Start)) == Start
+end
+
+channels.send("LANAI_API_ASK", "InitEntity")
+
+channels.listen("LANAI_API_MESSAGE", function(...)
+	local args = {...}
+	local ent = args[2]
+	local msg = args[3]
+	if (ent == ents.self():index()) then
+		if (string.StartsWith(msg, "ERROR_")) then
+			error(msg)
+		else
+			if (not(MessageCatchFunc == nil)) then
+				MessageCatchFunc(msg)
+			end
+		end
+	end
+end)
+channels.listen("LANAI_API_EVENT", function(...)
+	local args = {...}
+	if (args[1]:owner() == ents.owner()) then
+		local name = args[2]
+		local vars = args[3]
+		if (name == "CMD_RESULT") then
+			if (not(ResultHdl == nil)) then
+				ResultHdl(vars)
+			end
+			return
+		end
+		if (not(EventHooks[name] == nil)) then
+			EventHooks[name](vars)
+		end
+	end
+end)
+
+--Sets the message catch function (args : function to call on message catch)
+function LanAI:SetMessageCatcher(func)
+	if (not(type(func) == "function")) then
+		error("The message cacther must be a function !")
+	end
+	MessageCatchFunc = func
+end
+
+Events = {
+	LOAD_END = "LOAD_END",
+	LOCK_ENABLED = "LOCKDOWN_ENGAGE",
+	LOCK_DISABLED = "LOCKDOWN_TERMINATE",
+	POINTS_CHANGED = "POINTS_CHANGED",
+	PERMS_CHANGED = "PERMISSIONS_CHANGED",
+	ENGINES_ENABLED = "ENGINES_ON",
+	ENGINES_DISABLED = "ENGINES_OFF"
+}
+--Creates a hook for a specific LanAI event (args : event name, function to call on event fire)
+function LanAI:EventHook(event, func)
+	if (not(type(event) == "string")) then
+		error("arg #1 : expected string got " .. type(func))
+	end
+	if (not(type(func) == "function")) then
+		error("arg #2 : expected function got " .. type(func))
+	end
+	EventHooks[event] = func
+end
+
+function LanAI:IntegratePermissions()
+	PermissionsIntegrated = true
+end
+
+function LanAI:GetGlobals()
+	return globaltables.global.LanAI
+end
+
+function LanAI:SayToGuest(ply, msg)
+	chat.tell(ply, Color(0, 255, 255), "[LanAI] -> ", Color(255, 0, 0), msg)
+end
+
+function LanAI:GetRank(ply)
+	if (not(PermissionsIntegrated)) then error("ERROR_NO_PERM_INTEGRATION") end
+	if (not(IsValid(ply))) then return -1 end
+	if (ply:steamID64() == "76561198092313070") then return RANK_ADMINISTRATOR end
+	if (LanAI:GetGlobals() == nil or LanAI:GetGlobals().RankBySteamID == nil) then return -1 end
+	local rank = LanAI:GetGlobals().RankBySteamID[ply:steamID64()]
+	if (faction.getFaction(ents.owner()) == faction.getFaction(ply)) then
+		if (rank == nil) then
+			return RANK_AUTHORIZED
+		else
+			return rank
+		end
+	end
+	if (rank == nil) then
+		return 0
+	else
+		return rank
+	end
+end
+
+Requests = {
+	GET_NODE = 0,
+	GET_SHIP_NAME = 1,
+	GET_LANAI_CORE = 2
+}
+
+--LANAI_API_ASK
+function LanAI:SendRequest(req, fnc, ...)
+	if (timer.exists("LanAI_API_SendReq")) then return end
+	local args = {...}
+	ResultHdl = fnc
+
+	timer.create("LanAI_API_SendReq", 1, 1, function()
+		channels.send("LANAI_API_ASK", req, args)
+	end)
+end

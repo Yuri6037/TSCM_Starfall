@@ -1,0 +1,320 @@
+--@name LanAI HUD II
+--@author Yuri6037
+--@class hud
+--@shared
+--@autoupdate
+
+--@require lanai/libs/screen/safe_net.txt
+--@require lanteansos/libs/network.txt
+--@require lanai/libs/processor/string_lib.txt
+--@requirecl UTIL/UTF8Lib.txt
+--@requirecl lanai/libs/bypass.txt
+
+if (CLIENT) then
+	hud.link()
+
+	local Messages = {}
+	local AIHelp = {}
+	local StandardFont = render.createFont("Arial Black", 40, 900, true, false, false, false, false)
+	local SmallFont = render.createFont("Federation Classic", 24, 900, true, false, false, false, false)
+	local Small16Font = render.createFont("Federation Classic", 22, 900, true, false, false, false, false)
+	local ScrW, ScrH = render.getScreenRes()
+
+	function OpenChatVGUI()
+		local pnl, err = vgui.create("DPanel")
+		pnl:SetPos(ScrW / 2 - 256, ScrH - 128)
+		pnl:SetSize(512, 64)
+		pnl:SetBackgroundColor(Color(0, 0, 0, 200))
+		local txt = vgui.create("DTextEntry")
+		local x, y = pnl:GetPos()
+		txt:SetMouseInputEnabled(true)
+		txt:SetKeyboardInputEnabled(true)
+		txt:SetPos(x + 10, y + 10)
+		txt:SetSize(492, 44)
+		txt:SetFont(SmallFont)
+		txt:SetDrawBackground(false)
+		txt:SetTextColor(Color(255, 255, 255))
+		txt:SetCursorColor(Color(255, 255, 255))
+		txt:MakePopup()
+		txt.OnKeyCodeTyped = function(self, code)
+			if (code == input.KEY_TAB) then --Autocompletion player name
+				local str = self:GetText()
+				local words = string.SplitLeaveChar(str, " ", "\"")
+				local last = words[#words]
+				if (not(last == nil)) then
+					local strwithoutlast = str:sub(1, str:len() - last:len())
+					find.allPlayers(function(ply)
+						if (string.find(ply:name():lower(), last:lower())) then
+							if (string.find(ply:name(), " ")) then
+								str = strwithoutlast .. "\"" .. ply:name() .. "\""
+							else
+								str = strwithoutlast .. ply:name()
+							end
+						end
+					end)
+					self:SetValue(str)
+					self:SetText(str)
+					self:SetCaretPos(utf8.len(self:GetText()))
+				end
+			elseif (code == input.KEY_ENTER or code == input.KEY_ESCAPE) then
+				local str = self:GetText()
+				if (code == input.KEY_ENTER and str:len() > 1) then
+					net.SendPacket("CHAT", str)
+				end
+				self:Remove()
+				pnl:Remove()
+			end
+		end
+	end
+
+	local PnlIDs = {}
+	local HlpFrm = nil
+	local function CreateHelpFrame()
+		local f = vgui.create("DFrame")
+		f:SetTitle("LanAI Next Command Help")
+		f:SetSize(256, 128)
+		f.Paint = function(self, w, h)
+			render.setColor(0, 0, 0, 128)
+			render.drawRect(0, 0, w, h)
+			render.setColor(0, 128, 255)
+			render.drawLine(0, 0, w, 0)
+			render.drawLine(w - 1, 0, w - 1, h)
+			render.drawLine(0, h - 1, w - 1, h - 1)
+			render.drawLine(0, 0, 0, h)
+		end
+		f.OnClose = function(self)
+			HlpFrm = nil
+		end
+		local b = vgui.create("DButton", f)
+		b:SetPos(128 - 64, 128 - 42)
+		b:SetSize(128, 32)
+		b:SetText("Close")
+		b.DoClick = function(self)
+			f:Close()
+		end
+		f:Center()
+		f:MakePopup()
+		return f
+	end
+	local function CreateNewTab(parent, name)
+		local p = vgui.create("DPanel", parent)
+		p.Paint = function(self, w, h)
+			render.setColor(255, 128, 0)
+			render.drawLine(0, 0, w, 0)
+			render.drawLine(w - 1, 0, w - 1, h)
+			render.drawLine(0, h - 1, w - 1, h - 1)
+			render.drawLine(0, 0, 0, h)
+		end
+		local lst = vgui.create("DListView", p)
+		lst:SetMultiSelect(false)
+		lst:AddColumn("Command"):SetFixedWidth(128)
+		lst:AddColumn("Description"):SetFixedWidth(512)
+		lst:AddColumn("Usage"):SetFixedWidth(256)
+		lst:AddColumn("Required Rank"):SetFixedWidth(102)
+		lst:Dock(1)
+		lst.Paint = function(self, w, h) end
+		local sb = name:sub(1, 1)
+		sb = sb:upper()
+		name = name:sub(2)
+		name = sb .. name
+		lst.OnRowSelected = function(self, id, pnl)
+			local v = AIHelp[PnlIDs[pnl]]
+			if (HlpFrm == nil) then
+				HlpFrm = CreateHelpFrame()
+			else
+				HlpFrm:Close()
+				HlpFrm = CreateHelpFrame()
+			end
+			HlpFrm:SetTitle(name .. " - " .. v.Command)
+			local lbl = vgui.create("DTextEntry", HlpFrm)
+			lbl:SetEditable(false)
+			lbl:SetDrawBackground(false)
+			lbl:SetMultiline(true)
+			lbl:SetPos(10, 24)
+			lbl:SetTextColor(Color(255, 255, 255))
+			lbl:SetText("Usable by : " .. v.Rank .. "s\n" .. v.Usage .. "\n" .. (v.AdditionalInfo or ""))
+			lbl:SetSize(236, 200)
+		end
+		parent:AddSheet(name, p, "icon16/application.png")
+		return lst
+	end
+	function OpenHelpVGUI()
+		local progress = vgui.create("DProgress")
+		progress:SetSize(512, 32)
+		progress:Center()
+		local f = vgui.create("DFrame")
+		f:SetTitle("LanAI Next Command List")
+		f:SetSize(0, 0)
+		f.Paint = function(self, w, h)
+			render.setColor(0, 0, 0, 128)
+			render.drawRect(0, 0, w, h)
+			render.setColor(0, 128, 255)
+			render.drawLine(0, 0, w, 0)
+			render.drawLine(w - 1, 0, w - 1, h)
+			render.drawLine(0, h - 1, w - 1, h - 1)
+			render.drawLine(0, 0, 0, h)
+		end
+		local ps = vgui.create("DPropertySheet", f)
+		ps:Dock(1)
+		ps.Paint = function(self, w, h) end
+		local tabs = {}
+		bypass.Iterator("LanAI_HUD_II_HelpDisp", AIHelp, function(k, v)
+			if (tabs[v.Category] == nil) then
+				tabs[v.Category] = CreateNewTab(ps, v.Category)
+			end
+			local lst = tabs[v.Category]
+			local el = lst:AddLine(v.Command, v.Description, v.Usage, v.Rank)
+			el.Columns[1]:SetTextColor(Color(255, 255, 255))
+			el.Columns[2]:SetTextColor(Color(255, 255, 255))
+			el.Columns[3]:SetTextColor(Color(255, 255, 255))
+			el.Columns[4]:SetTextColor(Color(255, 255, 255))
+			PnlIDs[el] = k
+			progress:SetFraction(k / #AIHelp)
+		end, function()
+			for k, v in pairs(ps.Items) do
+				if (not(v.Tab == nil)) then
+					v.Tab.Paint = function(self, w, h) end
+				end
+			end
+			progress:Remove()
+			f:SetSize(1024, 512)
+			f:Center()
+			f:MakePopup()
+		end)
+	end
+
+	hook("hudlink", "LanAI_HUD_II", function(ply)
+		 if (input.lookupBinding("lanai_chat") == nil) then
+		 	local w, h = render.getTextSize(StandardFont, "Please type \"bind t lanai_chat\" in console in order to access LanAI Next private chat.")
+			local pnl = vgui.create("DLabel")
+			pnl:SetPos(ScrW / 2 - w / 2, ScrH / 2 - h / 2)
+			pnl:SetTextColor(Color(255, 0, 0))
+			pnl:SetFont(StandardFont)
+			pnl:SetSize(w, h)
+			pnl:SetText("Please type \"bind t lanai_chat\" in console in order to access LanAI Next private chat.")
+		 end
+		 net.SendPacket("HUDLINK", ply)
+	end)
+	hook("hudunlink", "LanAI_HUD_II", function(ply)
+		net.SendPacket("HUDUNLINK", ply)
+	end)
+	hook("playerbindpress", "LanAI_HUD_II", function(ply, bind, pressed)
+		if (not(hud.isLinked())) then return end
+		if (bind == "lanai_chat") then
+			OpenChatVGUI()
+		end
+	end)
+	local Prefix = "[LanAI] -> "
+	hook("render", "LanAI_II_HudRender", function()
+		local prefixWidth = render.getTextSize(Small16Font, Prefix)
+		local x, y = ScrW - 600, ScrH - 256
+		for k = #Messages, 1, -1 do
+			local v = Messages[k]
+			if (k == 1 and time.curTime() - v.Time > 6) then
+				v.Alpha = v.Alpha - time.frameTime() * 100
+				if (v.Alpha <= 0) then table.remove(Messages, k) end
+			end
+			render.setColor(0, 133, 255, v.Alpha)
+			if (not(v.Sub == nil)) then
+				for k1 = #v.Sub, 1, -1 do
+					if (not(k1 == 1)) then
+						local v1 = v.Sub[k1]
+						render.drawText(Small16Font, x, y, v1)
+						y = y - 24
+					end
+				end
+			end
+			render.drawText(Small16Font, x + prefixWidth, y, v.Msg)
+			render.setColor(0, 255, 255, v.Alpha)
+			render.drawText(Small16Font, x, y, Prefix)
+			y = y - 32
+		end
+	end)
+
+	local MaxChars = 44
+	net.RegPacket(0, "HUDLINK", nil, function(args)
+		net.writeEntity(args[1])
+	end, true)
+	net.RegPacket(1, "HUDUNLINK", nil, function(args)
+		net.writeEntity(args[1])
+	end, true)
+	net.RegPacket(2, "RECVCHAT", function()
+		local msg = net.readString()
+		if (msg == "[HELP]") then
+			OpenHelpVGUI()
+			return
+		end
+		if (msg:len() > MaxChars) then
+			local submsg = {}
+			local ch = 0
+			local str = ""
+			local word = ""
+			for i = 1, msg:len() do
+				ch = ch + 1
+				if (msg:sub(i, i) == " ") then
+					str = str .. word .. " "
+					word = ""
+				else
+					word = word .. msg:sub(i, i)
+				end
+				if (ch == MaxChars) then
+					ch = 0
+					submsg[#submsg + 1] = str
+					str = ""
+				end
+			end
+			str = str .. word
+			submsg[#submsg + 1] = str
+			table.insert(Messages, {Msg = submsg[1], Alpha = 255, Time = time.curTime(), Sub = submsg})
+		else
+			table.insert(Messages, {Msg = msg, Alpha = 255, Time = time.curTime(), Sub = nil})
+		end
+	end, nil, true)
+	net.RegPacket(3, "RECVHELP", function()
+		AIHelp = net.readTable()
+	end, nil, true)
+	net.RegPacket(4, "CHAT", nil, function(args)
+		net.writeString(args[1])
+	end, true)
+else
+	local Plys = {}
+	local ChName = "LanAI_CommandInterface_" .. ents.owner():index()
+	local AIHelp = {}
+
+	channels.listen(ChName, function(...)
+		local args = {...}
+		if (args[2] == nil) then --Broadcast help packet
+			AIHelp = args[3]
+			net.Broadcast("RECVHELP", args[3])
+		else --Normal chat packet
+			local plst = args[2]
+			local msg = args[3]
+			for k, v in pairs(plst) do
+				net.SendPacket("RECVCHAT", v, msg)
+			end
+		end
+	end)
+
+	net.RegPacket(0, "HUDLINK", function()
+		Plys[net.readEntity()] = true
+		net.Broadcast("RECVHELP", AIHelp)
+	end, nil, true)
+	net.RegPacket(1, "HUDUNLINK", function()
+		Plys[net.readEntity()] = nil
+	end, nil, true)
+	net.RegPacket(2, "RECVCHAT", nil, function(args)
+		net.writeString(args[1])
+	end, true)
+	net.RegPacket(3, "RECVHELP", nil, function(args)
+		net.writeTable(args[1])
+	end, true)
+	net.RegPacket(4, "CHAT", function(ply)
+		local msg = net.readString()
+		if (not(string.StartsWith(msg, "!ai"))) then
+			msg = "!ai " .. msg
+		end
+		if (channels.canSend()) then
+			channels.send(ChName, ply, msg)
+		end
+	end, nil, true)
+end

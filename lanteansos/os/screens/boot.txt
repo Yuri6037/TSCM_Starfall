@@ -1,0 +1,87 @@
+--@name Lanteans OS BootScreen
+--@author Yuri6037
+
+LoadTXT = "Waiting for LanAI " .. VERSION_AI
+
+local scr = {
+    USING_GL,
+	CurAngle = 0,
+	CurColor = 0,
+	Flag = false,
+	Flag1 = false,
+	Update = function(self, ticks)
+		if (self.CurAngle >= 360 and not(self.Flag)) then
+			self.Flag = true
+			self.CurAngle = 360
+		else
+			if (self.Flag) then
+				self.CurAngle = self.CurAngle - ticks * 500
+				if (self.CurAngle <= 0) then
+					self.Flag = false
+					self.CurAngle = 0
+				end
+			else
+				self.CurAngle = self.CurAngle + ticks * 500
+			end
+		end
+
+		if (self.CurColor >= 255 and not(self.Flag1)) then
+			self.Flag1 = true
+			self.CurColor = 255
+		else
+			if (self.Flag1) then
+				self.CurColor = self.CurColor - ticks * 400
+				if (self.CurColor <= 0) then
+					self.Flag1 = false
+					self.CurColor = 0
+				end
+			else
+				self.CurColor = self.CurColor + ticks * 400
+			end
+		end
+	end,
+	Render = function(self)
+		render.clear(0, 0, 0)
+		if (ScrH == 1024) then
+			local mat = Matrix()
+			mat:scale(Vector(1, 2))
+			render.pushMatrix(mat)
+		elseif (ScrW == 512) then
+			local mat = Matrix()
+			mat:scale(Vector(0.5, 1))
+			render.pushMatrix(mat)
+		end
+		gl.glBindColor(0, 120, 0)
+		gl.glCircle(390, 213, 32, 270)
+		gl.glBindColor(0, 0, 128)
+		gl.glCircle(393, 209, 28, 90, 100, -90)
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(StandardFont)
+		gl.glText("Lanteans OS", 435, 215)
+		--Animation start
+		gl.glBindColor(self.CurColor, self.CurColor, self.CurColor)
+		gl.glBindFont(SmallFont)
+		if (not(Parametters["LoadTXT"] == nil)) then
+			gl.glText(Parametters["LoadTXT"], 500, 305)
+		else
+			gl.glText(LoadTXT, 500, 305)
+		end
+		gl.glBindColor(100, 0, 0)
+		gl.glCircle(441, 305, 32, self.CurAngle, 100, -90)
+		--Animation end
+		gl.glBindColor(0, 0, 0)
+		gl.glCircle(441, 305, 26, 360)
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(SmallFont)
+		gl.glText("V" .. VERSION_OS, 924, 470)
+		gl.glText("CPU : " .. math.floor(cpuAverage() * 100 / cpuMax()) .. "%", 10, 470)
+		if (ScrH == 1024 or ScrW == 512) then
+			render.popMatrix()
+		end
+	end,
+	Touched = function(self)
+	end
+}
+
+
+OS.DefineScreen("boot", scr)

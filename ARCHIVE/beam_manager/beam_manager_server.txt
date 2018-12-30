@@ -1,0 +1,98 @@
+--@name BeamManager Server
+--@author Yuri6037
+--@sharedscreen
+
+--@requiresv lanai/processor/api/lanai_api.txt
+--@requiresv lanai/libs/processor/string_lib.txt
+--@requiresv lanai/libs/processor/lanaifiles.txt
+--@requiresv lanai/processor/utilities.txt
+
+--@requirecl beam_manager/beam_manager_client.txt
+
+--@include lanai/libs/screen/safe_net.txt
+
+require("lanai/libs/screen/safe_net.txt")
+
+if (SERVER) then
+	function returnGui()
+		CurGui = "Main"
+		StartNet(function()
+			net.writeString("G")
+			net.writeString(CurGui)
+		end)
+	end
+	CurGui = "Load"
+	Ship = {}
+	LanAI:SetLoadCallback(function()
+		LanAI:Connect("A4CFD-BGHD2")
+		BeamPad = LanAI:GetShipTP()
+		Ship = {TP = BeamPad, Node = LanAI:GetShipNode()}
+		returnGui()
+		LanAI:Disconnect()
+	end)
+
+	hook("net", "BeamManager_ServerReceiver", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "REBOOT") then
+			StartNet(function()
+				net.writeString("G")
+				net.writeString(CurGui)
+			end)
+		elseif (cmd == "PLY_BEAM") then
+			local s1 = string.Replace(string.upper(net.readString()), " ", "")
+			for k, v in pairs(find.allPlayers()) do
+				local s2 = string.Replace(string.upper(v:name()), " ", "")
+				if (string.find(s1, s2) or s1 == s2) then
+					if (BeamPlayer(v)) then
+						LanAI:AISay("Beaming player to pad !")
+					end
+					returnGui()
+					return
+				end
+			end
+			LanAI:AISay("Unable to beam : destination not found !")
+			returnGui()
+		elseif (cmd == "PAD_BEAM") then
+			local s1 = string.Replace(string.upper(net.readString()), " ", "")
+			for k, v in pairs(find.byClass("transporter_pad")) do
+				local s2 = string.Replace(string.upper(v:owner():name()), " ", "")
+				if (string.find(s1, s2) or s1 == s2) then
+					if (BeamToPad(v)) then
+						LanAI:AISay("Beaming players to external pad !")
+					end
+					returnGui()
+					return
+				end
+			end
+			LanAI:AISay("Unable to beam : destination not found !")
+			returnGui()
+		elseif (cmd == "LOC_BEAM") then
+			local name = string.Replace(net.readString(), " ", "")
+
+			if (BeamToPoint(name)) then
+				AI3_API:AISay("Beaming to point !")
+			end
+			returnGui()
+			return
+		elseif (cmd == "RETURN") then
+			CurGui = "Main"
+			StartNet(function()
+				net.writeString("G")
+				net.writeString(CurGui)
+			end)
+		elseif (cmd == "SHOW_GUI") then
+			CurGui = net.readString()
+			if (CurGui == "LBeam") then
+				local lst = GetBeamList()
+				StartNet(function()
+					net.writeString("P")
+					net.writeTable(lst)
+				end)
+			end
+			StartNet(function()
+				net.writeString("G")
+				net.writeString(CurGui)
+			end)
+		end
+	end)
+end

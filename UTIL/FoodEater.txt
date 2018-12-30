@@ -1,0 +1,31 @@
+--@name FoodEater
+--@author Yuri6037
+--@class processor
+--@autoupdate
+
+local FoodTypes = {
+	"models/slyfo_2/acc_food_snckspacemix.mdl",
+	"models/slyfo_2/acc_food_snckstridernugs.mdl",
+	"models/slyfo_2/acc_food_snckfoodbag.mdl",
+	"models/slyfo_2/acc_food_sbeptos.mdl",
+	"models/sandeno/naquadah_bottle.mdl"
+}
+
+hook("think", "FoodEater", function()
+	for k, v in pairs(find.allPlayers()) do
+		if (v:keyDown(input.IN_USE)) then
+			local ent = v:getEyeTrace().Entity
+			if (IsValid(ent) and ent:class() == "prop_physics") then
+				if (ent:model() == "models/slyfo_2/acc_food_foodtrayfull.mdl") then
+					ent:setModel("models/slyfo_2/acc_food_foodtraysingle.mdl")
+					return
+				end
+				for k, v in pairs(FoodTypes) do
+					if (ent:model() == v) then
+						ent:remove()
+					end
+				end
+			end
+		end
+	end
+end)

@@ -1,0 +1,40 @@
+--@name ResourcesViewApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {{Color = COLOR(0, 0, 255)}},
+	[16] = {{Color = COLOR(0, 0, 255)}}
+}
+
+OS.EnableGL()
+ico[32][1].Vertices = gl.glPregenCircle(16, 16, 8, 180)
+ico[16][1].Vertices = gl.glPregenCircle(8, 8, 4, 180)
+OS.DisableGL()
+
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+    self:SetTitle("Resources View")
+    self:SetSize(256, 166)
+    self:SetIcon32(ico[32])
+    self:SetIcon16(ico[16])
+    self:SetPos(ScrW / 2 - 128, ScrH - 200)
+
+    self.E = self:AddComponent("progress", 10, 32, COLOR(255, 255, 0), "Energy")
+    self.E:SetSize(AUTO, 28)
+    self.D = self:AddComponent("progress", 10, 64, COLOR(255, 0, 0), "Deuterium")
+    self.D:SetSize(AUTO, 28)
+    self.W = self:AddComponent("progress", 10, 96, COLOR(0, 0, 255), "Water")
+    self.W:SetSize(AUTO, 28)
+    self.O = self:AddComponent("progress", 10, 128, COLOR(0, 255, 255), "Oxygen")
+    self.O:SetSize(AUTO, 28)
+end
+function app:OnDataReceived(data)
+    self.E:SetValue(math.round(data["Energy"] / data["MaxEnergy"], 3))
+    self.W:SetValue(math.round(data["Water"] / data["MaxWater"], 3))
+    self.O:SetValue(math.round(data["Oxygen"] / data["MaxOxygen"], 3))
+    self.D:SetValue(math.round(data["Deuterium"] / data["MaxDeuterium"], 3))
+end
+
+OS.DefineApp("resource", app)
+OS.AddAppMenuItem("resource", "Resources", "Ship", ico[16])

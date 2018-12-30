@@ -1,0 +1,176 @@
+--@name LanAI Secondary Screen
+--@author Yuri6037
+--@class screen
+
+--Including libs
+--@require lanai/libs/screen/screen_engine.txt
+
+--Including client files
+--@require lanai/screen/client/gui_registry.txt
+--@require lanai/screen/client/triple_screen_protocol.txt
+--@require lanai/screen/client/screens/lockdown.txt
+--@require lanai/screen/client/custom_ui_skins.txt
+
+--Gui Registry
+--@includedir lanai/screen/client/secondary_guis/
+Guis = {
+	"status", "resources", "warp"
+}
+
+for k, v in pairs(Guis) do
+	require("lanai/screen/client/secondary_guis/monitor1_" .. v .. ".txt")
+	require("lanai/screen/client/secondary_guis/monitor2_" .. v .. ".txt")
+end
+
+--Screen Data
+Net = {}
+WarpList = {}
+--End
+
+Evacuation = false
+UsingPowerSave = false
+
+CurGUI = -1
+
+local scr = {}
+
+local R = 0
+local G = 0
+local B = 0
+local IR = false
+local IG = false
+local IB = false
+
+local OpeningGuiW = 0
+local OpeningGuiH = 0
+local OldGui = nil
+local DrawGuiChangeAnim = false
+
+scr.Name = "Main"
+local id = render.getTextureID("phoenix_storms/wire/pcb_blue")
+function scr:Animate(cur)
+	if (R <= 117) then
+		IR = true
+		R = 117
+	elseif (R >= 255) then
+		R = 255
+		IR = false
+	end
+	if (IR) then
+		R = R + cur * 100
+	else
+		R = R + cur * 100
+	end
+
+	if (G <= 0) then
+		IG = true
+		G = 0
+	elseif (G >= 209) then
+		G = 209
+		IG = false
+	end
+	if (IG) then
+		G = G + cur * 100
+	else
+		G = G - cur * 100
+	end
+
+	if (B <= 0) then
+		IB = true
+		B = 0
+	elseif (B >= 255) then
+		B = 255
+		IB = false
+	end
+	if (IB) then
+		B = B + cur * 100
+	else
+		B = B - cur * 100
+	end
+
+	if (DrawGuiChangeAnim) then
+		OpeningGuiW = OpeningGuiW + cur * 2000
+		OpeningGuiH = OpeningGuiH + cur * 1000
+		if (OpeningGuiW >= 380) then
+			OpeningGuiW = 380
+		end
+		if (OpeningGuiH >= 380) then
+			OpeningGuiH = 380
+		end
+		if (OpeningGuiW >= 380 and OpeningGuiH >= 380) then
+			OpeningGuiW = 0
+			OpeningGuiH = 0
+			DrawGuiChangeAnim = false
+		end
+	end
+end
+function scr:OnRender()
+	if (not(UsingPowerSave)) then
+		gl.glBindColor(R, G, B)
+		gl.glBindTexture(id)
+		gl.glRect(0, 0, 512, 512)
+	end
+
+	gl.glBindColor(133, 133, 133)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	--Status bar
+	gl.glBindColor(255, 255, 255)
+	gl.glRect(0, 0, 512, 32)
+
+	if (Evacuation) then
+		gl.glBindColor(255, 200, 200)
+	else
+		gl.glBindColor(200, 200, 200)
+	end
+	gl.glBindFont(Screen.StandardFont)
+	local w = gl.glTextWidth("LanAI Secondary Screen")
+	gl.glText("LanAI Secondary Screen", 256 - w / 2, 0)
+
+	--The display area
+	if (DrawGuiChangeAnim) then
+		if (not(usingPowerSave)) then
+			render.setTexture(nil)
+			render.setColor(133, 133, 133, 128)
+			render.drawTexturedRectRotated((470 / 2) + 20, (440 / 2) + 50, OpeningGuiW, OpeningGuiH, 0)
+		else
+			DrawGuiChangeAnim = false
+		end
+	else
+		gl.glBindColor(133, 133, 133, 128)
+		gl.glRoundedRect(20, 50, 470, 440, 8)
+	end
+	if (not(CurGUI == -1)) then
+		local str = ""
+		if (not(OldGui == CurGUI)) then
+			DrawGuiChangeAnim = true
+			OldGui = CurGUI
+		elseif (not(DrawGuiChangeAnim)) then
+			local gui = GetSecondaryGUI(CurGUI)
+			gl.glPushMatrix()
+				gl.glTranslate(20, 50)
+				gui.Render(20, 50)
+			gl.glPopMatrix()
+		end
+	end
+end
+function scr:OnShow()
+end
+function scr:OnExit()
+end
+function scr:OnTouched(x, y)
+	if (not(CurGUI == -1)) then
+		local gui = GetSecondaryGUI(CurGUI)
+		gui.CheckInputs(20, 50)
+	end
+end
+
+Screen:Register(scr)
+
+Screen:Display("Main")
+
+IsMonitor = true
+InitTripleScreenProtocol()

@@ -1,0 +1,46 @@
+--@name AIPermissionsApp
+--@author Yuri6037
+
+local app = {}
+function app:Init()
+    self:SetTitle("AI Permissions")
+    self:SetSize(300, 140)
+    self:SetPos(LOCATION_CENTER)
+
+    self.DType = "All"
+    local lst = {}
+    for k, v in pairs(find.allPlayers()) do
+    	table.insert(lst, v:name())
+    end
+
+    self.List = self:AddComponent("listbox", 10, 32)
+    self.List:SetSize(280, 98)
+    self.List:SetMaxLines(4)
+	self.List:SetData(lst)
+
+    self:AddPullDownMenu("Player Actions")
+    self:AddPullDownMenuItem("Promote", function()
+    end)
+    self:AddPullDownMenuItem("Demote", function()
+    end)
+    self:AddPullDownMenuItem("Get rank", function()
+    end)
+    self:AddPullDownMenu("List display")
+    self:AddPullDownMenuItem("All", function()
+    	if (self.DType == "All") then return end
+    	lst = {}
+    	for k, v in pairs(find.allPlayers()) do
+    		table.insert(lst, v:name())
+    	end
+    	self.List:SetData(lst)
+    	self.DType = "All"
+    end)
+	self:AddPullDownMenuItem("Ranked", function()
+		if (self.DType == "Ranked") then return end
+
+		--self.DType = "Ranked"
+	end)
+end
+
+OS.DefineApp("aiperms", app)
+OS.AddAppMenuItem("aiperms", "AI Permissions", "LanAI")

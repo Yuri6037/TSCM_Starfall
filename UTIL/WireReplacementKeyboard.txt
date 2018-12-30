@@ -1,0 +1,40 @@
+--@name Wiremod Keyboard Replacement
+--@author Yuri6037
+--@model models/beer/wiremod/keyboard.mdl
+--@class hud
+
+local Panel = nil
+local TextField = nil
+local ScrW, ScrH = render.getScreenRes()
+local SmallFont = render.createFont("Federation Classic", 24, 900, true, false, false, false, false)
+
+local function StartListen()
+	local pnl, err = vgui.create("DPanel")
+	pnl:SetPos(ScrW / 2 - 256, ScrH - 128)
+	pnl:SetSize(512, 64)
+	pnl:SetBackgroundColor(Color(0, 0, 0, 200))
+	local lbl = vgui.create("DLabel", pnl)
+	lbl:SetPos(10, 10)
+	lbl:SetFont(SmallFont)
+	lbl:SetText("Wire Keyboard On, press ALT to leave.")
+	lbl:SetSize(492, 44)
+	local txt = vgui.create("DTextEntry")
+	local x, y = pnl:GetPos()
+	txt:SetMouseInputEnabled(true)
+	txt:SetKeyboardInputEnabled(true)
+	txt:SetPos(-500, -500)
+	txt.OnKeyCodeTyped = function(self, code)
+		if (code == input.KEY_LALT or code == input.KEY_ESCAPE) then
+			self:Remove()
+			pnl:Remove()
+			hud.unlink()
+		end
+	end
+	txt:MakePopup()
+	TextField = txt
+	Panel = pnl
+end
+
+hook("hudlink", "WireKBReplacement_HudLink", function(ply)
+	StartListen()
+end)

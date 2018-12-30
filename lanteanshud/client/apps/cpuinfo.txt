@@ -1,0 +1,15 @@
+--@name CPUInfoApp
+--@author Yuri6037
+
+local app = {
+	OverrideList = {
+	},
+	Render = function()
+		local txt = "CPU : " .. math.floor(cpuAverage() * 100 / cpuMax()) .. "%"
+		local w = GUI.TextSize(txt, SmallFont)
+		GUI.Text(txt, ScrW / 2 - w / 2, ScrH - 24, SmallFont, COLOR(255, 255, 255))
+	end
+}
+
+HUD.DefineApp("CPUInfo", app, true)
+

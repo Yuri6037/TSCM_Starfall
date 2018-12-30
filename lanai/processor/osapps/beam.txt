@@ -1,0 +1,6 @@
+--@name BeamAppUpdater
+--@author Yuri6037
+
+DefineOSApp("beam", nil, function()
+	TasksData[CurApp] = Points.BeamList
+end)

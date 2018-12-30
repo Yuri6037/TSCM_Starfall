@@ -1,0 +1,106 @@
+--@name StargateScreen_ClientMain
+--@author Yuri6037
+
+--Client libs includes
+--@include lanai/libs/screen/screen_engine.txt
+
+--Runtime dirs
+--@includedir sg_screen/client
+
+require("lanai/libs/screen/screen_engine.txt")
+
+require("lanai/libs/screen/safe_net.txt")
+
+local ScreenList = {
+	"main", "dial"
+}
+local StartupScreen = "Main"
+
+SG_ADDRESS_LIST = {}
+
+--Begin screen init code
+SG_DATA = {
+	Active = false,
+	VortexOpen = false,
+	VortexStable = false,
+	Incoming = false,
+	DestinationSafe = false,
+	Iris = false,
+	DestinationName = "",
+	DialingSymbol = "",
+	DialingAddress = "",
+	CurrentSymbol = "",
+	SelfName = "",
+	SelfAddress = "",
+	SelfType = nil
+}
+
+function TryGetTypeName()
+	if (SG_DATA.SelfType == 0) then
+		return "SGA"
+	elseif (SG_DATA.SelfType == 1) then
+		return "SGU"
+	elseif (SG_DATA.SelfType == 2) then
+		return "SGC"
+	end
+
+	return "ERROR"
+end
+
+function UpdateGateGlyphFont()
+	if (SG_DATA.SelfType == nil) then
+		SgGlyphFont = Screen.StandardFont
+		SgSymbolFont = Screen.StandardFont
+		return
+	end
+
+	if (SG_DATA.SelfType == 0) then
+		SgGlyphFont = gl.glGenFonts("Stargate Address Glyphs Atl", true, 24)
+		SgSymbolFont = gl.glGenFonts("Stargate Address Glyphs Atl", true, 40)
+	elseif (SG_DATA.SelfType == 1) then
+		SgGlyphFont = gl.glGenFonts("Stargate Address Glyphs U", true, 40)
+		SgSymbolFont = gl.glGenFonts("Stargate Address Glyphs U", true, 80)
+	elseif (SG_DATA.SelfType == 2) then
+		SgGlyphFont = gl.glGenFonts("Stargate Address Glyphs Sg1", true, 24)
+		SgSymbolFont = gl.glGenFonts("Stargate Address Glyphs Sg1", true, 55)
+	end
+end
+
+hook("net", "SG_Net_CL", function(len)
+	local cmd = net.readInt(4, true)
+	if (cmd == 0) then
+		SG_DATA = net.readTable()
+	elseif (cmd == 1) then
+		SG_DATA = net.readTable()
+		SG_DATA.SelfType = net.readInt(4, true)
+		SG_DATA.SelfAddress = net.readString()
+		SG_DATA.SelfName = net.readString()
+		UpdateGateGlyphFont()
+	elseif (cmd == 2) then
+		SG_DATA.SelfAddress = net.readString()
+	elseif (cmd == 3) then
+		SG_DATA.SelfName = net.readString()
+	elseif (cmd == 4) then
+		SG_ADDRESS_LIST = net.readTable()
+	elseif (cmd == 5) then
+		local int = net.readInt(4, true)
+		if (int == 0) then
+			Screen:Display("Main")
+		elseif (int == 1) then
+			Screen:Display("Dial")
+		end
+	elseif (cmd == 6) then
+		SG_DATA.SelfType = net.readInt(4, true)
+	end
+end)
+
+StartNet(function()
+	net.writeInt(0, 4, true)
+end)
+
+for k, v in pairs(ScreenList) do
+	require("sg_screen/client/screen_" .. v .. ".txt")
+end
+
+UpdateGateGlyphFont()
+Screen:Display("Main")

@@ -1,0 +1,111 @@
+--@name StargateDeviceManager
+--@author Yuri6037
+
+Ship.Stargate = nil
+
+local Offworld = false
+
+RegisterDriver({"stargate_atlantis", "stargate_universe", "stargate_sg1", "stargate_iris"}, function(ent)
+	if (Ship.Stargate == nil) then Ship.Stargate = {} end
+	local cl = ent:class()
+	if (cl == "stargate_iris") then
+		Ship.Stargate.Iris = ent:getWirelink()
+		return true
+	end
+	if (cl == "stargate_atlantis") then
+		Ship.Stargate.Type = 1
+	elseif (cl == "stargate_universe") then
+		Ship.Stargate.Type = 2
+	elseif (cl == "stargate_sg1") then
+		Ship.Stargate.Type = 3
+	end
+	Ship.Stargate.Wire = ent:getWirelink()
+	Ship.Stargate.Wire:addOutputCallback("LanAI_AutomateGateShield", function(wire, out, val)
+		if (out == "Inbound" and val == 1) then
+			aiSay("Alert offworld stargate activation !")
+			UpdateAlertStatus(2)
+			if (not(Ship.Stargate.Iris == nil)) then
+				Ship.Stargate.Iris["Activate"] = 1
+			end
+			Offworld = true
+		elseif (out == "Open" and val == 0 and Offworld) then
+			UpdateAlertStatus(3)
+			if (not(Ship.Stargate.Iris == nil)) then
+				Ship.Stargate.Iris["Activate"] = 0
+			end
+			Offworld = false
+		end
+	end)
+	Ship.Stargate.Addr = stargate.address(ent)
+	Ship.Stargate.Name = stargate.name(ent)
+	return true
+end)
+
+local NameByAddress = {}
+
+function GetGateTarget()
+	if (Ship.Stargate.Wire["Active"] == 1) then
+		if (Ship.Stargate.Wire["Open"] == 1) then
+			local target = stargate.target(Ship.Stargate.Wire:entity())
+			if (IsValid(target)) then
+				local fuck = "NULL"
+				if (IsValid(target:owner())) then fuck = target:owner():name() or "NULL" end
+				if (IsValid(stargate.iris(target))) then
+					return stargate.address(target) or "", fuck, stargate.name(target) or "Undefined", stargate.irisActive(stargate.iris(target))
+				else
+					return stargate.address(target) or "", fuck, stargate.name(target) or "Undefined", false
+				end
+			else
+				return nil
+			end
+		else
+			return Ship.Stargate.Wire["Dialing Address"], "NULL", "Undefined", false
+		end
+	end
+end
+
+local function PirateStargateAddressList(list)
+	local namelst = {}
+	local dangerlst = {}
+	local addrlst = {}
+	for k, v in pairs(list) do
+		local st = string.explode(v, " ", nil)
+		if (st[1] == "1") then
+			namelst[k] = table.concat(st, " ", 3)
+			addrlst[k] = st[2]
+			dangerlst[k] = true
+			--NameByAddress[st[2]] = namelst[k]
+		else
+			namelst[k] = table.concat(st, " ", 2)
+			addrlst[k] = st[1]
+			--NameByAddress[st[1]] = namelst[k]
+		end
+	end
+	return namelst, dangerlst, addrlst
+end
+
+function GetGateAddrList()
+	return PirateStargateAddressList(stargate.addressList(Ship.Stargate.Wire:entity()))
+end
+
+function DialGate(addr)
+	if (Ship.Stargate == nil) then return end
+	stargate.dial(Ship.Stargate.Wire:entity(), addr, 1)
+end
+
+function ToggleIris()
+	if (Ship.Stargate.Iris == nil) then return end
+	if (Ship.Stargate.Iris["Activated"] == 1) then
+		Ship.Stargate.Iris["Activate"] = 0
+	else
+		Ship.Stargate.Iris["Activate"] = 1
+	end
+end
+
+function CloseGate()
+	Ship.Stargate.Wire["Close"] = 1
+end
+
+OSAddFunction("StargateDial", DialGate)
+OSAddFunction("StargateIris", ToggleIris)
+OSAddFunction("StargateClose", CloseGate)

@@ -1,0 +1,212 @@
+--@name DoorsDeviceManager
+--@author Yuri6037
+
+Ship.Doors = {
+	Common = {},
+	CommonList = {},
+	AlwaysOpen = {},
+	Hangar = nil
+}
+
+local HangarModels = {
+	["models/cerus/modbridge/misc/doors/door33a.mdl"] = true,
+	["models/cerus/modbridge/misc/doors/door23a.mdl"] = true
+}
+
+local function GetDIBase(id)
+	if (globaltables.player.LanAI_DI == nil) then return nil end
+	return (globaltables.player.LanAI_DI[id])
+end
+
+local function SetDIBase(id, ent)
+	if (globaltables.player.LanAI_DI == nil) then return end
+	globaltables.player.LanAI_DI[id] = ent
+end
+
+local function IsDoorIndicatorSFEmitter(ent)
+	local ins = wire.getInputs(ent)
+	return ins[1] == "Rank" and ins[2] == "Door" and ins[3] == "Name" and ins[4] == "AllowLock"
+end
+
+local function TryLoadSFEmitterDoor(ent, w)
+	if (IsDoorIndicatorSFEmitter(ent) and not(w["Door"] == nil) and Ship.Doors.Common[w["Name"]] == nil) then
+		Ship.Doors.Common[w["Name"]] = {
+			Name = w["Name"],
+			Wirelink = (w["Door"]:getWirelink() or nil),
+			InternalID = w["Door"]:index(),
+			Timing = DoorTimingMap[w["Door"]:model()] or DoorTimingMap.Default
+		}
+		table.insert(Ship.Doors.CommonList, w["Name"])
+	end
+end
+
+local Passed = {}
+
+local classes = {"starfall_emitter", "sbep_base_door_controller"}
+RegisterDriver(classes, function(ent)
+	if (ent:class() == "starfall_emitter" and ent:model() == "models/bull/dynamicbutton.mdl") then
+		local w = ent:getWirelink()
+		if (not(IsValid(w["Door"]))) then
+			timer.create("LanAI_DoorsManager_LoadHack", 1, 0, function()
+				if (IsValid(w["Door"])) then
+					Passed[w["Door"]] = true
+					TryLoadSFEmitterDoor(ent, w)
+					timer.remove("LanAI_DoorsManager_LoadHack")
+				end
+			end)
+		else
+			Passed[w["Door"]] = true
+			TryLoadSFEmitterDoor(ent, w)
+		end
+	elseif (ent:class() == "sbep_base_door_controller" and HangarModels[ent:model()]) then
+		Ship.Doors.Hangar = ent:getWirelink()
+	elseif (ent:class() == "sbep_base_door_controller" and not(Passed[ent])) then
+		table.insert(Ship.Doors.AlwaysOpen, ent)
+	end
+	return true
+end)
+
+local function OpenAlwaysDoors()
+	bypass.Iterator("DoorsManager_AlwaysOpen_It", Ship.Doors.AlwaysOpen, function(cur, v)
+		v["Lock_1"] = 0
+		v["Open_1"] = 1
+	end)
+end
+local function LockAlwaysDoors()
+	bypass.Iterator("DoorsManager_AlwaysOpen_It", Ship.Doors.AlwaysOpen, function(cur, v)
+		v["Open_1"] = 0
+		v["Lock_1"] = 1
+	end)
+end
+
+HookPostLoad(function()
+	local tmp = {}
+	bypass.Iterator("DoorsManager_AlwaysOpenCheck", Ship.Doors.AlwaysOpen, function(cur, v)
+		if (not(Passed[v])) then
+			table.insert(tmp, v:getWirelink())
+		end
+	end, function()
+		Ship.Doors.AlwaysOpen = tmp
+		OpenAlwaysDoors()
+	end)
+end)
+
+function LockUnlockDoor(name)
+	if (not(Ship.Doors.Common[name] == nil)) then
+		if (Ship.Doors.Common[name].Wirelink["Locked_1"] == 1) then
+			Ship.Doors.Common[name].Wirelink["Lock_1"] = 0
+			aiSay("Unlocked access to " .. name)
+		else
+			Ship.Doors.Common[name].Wirelink["Lock_1"] = 1
+			aiSay("Locked access to " .. name)
+		end
+	end
+end
+
+local function ReplicateInner(ent, inner)
+	ent:setMaterial(inner:material())
+	ent:setColor(inner:color())
+	for k, v in pairs(inner:getMaterials()) do
+		ent:setSubMaterial(k - 1, inner:getSubMaterial(k - 1))
+		ent:setSubMaterialColor(k - 1, inner:getSubMaterialColor(k - 1))
+	end
+end
+
+local function DIOpen(tbl)
+	local ent = GetDIBase(tbl.InternalID)
+	util.Log("Drivers.Doors", LOG_DEBUG, "Door ID = ", tbl.InternalID, ", Door = ", ent)
+	if (not(IsValid(ent))) then return end
+	ent:remove()
+	tbl.Wirelink["Open_1"] = 1
+	SetDIBase(tbl.InternalID, nil)
+end
+
+local function DIClose(tbl)
+	local ent = GetDIBase(tbl.InternalID)
+	if (IsValid(ent)) then return end
+	local inner = tbl.Wirelink:entity():getDoors()[1]
+	if (not(IsValid(inner))) then return end
+	tbl.Wirelink["Open_1"] = 0
+	timer.create("Door_AutoRelock", tbl.Timing, 1, function()
+		local prop = props.create(inner:model(), tbl.Wirelink:entity():pos(), tbl.Wirelink:entity():ang(), true)
+		if (not(IsValid(prop))) then return end
+		ReplicateInner(prop, inner)
+		prop:setParent(tbl.Wirelink:entity())
+		SetDIBase(tbl.InternalID, prop)
+	end)
+end
+
+function OpenCloseDoor(name)
+	if (not(Ship.Doors.Common[name] == nil)) then
+		if (Ship.Doors.Common[name].Wirelink["Opened_1"] == 1) then
+			DIClose(Ship.Doors.Common[name])
+			aiSay("Closed " .. name)
+		else
+			DIOpen(Ship.Doors.Common[name])
+			aiSay("Opened " .. name)
+		end
+	end
+end
+
+function ToggleLockdown()
+	Lockdown = not(Lockdown)
+	if (Lockdown) then
+		if (not(Evacuation) and CurAlert == 3) then
+			UpdateAlertStatus(2)
+		end
+		bypass.Iterator("Lockdown", Ship.Doors.CommonList, function(cur, v)
+			Ship.Doors.Common[v].Wirelink["Open_1"] = 0
+			Ship.Doors.Common[v].Wirelink["Lock_1"] = 1
+		end, function()
+			Ship.Doors.Hangar["Open_1"] = 0
+			Ship.Doors.Hangar["Lock_1"] = 1
+			LockAlwaysDoors()
+			aiSay("Lockdown Engaged !")
+		end)
+		SendAPIEvent("LOCKDOWN_ENGAGE")
+	else
+		if (CurAlert == 2) then
+			UpdateAlertStatus(3)
+		end
+		bypass.Iterator("Lockdown", Ship.Doors.CommonList, function(cur, v)
+			Ship.Doors.Common[v].Wirelink["Lock_1"] = 0
+		end, function()
+			Ship.Doors.Hangar["Lock_1"] = 0
+			OpenAlwaysDoors()
+			aiSay("Lockdown Terminated !")
+		end)
+		SendAPIEvent("LOCKDOWN_TERMINATE")
+	end
+
+	SendPacket("EVENT", "Lockdown", Lockdown)
+end
+
+function OpenCloseHangar()
+	if (not(Ship.Doors.Hangar == nil)) then
+		if (Ship.Doors.Hangar["Opened_1"] == 1) then
+			Ship.Doors.Hangar["Open_1"] = 0
+			aiSay("Closed Hangar")
+		else
+			Ship.Doors.Hangar["Open_1"] = 1
+			aiSay("Opened Hangar")
+		end
+	end
+end
+
+OSAddFunction("DoorLockUnlock", function(var)
+	LockUnlockDoor(var)
+end)
+
+OSAddFunction("DoorOpenClose", function(var)
+	OpenCloseDoor(var)
+end)
+
+OSAddFunction("HangarOpenClose", function(var)
+	OpenCloseHangar()
+end)
+
+OSAddFunction("Lockdown", ToggleLockdown)
+
+HookScreenLoad(function(e)
+	SendEntityPacket("EVENT", e, "Lockdown", Lockdown)
+end)

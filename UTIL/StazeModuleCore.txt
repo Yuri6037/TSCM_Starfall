@@ -1,0 +1,107 @@
+--@name StazeModuleCore
+--@author Yuri6037
+
+wire.createInputs({"Activate Module", "Door"}, {"Normal", "Entity"})
+wire.createOutputs({"GlowBrightness", "Red", "Green", "Blue"}, {"Normal", "Normal", "Normal", "Normal"})
+
+Duped = false
+
+if (not(wire.ports["Door"] == nil)) then
+	CurHeight = 60
+	ActivateModule = 0
+else
+	CurHeight = 0
+	ActivateModule = 0
+end
+
+hook("PreEntityCopy", "StazeModuleCore_OnSaved", function(data)
+	data.CurHeight = CurHeight
+	data.ActivateModule = ActivateModule
+	if (not(wire.ports["Door"] == nil)) then
+		data.Hacked = true
+	end
+end)
+
+hook("PostEntityPaste", "StazeModuleCore_OnDuped", function(data)
+	if (data.Hacked) then
+		CurHeight = data.CurHeight
+		ActivateModule = data.ActivateModule
+	end
+	Duped = true
+end)
+
+hook("think", "StazeModuleCore_Updater", function()
+	if (wire.ports["Door"] == nil) then return end
+
+	if (Duped and not(ActivateModule == wire.ports["Activate Module"])) then
+		ActivateModule = wire.ports["Activate Module"]
+		if (ActivateModule == 1) then
+			CloseModule()
+		else
+			OpenModule()
+		end
+	end
+end)
+
+Prop = nil
+Prop1 = nil
+function OpenModule()
+	if (CurHeight >= 60) then
+		return
+	end
+
+	--Remove the prop
+	Prop:remove()
+	Prop = nil
+	Prop1:remove()
+	Prop1 = nil
+
+	local ent = wire.ports["Door"]
+	timer.create("StazeModuleCore_Open", 0.01, 60, function()
+		local p = ent:getPos()
+		p.z = p.z + 2
+		ent:setPos(p)
+
+		CurHeight = CurHeight + 1
+	end)
+
+	wire.ports["Red"] = 0
+	wire.ports["Green"] = 0
+	wire.ports["Blue"] = 0
+	wire.ports["GlowBrightness"] = 0
+end
+
+function CloseModule()
+	if (CurHeight <= 0) then
+		return
+	end
+
+	local ent = wire.ports["Door"]
+	timer.create("StazeModuleCore_Open", 0.01, 60, function()
+		local p = ent:getPos()
+		p.z = p.z - 2
+		ent:setPos(p)
+
+		CurHeight = CurHeight - 1
+
+		if (CurHeight == 0) then
+			local p1 = ents.self():getPos()
+			p1.z = p1.z - 100
+			Prop = props.create("models/hunter/tubes/tube1x1x2.mdl", p1, Angle(0, 0, 0), true)
+			Prop:getPhysicsObject():enableMotion(false)
+			Prop:setMaterial("models/props/cs_office/snowmana")
+			Prop:setAlpha(128)
+
+			p1.z = p1.z - 50
+			Prop1 = props.create("models/hunter/tubes/tube1x1x2.mdl", p1, Angle(0, 0, 0), true)
+			Prop1:getPhysicsObject():enableMotion(false)
+			Prop1:setMaterial("models/props/cs_office/snowmana")
+			Prop1:setAlpha(128)
+		end
+	end)
+
+	wire.ports["Red"] = 141
+	wire.ports["Green"] = 220
+	wire.ports["Blue"] = 255
+	wire.ports["GlowBrightness"] = 5
+end

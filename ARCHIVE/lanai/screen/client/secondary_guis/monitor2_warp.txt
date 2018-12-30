@@ -1,0 +1,76 @@
+--@name Monitor2_WarpGui
+--@author Yuri6037
+
+local gui = {}
+
+local ChoosedAngle = 0
+local ChoosedAxis = "X"
+
+function gui.Render(x, y)
+	gl.glPushMatrix()
+	gl.glTranslate(0, 0)
+
+	--Rendering special stuff
+	ChoosedAngle = UI.NumberSelect(0, 156, 400, -360, 360, 5, "°", ChoosedAngle)
+
+	if (ChoosedAxis == "X") then
+		gl.glBindColor(0, 255, 255)
+		gl.glRect(156, 432, 32, 32)
+	else
+		gl.glBindColor(0, 0, 255)
+		gl.glRect(156, 432, 32, 32)
+	end
+
+	if (ChoosedAxis == "Y") then
+		gl.glBindColor(0, 255, 255)
+		gl.glRect(190, 432, 32, 32)
+	else
+		gl.glBindColor(0, 0, 255)
+		gl.glRect(190, 432, 32, 32)
+	end
+
+	if (ChoosedAxis == "Z") then
+		gl.glBindColor(0, 255, 255)
+		gl.glRect(224, 432, 32, 32)
+	else
+		gl.glBindColor(0, 0, 255)
+		gl.glRect(224, 432, 32, 32)
+	end
+	gl.glBindColor(255, 255, 255)
+	gl.glText("X", 161, 432)
+	gl.glText("Y", 195, 432)
+	gl.glText("Z", 230, 432)
+
+	UI.SetSkin(2)
+	if (UI.Button("+/-", 266, 432, 32, 32)) then
+		ChoosedAngle = ChoosedAngle * -1
+	end
+	UI.SetSkin(0)
+
+	if (UI.Button("Rotate PI/2 (90°)", 156, 128, 200, 32)) then
+		SendTripleScreenPacket(-1, "MONITOR_FUNC", "ROT_Y", 90)
+	end
+	if (UI.Button("Rotate -PI/2 (-90°)", 156, 200, 200, 32)) then
+		SendTripleScreenPacket(-1, "MONITOR_FUNC", "ROT_Y", -90)
+	end
+	if (UI.Button("Rotate PI (180°)", 156, 275, 200, 32)) then
+		SendTripleScreenPacket(-1, "MONITOR_FUNC", "ROT_Y", 180)
+	end
+	if (UI.Button("Start Manoever", 156, 350, 200, 32)) then
+		SendTripleScreenPacket(-1, "MONITOR_FUNC", "ROT_" .. ChoosedAxis, ChoosedAngle)
+	end
+
+	gl.glPopMatrix()
+end
+
+function gui.CheckInputs(x, y)
+	if (Screen:IsMouseInRect(156, 432, 32, 32)) then
+		ChoosedAxis = "X"
+	elseif (Screen:IsMouseInRect(190, 432, 32, 32)) then
+		ChoosedAxis = "Y"
+	elseif (Screen:IsMouseInRect(224, 432, 32, 32)) then
+		ChoosedAxis = "Z"
+	end
+end
+
+RegisterSecondaryGUI(5, gui)

@@ -1,0 +1,43 @@
+--@name Lanteans OS AppCard (GameSample)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "gamesample"
+AppCode = [[
+local app = {}
+function app:Init()
+	self:SetFullScreen(true)
+	OS.EnableGL()
+	self:SetSize(256, 166)
+	self:SetTitle("Game Sample App")
+	OS.PlaySound("Musique_Teamfrench/Dada_Life.mp3", true)
+end
+function app:OnExit()
+	OS.DisableGL()
+	OS.StopSound()
+end
+function app:Render()
+	gl.glBindColor(math.random(255), math.random(255), math.random(255))
+	gl.glRect(0, 0, ScrW, ScrH)
+end
+function app:Touched(x, y)
+	self:Exit()
+end
+OS.DefineApp("gamesample", app)
+OS.AddAppMenuItem("gamesample", "GameSampleApp", "Sample")
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

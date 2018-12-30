@@ -1,0 +1,30 @@
+--@name RechargingZPM
+--@author Yuri6037
+--@class processor
+--@model models/pg_props/pg_zpm/pg_zpm.mdl
+
+--@require zpmsystem/zpm/zpmlib.txt
+
+--Actual code
+local tbl = {
+	MaxEnergyValue = 66666,
+	OnConnected = function()
+		self:setSkin(1)
+		self:setColor(255, 0, 0)
+	end,
+	OnDisconnected = function()
+		self:setSkin(0)
+		self:setColor(255, 0, 0)
+	end,
+	OnPumpedEnergy = function(amount)
+		CurEnergyValue = CurEnergyValue + 100
+		if (CurEnergyValue >= 66666) then CurEnergyValue = 66666 return end
+	end,
+	OnEntitySaved = function()
+	end,
+	OnEntitySpawned = function()
+		self:setSkin(0)
+		self:setColor(255, 0, 0)
+	end
+}
+zpms.Define(tbl)

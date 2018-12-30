@@ -1,0 +1,62 @@
+--@name SmallMoneyCase
+--@author Yuri6037
+--@model models/props_c17/suitcase_passenger_physics.mdl
+--@shared
+
+--@require lanai/libs/screen/safe_net.txt
+--@requirecl lanteansos/libs/gui.txt
+
+Money = 0
+if (SERVER) then
+	wire.createInputs({"AMOUNT"}, {"Normal"})
+	hook("input", "MoneyCaseSendData", function(inn, val)
+		StartNet(function()
+			net.writeUInt(val, 16)
+		end)
+	end)
+	hook("net", "MoneyCaseUpdate", function()
+		if (not(Money == nil)) then
+			StartNet(function()
+				net.writeUInt(Money, 16)
+			end)
+		end
+	end)
+else
+	hook("net", "MoneyCaseReceiveData", function()
+		Money = net.readUInt(16)
+	end)
+	StartNet(function()
+	end)
+
+	local bpos = Vector(0, 3.65, 3.6)
+	local tpos = Vector(0, -3.65, 3.6)
+	local fnt = GUI.Font("Federation", 24, true)
+	hook("render", "MoneyCase", function()
+		--Bottom face
+		local pos = ents.self():getPos()
+		pos = ents.self():localToWorld(bpos)
+		local ang = ents.self():getAngles()
+		ang:RotateAroundAxis(ang:Forward(), 90)
+		ang:RotateAroundAxis(ang:Right(), 180)
+		render.start3D2D(pos, ang, 0.1)
+			GUI.Reset()
+			GUI.SetTranslation(-122, 50)
+			GUI.ColoredRect(0, 0, 244, 160, COLOR(0, 0, 0))
+			local w, h = GUI.TextSize("Money : " .. Money .. "$", fnt)
+			GUI.Text("Money : " .. Money .. "$", 244 / 2 - w / 2, 160 / 2 - h / 2, fnt, COLOR(255, 255, 255))
+		render.end3D2D()
+
+		--Top face
+		local pos = ents.self():getPos()
+		pos = ents.self():localToWorld(tpos)
+		local ang = ents.self():getAngles()
+		ang:RotateAroundAxis(ang:Forward(), 90)
+		render.start3D2D(pos, ang, 0.1)
+			GUI.Reset()
+			GUI.SetTranslation(-122, 50)
+			GUI.ColoredRect(0, 0, 244, 160, COLOR(0, 0, 0))
+			local w, h = GUI.TextSize("Money : " .. Money .. "$", fnt)
+			GUI.Text("Money : " .. Money .. "$", 244 / 2 - w / 2, 160 / 2 - h / 2, fnt, COLOR(255, 255, 255))
+		render.end3D2D()
+	end)
+end

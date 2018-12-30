@@ -1,0 +1,51 @@
+--@name Lanteans OS AppCard (CustomAppMenuChar)
+--@author Yuri6037
+--@class processor
+--@model models/props_junk/sawblade001a.mdl
+
+--Initialisation
+Entity = ents.self()
+Entity:setMaterial("phoenix_storms/black_chrome")
+wire.createOutputs({"AppName", "AppCode"}, {"String", "String"})
+Ports = wire.ports
+--End
+
+--Application
+AppName = "customappmenuchar"
+AppCode = [[
+if (AppsMenuChar == nil) then
+	error("This application requires AnimatedDesktop")
+end
+local app = {}
+function app:Init()
+	self:SetSize(256, 166)
+	self:SetTitle("Change AppMenu Name")
+	self:DisableDecorations()
+	self:SetPos(LOCATION_CENTER)
+
+	local lst = self:AddComponent("listbox", 10, 32)
+	lst:SetSize(236, 100)
+	lst:SetMaxLines(5)
+	lst:SetData({"A", "Y", "L", "O", "S", "♫"})
+	local bad = self:AddComponent("button", 128, 140, "Cancel", function(app)
+		OS.CloseApp(app.Handle)
+	end)
+	bad:SetSize(128, 16)
+	local ok = self:AddComponent("button", 0, 140, "Change AppMenu", function(app)
+		local id, str = lst:GetSelected()
+		if (id == nil) then return end
+		AppsMenuChar = str
+		ReloadDesktopEnv = true
+		OS.CloseApp(app.Handle)
+	end)
+	ok:SetSize(128, 16)
+end
+OS.DefineApp("customappmenuchar", app)
+OS.AddAppMenuItem("customappmenuchar", "AppMenu", "MISC")
+]]
+--End
+
+--Saving
+Ports["AppName"] = "app_" .. AppName
+Ports["AppCode"] = AppCode
+--End

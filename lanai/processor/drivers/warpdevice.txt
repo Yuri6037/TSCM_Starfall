@@ -1,0 +1,327 @@
+--@name WarpDeviceManager
+--@author Yuri6037
+
+local CurAng = Angle(0, 0, 0)
+local CurUnsafeWarp = nil
+local SecurityBypass = false
+local ShipVars = {}
+
+function GetWarpVectorFromWarpName(name)
+	local dir = nil
+	if (name == "back") then
+		dir = ShipVars.BackWarp
+	elseif (name == "desert") then
+		dir = Vector(11580, -8964, -9120)
+	elseif (name == "earth") then
+		dir = Vector(1483, 8202, 8368)
+	elseif (name == "shakuras") then
+		dir = Vector(-6145, -5620, 7179)
+	elseif (name == "build") then
+		dir = Vector(14084, 14122, -15203)
+	elseif (name == "hiigara") then
+		dir = Vector(7328, 9624, -5677)
+	elseif (name == "spaceStation") then
+		dir = Vector(5371, -7552, 8901)
+	elseif (name == "hell") then
+		dir = Vector(-11127, 1425, -3645)
+	elseif (name == "secret") then
+		dir = Vector(-6797, -6485, -15328)
+	end
+	if (not(dir == nil)) then
+		return dir
+	else
+		local vec = GetWarpPointFromName(name)
+		if (vec == nil) then
+			return nil
+		end
+		return vec
+	end
+end
+
+function CheckSafeWarp(wName)
+	local vec = nil
+	if (type(wName) == "string") then
+		vec = GetWarpVectorFromWarpName(wName)
+	else
+		vec = wName
+	end
+
+	if (vec == nil) then
+		return false
+	end
+
+	local min = localToWorld(Ship.Bounds.Min, Angle(0, 0, 0), vec, Angle(0, 0, 0))
+	local max = localToWorld(Ship.Bounds.Max, Angle(0, 0, 0), vec, Angle(0, 0, 0))
+
+	if (VectorInBox(vec, Universe.Min, Universe.Max)) then
+		if (VectorInBox(min, Universe.Min, Universe.Max) and VectorInBox(max, Universe.Min, Universe.Max)) then
+			return true
+		end
+	elseif (VectorInBox(vec, Milkyway.Min, Milkyway.Max)) then
+		if (VectorInBox(min, Milkyway.Min, Milkyway.Max) and VectorInBox(max, Milkyway.Min, Milkyway.Max)) then
+			return true
+		end
+	elseif (VectorInBox(vec, Pegasus.Min, Pegasus.Max)) then
+		if (VectorInBox(min, Pegasus.Min, Pegasus.Max) and VectorInBox(max, Pegasus.Min, Pegasus.Max)) then
+			return true
+		end
+	end
+	return false
+end
+
+local InWarp = false
+local WarpDelay = 0
+local WarpEnt = nil
+local WarpDir = Vector(0, 0, 0)
+local WarpAng = Angle(0, 0, 0)
+local LastAng = Angle(0, 0, 0)
+local LastPos = Vector(0, 0, 0)
+local function PushWarp(ent, dir, ang)
+	if (not(EnginesActive())) then
+		aiSay("Engines are not active !")
+		return
+	end
+	if (ent == nil) then ent = Ship.Warp end
+	if (ang == nil) then ang = Angle(0, 0, 0) end
+	if (ent:entity():pos() == dir and LastAng == LastAng + ang) then InWarp = false return end
+	InWarp = true
+	WarpDelay = 1
+	WarpDir = dir
+	WarpEnt = ent
+	WarpAng = ang
+	LastAng = WarpEnt:entity():ang()
+	LastPos = WarpEnt:entity():pos()
+	WarpEnt["Destination"] = WarpDir
+	WarpEnt["Angle Offset"] = WarpAng
+	WarpEnt["Activate"] = 1
+	ShipVars.BackWarp = WarpEnt:entity():getPos()
+end
+local function HasWarpFailed()
+	if (WarpEnt:entity():pos() == LastPos and WarpEnt:entity():ang() == LastAng) then
+		return true
+	end
+	return false
+end
+local function PopWarp()
+end
+task.Start(function()
+	if (InWarp) then
+		WarpDelay = WarpDelay - 1
+		if (WarpDelay <= 0) then
+			WarpEnt["Activate"] = 0
+			if (WarpEnt["Active"] == 0) then
+				if (HasWarpFailed()) then
+					PushWarp(WarpEnt, WarpDir, WarpAng)
+					util.Log("Drivers.Warp", LOG_WARN, "Warp failure, retrying...")
+					return
+				end
+				InWarp = false
+			end
+		end
+	end
+end, "LanAI_WarpManager", 1)
+
+aiRegisterAction("Force Warp", function()
+	aiSay("Forcing warp by engaging security bypass : ATTENTION to the place where to go !")
+	SecurityBypass = true
+	if (type(CurUnsafeWarp) == "string") then
+        WarpToDefinedDirection(CurUnsafeWarp)
+    elseif (type(CurUnsafeWarp) == "Vector") then
+        WarpToVector(CurUnsafeWarp)
+    end
+	CurUnsafeWarp = nil
+	SecurityBypass = false
+end)
+
+function WarpToDefinedDirection(name)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (name == nil) then
+		aiSay("Unable to perform : destination is NULL !")
+		return false
+	end
+	if (not(SecurityBypass) and not(CheckSafeWarp(name))) then
+		aiSay("Destination is unsafe. This ship is too large to warp there !")
+		aiSetAction("Force Warp")
+		CurUnsafeWarp = name
+		return false
+	end
+
+	local dir = nil
+	if (name == "back") then
+		if (ShipVars.BackWarp == nil) then
+			aiSay("You have no previous location !")
+			return false
+		end
+		dir = ShipVars.BackWarp
+	elseif (name == "desert") then
+		dir = Vector(11580, -8964, -9120)
+	elseif (name == "earth") then
+		dir = Vector(1483, 8202, 8368)
+	elseif (name == "shakuras") then
+		dir = Vector(-6145, -5620, 7179)
+	elseif (name == "build") then
+		dir = Vector(14084, 14122, -15203)
+	elseif (name == "hiigara") then
+		dir = Vector(7328, 9624, -5677)
+	elseif (name == "spaceStation") then
+		dir = Vector(5371, -7552, 8901)
+	elseif (name == "hell") then
+		dir = Vector(-11127, 1425, -3645)
+	elseif (name == "secret") then
+		dir = Vector(-6797, -6485, -15328)
+	end
+	if (not(dir == nil)) then
+		if (name == "back") then
+			aiSay("Warping to your previous location !")
+		else
+			aiSay("Warping to " .. name .. " !")
+		end
+		PushWarp(Ship.Warp, dir)
+		return true
+	else
+		local vec = GetWarpPointFromName(name)
+		if (vec == nil) then
+			aiSay("This warp point does not exist !")
+			return false
+		end
+		aiSay("Warping to " .. name .. " !")
+		PushWarp(Ship.Warp, vec)
+		return true
+	end
+end
+
+function WarpToPlayer(ply)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (not(IsValid(ply))) then
+		aiSay("You can't warp to a NULL player !")
+		return false
+	end
+	if (not(CheckSafeWarp(ply:getPos()))) then
+		aiSay("Destination is unsafe. This ship is too large to warp there !")
+		aiSetAction("Force Warp")
+		CurUnsafeWarp = ply:getPos()
+		return false
+	end
+
+	local vec = ply:getPos()
+	local max = localToWorld(Ship.Bounds.Max, Angle(0, 0, 0), vec, Angle(0, 0, 0))
+	vec = Vector(vec.X, vec.Y, max.Z)
+	PushWarp(Ship.Warp, vec)
+	return true
+end
+
+function WarpToVector(vec)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (InWarp) then return false end
+	if (not(SecurityBypass) and not(CheckSafeWarp(vec))) then
+		aiSay("Destination is unsafe. This ship is too large to warp there !")
+		aiSetAction("Force Warp")
+		CurUnsafeWarp = vec
+		return false
+	end
+
+	PushWarp(Ship.Warp, vec)
+	return true
+end
+
+local function DoAngWarp(ang)
+	if (not(Ship.RotWarp == nil)) then
+		PushWarp(Ship.RotWarp, Ship.RotWarp:entity():getPos(), ang)
+	else
+		PushWarp(Ship.Warp, Ship.Warp:entity():getPos(), ang)
+	end
+end
+
+function WarpToAngle(ang)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (InWarp) then return false end
+
+	CurAng = CurAng + ang
+	util.Log("Drivers.Warp", LOG_DEBUG, "CUR_OFFSET_ANGLE : ", CurAng)
+	if (ang.X == 0 and ang.Y == 0 and ang.Z == 0) then
+		ang.X = -CurAng.X
+		ang.Y = -CurAng.Y
+		ang.Z = -CurAng.Z
+		CurAng = Angle(0, 0, 0)
+	end
+	util.Log("Drivers.Warp", LOG_DEBUG, "WARP_ANGLE : ", ang)
+
+	DoAngWarp(ang)
+	return true
+end
+
+function WarpDirection(dir, units)
+	if (not(CheckEnergy())) then
+		aiSay("Unable to perform : energy is too low !")
+		return false
+	end
+	if (Ship.Warp == nil) then
+		aiSay("This ship has no warping device !")
+		return false
+	end
+	if (dir == EDirection.UP) then
+		PushWarp(Ship.RotWarp, Ship.Warp:entity():pos() + Ship.Warp:entity():up() * units)
+	elseif (dir == EDirection.DOWN) then
+		PushWarp(Ship.RotWarp, Ship.Warp:entity():pos() + Ship.Warp:entity():up() * -units)
+	elseif (dir == EDirection.LEFT) then
+		PushWarp(Ship.RotWarp, Ship.Warp:entity():pos() + Ship.Warp:entity():right() * -units)
+	elseif (dir == EDirection.RIGHT) then
+		PushWarp(Ship.RotWarp, Ship.Warp:entity():pos() + Ship.Warp:entity():right() * units)
+	elseif (dir == EDirection.FORWARD) then
+		PushWarp(Ship.RotWarp, Ship.Warp:entity():pos() + Ship.Warp:entity():forward() * units)
+	elseif (dir == EDirection.BACKWARD) then
+		PushWarp(Ship.RotWarp, Ship.Warp:entity():pos() + Ship.Warp:entity():forward() * -units)
+	end
+	return false
+end
+
+RegisterDriver({"ship_drive", "quantum_slipstream_drive", "bsg_drive", "spore_drive"}, function(ent)
+	if (ent:class() == "bsg_drive") then
+		Ship.RotWarp = ent:getWirelink()
+	else
+		Ship.Warp = ent:getWirelink()
+	end
+	return true
+end)
+
+OSAddFunction("Warp", WarpToDefinedDirection)
+OSAddFunction("Rotate", WarpToAngle)
+OSAddFunction("MoveLeft", function(var) WarpDirection(EDirection.LEFT, var) end)
+OSAddFunction("MoveRight", function(var) WarpDirection(EDirection.RIGHT, var) end)
+OSAddFunction("MoveUp", function(var) WarpDirection(EDirection.UP, var) end)
+OSAddFunction("MoveDown", function(var) WarpDirection(EDirection.DOWN, var) end)
+OSAddFunction("MoveForward", function(var) WarpDirection(EDirection.FORWARD, var) end)
+OSAddFunction("MoveBackward", function(var) WarpDirection(EDirection.BACKWARD, var) end)
+OSAddFunction("TimedWarp", function(tbl)
+	StartTimerCountdown(tbl[1], function()
+		WarpToDefinedDirection(tbl[2])
+	end)
+end)

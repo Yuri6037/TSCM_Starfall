@@ -1,0 +1,26 @@
+--@name NormalZPM
+--@author Yuri6037
+--@class processor
+--@model models/pg_props/pg_zpm/pg_zpm.mdl
+
+--@require zpmsystem/zpm/zpmlib.txt
+
+--Actual code
+local tbl = {
+	MaxEnergyValue = 66666,
+	OnConnected = function()
+		self:setSkin(1)
+	end,
+	OnDisconnected = function()
+		self:setSkin(0)
+	end,
+	OnPumpedEnergy = function(amount)
+	end,
+	OnEntitySaved = function()
+	end,
+	OnEntitySpawned = function()
+		self:setSkin(0)
+	end
+}
+
+zpms.Define(tbl)

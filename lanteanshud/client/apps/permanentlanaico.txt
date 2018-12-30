@@ -1,0 +1,32 @@
+--@name PermanentLanAIConnectionApp (CLIENT)
+--@author Yuri6037
+
+local ShipName = ""
+local Core = nil
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {},
+	Render = function()
+		if (IsValid(Core) and not(ShipName == nil)) then
+			local p = Core:pos():ToScreen()
+			if (p.x > ScrW) then p.x = ScrW - 16 end
+			if (p.y > ScrH) then p.y = ScrH - 16 end
+			if (p.x < 0) then p.x = 0 end
+			if (p.y < 0) then p.y = 0 end
+			GUI.ColoredRect(p.x, p.y, 16, 16, COLOR(0, 255, 255))
+			local txtx = p.x + 16
+			if (p.x > ScrW / 2) then
+				local w = GUI.TextSize(ShipName, SmallFont)
+				txtx = p.x - 16 - w
+			end
+			GUI.Text(ShipName, txtx, p.y, SmallFont, COLOR(0, 0, 255))
+		end
+	end,
+	OnDataReceived = function(data)
+		Core = data.Core
+		ShipName = data.ShipName
+	end
+}
+
+HUD.DefineApp("Permanent LanAI Connection", app)

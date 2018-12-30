@@ -1,0 +1,95 @@
+--@name WarpApp
+--@author Yuri6037
+
+local ico = {
+	[32] = {
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(0, 32),
+				VERTEX(16, 0),
+				VERTEX(16, 16)
+			}
+		},
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(16, 16),
+				VERTEX(16, 0),
+				VERTEX(32, 32)
+			}
+		}
+	},
+	[16] = {
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(0, 16),
+				VERTEX(8, 0),
+				VERTEX(8, 8)
+			}
+		},
+		{
+			Color = COLOR(0, 0, 255),
+			Vertices = {
+				VERTEX(8, 8),
+				VERTEX(8, 0),
+				VERTEX(16, 16)
+			}
+		}
+	}
+}
+
+local app = {}
+function app:Init()
+	self:EnableAINetContext()
+	self:SetTitle("Warp Manager")
+	self:SetSize(550, 256)
+	self:SetIcon32(ico[32])
+	self:SetIcon16(ico[16])
+	self:SetPos(LOCATION_CENTER)
+
+	self.WarpLst = self:AddComponent("listbox", 10, 32)
+	self.WarpLst:SetSize(300, 215)
+	self.WarpLst:SetMaxLines(10)
+	local b = self:AddComponent("button", 330, 32, "Start Warp", function()
+		local id, str = self.WarpLst:GetSelected()
+		if (str == nil) then return end
+		AIRunFunc("Warp", str)
+	end)
+	b:SetSize(200, 28)
+	local b = self:AddComponent("button", 330, 64, "Warp Back", function()
+		AIRunFunc("Warp", "back")
+	end)
+	b:SetSize(200, 28)
+	self.Num = self:AddComponent("numselect", 330, 116)
+	self.Num:SetSize(200, 96)
+	self.Num:SetBounds(10, 900)
+	self.Num:SetStep(10)
+	self.Num:SetDecorations("", "s")
+	local b = self:AddComponent("button", 330, 220, "Timed Warp", function()
+		local id, str = self.WarpLst:GetSelected()
+		if (str == nil) then return end
+		AIRunFunc("TimedWarp", {self.Num:GetValue(), str})
+	end)
+	b:SetSize(200, 28)
+end
+
+function app:OnDataReceived(data)
+	local tbl = {}
+	table.insert(tbl, "desert")
+	table.insert(tbl, "earth")
+	table.insert(tbl, "shakuras")
+	table.insert(tbl, "build")
+	table.insert(tbl, "hiigara")
+	table.insert(tbl, "spaceStation")
+	table.insert(tbl, "hell")
+	table.insert(tbl, "secret")
+	for k, v in pairs(data) do
+		table.insert(tbl, v)
+	end
+	self.WarpLst:SetData(tbl)
+end
+
+OS.DefineApp("warp", app)
+OS.AddAppMenuItem("warp", "Warp", "Transport", ico[16])

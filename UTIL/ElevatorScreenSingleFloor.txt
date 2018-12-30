@@ -1,0 +1,86 @@
+--@name ElevatorScreenSingleFloor
+--@author Yuri6037
+--@class emitter
+--@autoupdate
+--@shared
+
+--@require lanai/libs/screen/safe_net.txt
+--@require lanteansos/libs/network.txt
+--@requirecl lanteansos/libs/gui.txt
+--@requirecl UTIL/EmitterCursorPos.txt
+
+if (SERVER) then
+	local Elevator = nil
+
+	wire.createInputs({"Elevator"}, {"Wirelink"})
+
+	if (not(wire.ports["Elevator"] == nil)) then
+		Elevator = wire.ports["Elevator"]
+		Elevator["Floor 2"] = 0
+		Elevator["Floor 1"] = 1
+	end
+
+	hook("input", "ElevatorScreen", function(inp, val)
+		if (inp == "Elevator") then
+			Elevator = val
+			if (not(Elevator == nil)) then
+				net.Broadcast("ASSIGN_ENT", Elevator:entity())
+			end
+		end
+	end)
+
+	net.RegPacket(0, "BOOT", function(ply)
+		if (not(Elevator == nil)) then
+			net.SendPacket("ASSIGN_ENT", ply, Elevator:entity())
+		end
+	end, nil, true)
+	net.RegPacket(1, "ASSIGN_ENT", nil, function(args)
+		net.writeEntity(args[1])
+	end, true)
+	net.RegPacket(2, "RUN", function()
+		if (Elevator == nil) then return end
+		if (Elevator["Floor"] == 1 or Elevator["Floor"] == 0) then
+			Elevator["Floor 2"] = 1
+			Elevator["Floor 1"] = 0
+		else
+			Elevator["Floor 2"] = 0
+			Elevator["Floor 1"] = 1
+		end
+	end, nil, true)
+else
+	local Elevator = nil
+	local Player = ents.player()
+	local MsX = 0
+	local MsY = 0
+
+	hook("render", "ElevatorScreen", function()
+		if (not(IsValid(Elevator)) or Player:pos():DistToSqr(Elevator:pos()) >= 4000) then return end
+		local pos = Elevator:pos() + Elevator:forward() * 50 + Elevator:right() * -13 + Elevator:up() * 48
+		local ang = Elevator:ang()
+		ang:RotateAroundAxis(Elevator:right(), 90)
+		MsX, MsY = util.MousePos3D2D(pos, ang, 0.1)
+		render.start3D2D(pos, ang, 0.1)
+		GUI.RoundedRect(-2, 128 - 34, 260, 68, COLOR(0, 0, 0, 128))
+		if (MsX >= 0 and MsX <= 256 and MsY >= 128 - 32 and MsY <= (128 - 32) + 64 and Player:keyDown(input.IN_USE)) then
+			GUI.RoundedRect(0, 128 - 32, 256, 64, COLOR(0, 255, 255, 128))
+		else
+			GUI.RoundedRect(0, 128 - 32, 256, 64, COLOR(0, 0, 255, 128))
+		end
+		render.end3D2D()
+	end)
+
+	hook("playerbindpress", "LanteansOS_Input", function(ply, bind, pressed)
+		if (not(IsValid(Elevator)) or Player:pos():DistToSqr(Elevator:pos()) > 4000) then return end
+		if (bind == "+use" and MsX >= 0 and MsX <= 256 and MsY >= 128 - 32 and MsY <= (128 - 32) + 64) then
+			net.SendPacket("RUN")
+		end
+	end)
+
+	net.RegPacket(0, "BOOT", nil, function() end, true)
+	net.RegPacket(1, "ASSIGN_ENT", function()
+		Elevator = net.readEntity()
+	end, nil, true)
+	net.RegPacket(2, "RUN", nil, function() end, true)
+
+	net.SendPacket("BOOT")
+end

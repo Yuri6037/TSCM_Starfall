@@ -1,0 +1,196 @@
+--@name NetPackets
+--@author Yuri6037
+
+if (CLIENT) then
+	net.RegPacket(0, "BOOT", function()
+		OS.Reboot()
+		OS.SwitchScreen(net.readString())
+		local data = net.readString()
+		OS.LoadConfig(data)
+		table.sort(AppMenu.Content, function(a, b)
+			if (a.Name < b.Name) then
+				--Swap headers
+				local d = AppMenu.Header[a.Name]
+				AppMenu.Header[a.Name] = AppMenu.Header[b.Name]
+				AppMenu.Header[b.Name] = d
+			end
+			return a.Name < b.Name
+		end)
+	end, function() end, true)
+	net.RegPacket(1, "PARAM", function()
+		local name = net.readString()
+		local var = net.ReadUnknown()
+		Parametters[name] = var
+	end, nil, false)
+	net.RegPacket(2, "SCREEN", function()
+		local s = net.readString()
+		OS.SwitchScreen(s)
+	end, nil, true)
+	net.RegPacket(3, "DATA", function()
+		local type = net.readString()
+		local data = net.readTable()
+		for k, v in pairs(Windows) do
+			if (v.Type == type) then
+				v:OnDataReceived(data)
+			end
+		end
+	end, nil, true)
+	net.RegPacket(4, "APP", nil, function(args)
+		net.writeUInt(2, args[1])
+		if (args[1] < 2) then
+			net.writeString(args[2])
+		end
+	end, true)
+	net.RegPacket(5, "FUNC", nil, function(args)
+		net.writeString(args[1])
+		net.WriteUnknown(args[2])
+	end, true)
+	function AIRunFunc(name, arg)
+		net.SendPacket("FUNC", name, arg)
+	end
+	net.RegPacket(6, "CONFIG", nil, function(args)
+		net.writeString(args[1])
+		if (args[1] == "W") then
+			net.writeString(args[2])
+		end
+	end, true)
+	net.RegPacket(7, "GETENV", function()
+		local s, s1 = net.readString(), net.readString()
+		for k, v in pairs(Windows) do
+			if (v.Type == "sensor") then
+				v:OnDataReceived(s, s1)
+			end
+		end
+	end, function(args)
+		net.writeEntity(args[1])
+	end, true)
+	net.RegPacket(8, "MESSAGE", function()
+		local str = net.readString()
+		local data = net.ReadUnknown()
+		OS.ExecMessage(str, data)
+	end, function(args)
+		net.writeString(args[1])
+		net.WriteUnknown(args[2])
+	end, true)
+	net.RegPacket(9, "CONNECT", function()
+		Parametters = net.readTable()
+		local str = net.readString()
+		if (not(str == "NULL")) then
+			OS.SwitchScreen(str)
+		else
+			if (not(OS.IsOnDesktop())) then
+				OS.SwitchScreen("logon")
+			end
+		end
+	end, function() end, true)
+	net.RegPacket(10, "DISCONNECT", nil, function() end, true)
+end
+
+if (SERVER) then
+	net.RegPacket(0, "BOOT", function(ply)
+		local data = ReadConfig(ply)
+		net.SendPacket("BOOT", ply, data)
+	end, function(args)
+		net.writeString(CurScreen)
+		net.writeString(args[1])
+	end, true)
+	net.RegPacket(1, "PARAM", nil, function(args)
+		net.writeString(args[1])
+		net.WriteUnknown(args[2])
+	end, false)
+	net.RegPacket(2, "SCREEN", nil, function(args)
+		net.writeString(args[1])
+	end, true)
+	net.RegPacket(3, "DATA", nil, function(args)
+		net.writeString(args[1])
+		net.writeTable(args[2])
+	end, true)
+	net.RegPacket(4, "APP", function(ply)
+		local act = net.readUInt(2)
+		if (act == 0) then --Add app
+			local t = net.readString()
+			util.Log("Net", LOG_DEBUG, "TaskCreate : ", t)
+			if (Tasks[t] == nil) then
+				Tasks[t] = {ID = "APP_" .. t, Count = 1, LastData = {}}
+				SendPacket("TASK", "CREATE", t)
+			elseif (not(Tasks[t] == nil)) then
+				Tasks[t].Count = Tasks[t].Count + 1
+				net.SendPacket("DATA", ply, t, Tasks[t].LastData)
+			end
+		elseif (act == 1) then --Remove app
+			local t = net.readString()
+			util.Log("Net", LOG_DEBUG, "TaskRemove : ", t)
+			if (not(Tasks[t] == nil)) then
+				Tasks[t].Count = Tasks[t].Count - 1
+				if (Tasks[t].Count == 0) then
+					Tasks[t] = nil
+					SendPacket("TASK", "DESTROY", t)
+				end
+			end
+		elseif (act == 2) then --Clear apps
+			Tasks = {}
+			SendPacket("TASK", "ENDALL")
+		end
+	end, nil, true)
+	net.RegPacket(5, "FUNC", function(ply)
+		local n = net.readString()
+		if (n == "login") then SendPacket("LOGIN", ply, ents.self():index()) return end
+		SendPacket("FUNC", ply, n, net.ReadUnknown())
+	end, nil, true)
+	net.RegPacket(6, "CONFIG", function(ply)
+		local o = net.readString()
+		if (o == "W") then
+			WriteConfig(ply, net.readString())
+		else
+			files.delete("lanteansos_" .. ply:steamID64() .. ".txt", "")
+		end
+	end, nil, true)
+	net.RegPacket(7, "GETENV", function(ply)
+		local p = net.readEntity()
+		local env = p:getEnvironmentData()
+		local estr = "Environment : NULL"
+		local estr1 = "Environment is unviable"
+		if (not(env == nil) and not(env.name == nil)) then
+			estr = "Environment : " .. env.name
+		end
+		if (not(env == nil) and env.air.Oxygen >= 5) then
+			estr1 = "Environment is viable"
+		end
+		net.SendPacket("GETENV", ply, estr, estr1)
+	end, function(args)
+		net.writeString(args[1])
+		net.writeString(args[2])
+	end, true)
+	net.RegPacket(8, "MESSAGE", function()
+		local str = net.readString()
+		local data = net.ReadUnknown()
+		net.Broadcast("MESSAGE", str, data)
+	end, function(args)
+		net.writeString(args[1])
+		net.WriteUnknown(args[2])
+	end, true)
+
+	--Start network protocol upgrade shutdown networking while screen is in sleep
+	local ConnectedPlys = {}
+	net.RegPacket(9, "CONNECT", function(ply)
+		ConnectedPlys[ply] = true
+		lofs.SendTable(ply)
+		net.SendPacket("CONNECT", ply)
+	end, function()
+		net.writeTable(Parametters)
+		if (not(CurScreen == "logon")) then
+			net.writeString(CurScreen)
+		else
+			net.writeString("NULL")
+		end
+	end, true)
+	net.RegPacket(10, "DISCONNECT", function(ply)
+		ConnectedPlys[ply] = nil
+	end, nil, true)
+	function net.Broadcast(msgid, ...)
+		local args = {...}
+		for k, v in pairs(ConnectedPlys) do
+			if (v) then net.SendPacket(msgid, k, unpack(args)) end
+		end
+	end
+end

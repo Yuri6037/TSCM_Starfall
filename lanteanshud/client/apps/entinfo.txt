@@ -1,0 +1,34 @@
+--@name SFEntityDetector (CLIENT)
+--@author Yuri6037
+
+local CurEnt = nil
+local CurEntName = nil
+local CurEntAuthor = nil
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {},
+	Render = function()
+		if (IsValid(CurEnt)) then
+			GUI.GradiantRect(ScrW / 2 - 512, ScrH / 2 - 64, 1024, 128, COLOR(0, 0, 0))
+			local w, h = GUI.TextSize(CurEnt:class(), SmallFont)
+			GUI.Text(CurEnt:class(), ScrW / 2 - w / 2, ScrH / 2 - h / 2, SmallFont, COLOR(255, 255, 255))
+			if (CurEnt:class() == "starfall_emitter" or CurEnt:class() == "starfall_hud" or CurEnt:class() == "starfall_screen") then
+				local txt = "'" .. starfall.getName(CurEnt) .. "', by '" .. starfall.getAuthor(CurEnt) .. "'"
+				local w, h = GUI.TextSize(txt, SmallFont)
+				GUI.Text(txt, ScrW / 2 - w / 2, ScrH / 2 - h / 2 + 32, SmallFont, COLOR(255, 255, 255))
+			elseif (CurEnt:class() == "starfall_processor") then
+				local txt = "'" .. CurEntName .. "', by '" .. CurEntAuthor .. "'"
+				local w, h = GUI.TextSize(txt, SmallFont)
+				GUI.Text(txt, ScrW / 2 - w / 2, ScrH / 2 - h / 2 + 32, SmallFont, COLOR(255, 255, 255))
+			end
+		end
+	end,
+	OnDataReceived = function(data)
+		CurEnt = data.Entity
+		CurEntName = data.EntityName
+		CurEntAuthor = data.EntityAuthor
+	end
+}
+
+HUD.DefineApp("EntityInfo", app, true)

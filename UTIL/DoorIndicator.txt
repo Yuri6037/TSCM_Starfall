@@ -1,0 +1,375 @@
+--@name DoorIndicator
+--@author Yuri6037
+--@class emitter
+--@autoupdate
+--@shared
+
+--@requiresv lanai/processor/api/lanai_api.txt
+--@requiresv lanai/constants.txt
+--@requirecl UTIL/EmitterCursorPos.txt
+
+local function StartNet(func, ply)
+	if (net.start(ents.self(), false)) then
+		func()
+	else
+		return
+	end
+
+	if (CLIENT) then
+		net.sendToServer()
+	elseif (IsValid(ply)) then
+		net.send(ply)
+	else
+		net.broadcast()
+	end
+end
+
+local function ReplicateInner(ent, inner)
+	ent:setMaterial(inner:material())
+	ent:setColor(inner:color())
+	for k, v in pairs(inner:getMaterials()) do
+		ent:setSubMaterial(k - 1, inner:getSubMaterial(k - 1))
+		ent:setSubMaterialColor(k - 1, inner:getSubMaterialColor(k - 1))
+	end
+end
+
+local self = ents.self()
+local Text = ""
+local AllowLock = true
+if (SERVER) then
+	if (globaltables.player.LanAI_DI == nil) then globaltables.player.LanAI_DI = {} end
+	LanAI:IntegratePermissions()
+	ents.self():setColor(Color(0, 0, 0, 0))
+
+	--Door System
+	local Door = nil
+	local Ineer = nil
+	local CurLock = 0
+	local NeededRank = 0
+	local Prop = nil
+	local Timing = 1
+	local function CreateProp()
+		if (IsValid(globaltables.player.LanAI_DI[Door:entity():index()])) then
+			Prop = globaltables.player.LanAI_DI[Door:entity():index()]
+		end
+		if (Door == nil) then return end
+		if (IsValid(Prop)) then return end
+		if (not(IsValid(Inner))) then
+			timer.create("DoorIndicator_SBEPDoorHacker", 1, 0, function()
+				Inner = Door:entity():getDoors()[1]
+				if (IsValid(Inner)) then
+					timer.remove("DoorIndicator_SBEPDoorHacker")
+					CreateProp()
+				end
+			end)
+			return
+		end
+		Prop = props.create(Inner:model(), Door:entity():pos(), Door:entity():ang(), true)
+		if (not(IsValid(Prop))) then
+			timer.create("DoorIndicator_BypassPropsCreateBug", 1, 1, CreateProp)
+			return
+		end
+		ReplicateInner(Prop, Inner)
+		Prop:setParent(Door:entity())
+		globaltables.player.LanAI_DI[Door:entity():index()] = Prop
+	end
+	local function DestroyProp()
+		if (IsValid(globaltables.player.LanAI_DI[Door:entity():index()])) then
+			Prop = globaltables.player.LanAI_DI[Door:entity():index()]
+		end
+		if (Door == nil) then return end
+		if (not(IsValid(Prop))) then return end
+		Prop:remove()
+		globaltables.player.LanAI_DI[Door:entity():index()] = nil
+	end
+	wire.createInputs({"Door", "Name", "Rank", "AllowLock"}, {"Wirelink", "String", "Normal", "Normal"})
+	wire.createOutputs({"Crew Guest", "Authorized", "Officer", "DisableLockValue", "Name", "Door"}, {"Normal", "Normal", "Normal", "Normal", "String", "Entity"})
+	wire.ports["Crew Guest"] = RANK_CREWGUEST
+	wire.ports["Authorized"] = RANK_AUTHORIZED
+	wire.ports["Officer"] = RANK_OFFICER
+	wire.ports["DisableLockValue"] = 1
+
+	--Load from paste/spawn
+	if (not(wire.ports["Door"] == nil)) then
+		Door = wire.ports["Door"]
+		Door["Disable Use"] = 1
+		wire.ports["Door"] = Door:entity()
+		local inner = Door:entity():getDoors()[1]
+		if (IsValid(inner)) then
+			Inner = inner
+		end
+		CreateProp()
+		Timing = DoorTimingMap[Door:entity():model()] or DoorTimingMap.Default
+	end
+	if (not(wire.ports["Name"] == nil)) then
+		Text = wire.ports["Name"]
+		wire.ports["Name"] = Text
+	end
+	if (not(wire.ports["AllowLock"] == nil)) then
+		if (wire.ports["AllowLock"] == 0) then
+			AllowLock = true
+		elseif (wire.ports["AllowLock"] == 1) then
+			AllowLock = false
+		end
+	end
+	if (not(wire.ports["Rank"] == nil)) then
+		NeededRank = wire.ports["Rank"]
+		print(NeededRank)
+	end
+	--End
+
+	hook("PreEntityCopy", "DoorIndicator_Save", function(data)
+		if (not(Door == nil)) then
+			data.Door = Door:entity():index()
+		end
+		if (IsValid(Prop)) then
+			data.Prop = Prop:index()
+		end
+	end)
+
+	hook("PostEntityPaste", "DoorIndicator_Load", function(data, tbl)
+		local idx = data.Door
+		local idx1 = data.Prop
+		if (not(tbl[idx] == nil) and tbl[idx]:isValid()) then
+			Door = tbl[idx]:getWirelink()
+			timer.create("DoorIndicator_LoadResolver", 1, 1, function()
+				Door["Disable Use"] = 1
+				Inner = Door:entity():getDoors()[1]
+			end)
+		end
+		if (not(tbl[idx1] == nil) and tbl[idx1]:isValid()) then
+			if (IsValid(Prop)) then
+				tbl[idx1]:remove()
+				return
+			end
+			Prop = tbl[idx1]
+			globaltables.player.LanAI_DI[Door:entity():index()] = Prop
+		end
+	end)
+
+	hook("input", "Wire_Interface_Changed", function(iwire, var)
+		if (iwire == "Door") then
+			Door = var
+			wire.ports["Door"] = nil
+			if (not(Door == nil)) then
+				Door["Disable Use"] = 1
+				wire.ports["Door"] = Door:entity()
+				local inner = Door:entity():getDoors()[1]
+				if (IsValid(inner)) then
+					Inner = inner
+				end
+				CreateProp()
+				Timing = DoorTimingMap[Door:entity():model()] or DoorTimingMap.Default
+			end
+		elseif (iwire == "Name") then
+			Text = var
+			wire.ports["Name"] = Text
+			StartNet(function()
+				net.writeString("D")
+				net.writeString(Text)
+			end)
+		elseif (iwire == "AllowLock") then
+			if (var == 0) then
+				AllowLock = true
+			elseif (var == 1) then
+				AllowLock = false
+			end
+			StartNet(function()
+				net.writeString("AL")
+				net.writeBool(AllowLock)
+			end)
+		elseif (iwire == "Rank") then
+			if (var == nil) then NeededRank = -1 return end
+			if (var < 0) then NeededRank = -1 return end
+			if (var > 2) then NeededRank = -1 return end
+			NeededRank = var
+		end
+	end)
+	timer.create("Wirelink_Updater", 1, 0, function()
+		if (not(Door == nil)) then
+			if (not(CurLock == Door["Locked_1"])) then
+				CurLock = Door["Locked_1"]
+				if (CurLock == 0) then
+					StartNet(function()
+						net.writeString("L")
+						net.writeBool(false)
+					end)
+				elseif (CurLock == 1) then
+					StartNet(function()
+						net.writeString("L")
+						net.writeBool(true)
+					end)
+				end
+			end
+		end
+	end)
+
+	hook("net", "DoorIndicator_Receive", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "B") then
+			StartNet(function()
+				net.writeString("B")
+				net.writeString(Text)
+				net.writeBool(AllowLock)
+			end, ply)
+		elseif (cmd == "O") then
+			if (not(Door == nil)) then
+				if (timer.exists("Door_AutoClose")) then
+					timer.remove("Door_AutoClose")
+					Door["Open_1"] = 0
+					return
+				end
+				print(NeededRank)
+				print(rnk)
+				if (NeededRank > 0) then
+					local rnk = LanAI:GetRank(ply)
+					if (rnk < NeededRank) then
+						LanAI:SayToGuest(ply, "You don't have enough permissions.")
+						return
+					end
+				end
+				Door["Open_1"] = 1
+				DestroyProp()
+				timer.create("Door_AutoClose", 3, 1, function()
+					Door["Open_1"] = 0
+					timer.create("Door_AutoRelock", Timing, 1, CreateProp)
+				end)
+			end
+		elseif (cmd == "L") then
+			if (not(Door == nil)) then
+				if (Door["Locked_1"] == 1) then
+					Door["Lock_1"] = 0
+				elseif (Door["Locked_1"] == 0) then
+					Door["Lock_1"] = 1
+				end
+			end
+		end
+	end)
+elseif (CLIENT) then
+	starfall.showOverlay(false)
+
+	local Locked = false
+
+	local CurSize = 0
+	local CurX, CurY = 0, 0
+
+	StartNet(function()
+		net.writeString("B")
+	end)
+
+	local Scale = 0.2
+
+	local fnt = render.createFont("Arial Black", 24, 900, true, false, false, false, false)
+
+	hook("net", "DoorIndicator_Receive", function(len, ply)
+		local cmd = net.readString()
+		if (cmd == "D") then
+			Text = net.readString()
+		elseif (cmd == "AL") then
+			AllowLock = net.readBool()
+		elseif (cmd == "B") then
+			Text = net.readString()
+			AllowLock = net.readBool()
+		elseif (cmd == "L") then
+			Locked = net.readBool()
+		end
+	end)
+
+	hook("render", "DoorIndicator_Renderer", function()
+		if (ents.player():pos():DistToSqr(ents.self():pos()) > 30000) then return end
+
+		local size,_ = render.getTextSize(fnt, Text)
+		size = size + 10
+
+		CurSize = size
+
+		local p = self:obbCenter()
+		p:Add(Vector(-16 * Scale, -(size / 2) * Scale, 5))
+		p = self:localToWorld(p)
+		local a = self:getAngles()
+		a:RotateAroundAxis(a:Up(), 90)
+
+		render.start3D2D(p, a, Scale)
+			CurX, CurY = util.MousePos3D2D(p, a, Scale)
+			render.setColor(0, 0, 0, 128)
+			if (not(Text == nil) and not(Text == "")) then
+				render.drawRect(0, 0, size, 32)
+			end
+			render.drawRect(size / 2 - 16, 32, 32, 16)
+
+			--Buttons
+			if (AllowLock) then --Wire allows to lock the door so draw two buttons
+				--Open/Close
+				render.setColor(0, 0, 255, 128)
+				if (CurX >= size / 2 - 14 and CurX <= (size / 2 - 14) + 12) then
+					if (CurY >= 34 and CurY <= 34 + 12) then
+						if (ents.player():keyDown(input.IN_USE)) then
+							render.setColor(0, 255, 255, 128)
+						end
+					end
+				end
+				render.drawRect(size / 2 - 14, 34, 12, 12)
+				--Lock
+				if (Locked) then
+					render.setColor(255, 0, 0, 128)
+				else
+					render.setColor(100, 0, 0, 128)
+				end
+				render.drawRect(size / 2 + 2, 34, 12, 12)
+			else --Wire disallows to lock the door so draw one button instead
+				--Open/Close
+				if (Locked) then
+				    render.setColor(255, 0, 0, 128)
+				else
+                    render.setColor(0, 0, 255, 128)
+                    if (CurX >= size / 2 - 14 and CurX <= (size / 2 - 14) + 28) then
+                        if (CurY >= 34 and CurY <= 34 + 12) then
+                            if (ents.player():keyDown(input.IN_USE)) then
+                                render.setColor(0, 255, 255, 128)
+                            end
+                        end
+                    end
+				end
+				render.drawRect(size / 2 - 14, 34, 28, 12)
+			end
+
+			if (not(Text == nil) and not(Text == "")) then
+				render.setColor(255, 255, 255)
+				render.drawText(fnt, size / 2, 2, Text, render.TEXT_ALIGN_CENTER)
+			end
+		render.end3D2D()
+	end)
+
+	hook("playerbindpress", "DoorIndicator_Buttons", function(ply, bind, pressed)
+		if (ents.player():pos():DistToSqr(ents.self():pos()) > 30000) then return end
+		if (not(bind == "+use")) then return end
+
+		local x = CurX
+		local y = CurY
+
+		if (AllowLock) then --Check for the two buttons
+			if (x >= CurSize / 2 + 2 and x <= (CurSize / 2 + 2) + 12) then
+				if (y >= 34 and y <= 34 + 12) then
+					StartNet(function()
+						net.writeString("L")
+					end)
+				end
+			end
+			if (x >= CurSize / 2 - 14 and x <= (CurSize / 2 - 14) + 12) then
+				if (y >= 34 and y <= 34 + 12) then
+					StartNet(function()
+						net.writeString("O")
+					end)
+				end
+			end
+		else --Instead we check just for one button
+			if (x >= CurSize / 2 - 14 and x <= (CurSize / 2 - 14) + 28) then
+				if (y >= 34 and y <= 34 + 12) then
+					StartNet(function()
+						net.writeString("O")
+					end)
+				end
+			end
+		end
+	end)
+end

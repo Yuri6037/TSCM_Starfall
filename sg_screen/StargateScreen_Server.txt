@@ -1,0 +1,278 @@
+--@name StargateScreen_Server
+--@author Yuri6037
+--@class screen
+--@sharedscreen
+--@autoupdate
+
+--Client server lib
+--@include lanai/libs/screen/safe_net.txt
+--@requiresv sg_screen/utility.txt
+--@requiresv lanai/libs/processor/string_lib.txt
+--@requiresv lanai/processor/api/lanai_api.txt
+--Including client script
+--@requirecl sg_screen/client/Main.txt
+
+require("lanai/libs/screen/safe_net.txt")
+
+if (SERVER) then
+	LanAI:IntegratePermissions()
+	Stargate = nil
+	Iris = nil
+	wire.createInputs({"Stargate", "Iris"}, {"Wirelink", "Wirelink"})
+
+	local CurGUI = 0
+
+	TempAddList = {}
+	TempReceived = ""
+
+	SG_ADDRESS_LIST = {}
+	SG_ADDRESS_LIST_DANGER = {}
+
+	--Data structure
+	SG_DATA = {
+		Active = false,
+		VortexOpen = false,
+		VortexStable = true,
+		Incoming = false,
+		DestinationSafe = true,
+		Iris = false,
+		DestinationName = "",
+		DialingSymbol = "",
+		DialingAddress = "",
+		CurrentSymbol = "",
+		SelfName = "",
+		SelfAddress = "",
+		SelfType = -1
+	}
+
+	--Wire Management
+	hook("input", "SG_Wire", function(inp, var)
+		if (inp == "Stargate") then
+			if (not(Stargate == var)) then
+				if (not(Stargate == nil)) then
+					Stargate:removeOutputCallback("SG_CLBK")
+				end
+				Stargate = var
+				if (not(Stargate == nil)) then
+					OnStargateWirelinkChanged()
+				end
+			end
+		end
+		if (inp == "Iris") then
+			if (not(Iris == var)) then
+				if (not(Iris == nil)) then
+					Iris:removeOutputCallback("SG_CLBK")
+				end
+				Iris = var
+				if (not(Iris == nil)) then
+					OnIrisWirelinkChanged()
+				end
+			end
+		end
+	end)
+	function WireToLuaBool(var)
+		if (var == 0) then return false end
+		if (var == 1) then return true end
+		return false
+	end
+	function OnStargateWirelinkChanged()
+		stargate.setLocal(Stargate:entity(), false)
+		local g = Stargate:entity():class()
+		if (g == "stargate_universe") then
+			SG_DATA.SelfType = 1
+		elseif (g == "stargate_atlantis") then
+			SG_DATA.SelfType = 0
+		elseif (g == "stargate_sg1") then
+			SG_DATA.SelfType = 2
+		end
+		StartNet(function()
+			net.writeInt(6, 4, true)
+			net.writeInt(SG_DATA.SelfType, 4, true)
+		end)
+
+		SG_DATA.Active = WireToLuaBool(Stargate["Active"])
+		SG_DATA.VortexOpen = WireToLuaBool(Stargate["Open"])
+		SG_DATA.DialingAddress = Stargate["Dialing Address"]
+		SG_DATA.DialingSymbol = Stargate["Dialing Symbol"]
+		SG_DATA.Incoming = WireToLuaBool(Stargate["Inbound"])
+		SG_DATA.CurrentSymbol = Stargate["Ring Symbol"]
+		if (SG_DATA.CurrentSymbol == nil) then
+			SG_DATA.CurrentSymbol = ""
+		end
+		if (SG_DATA.VortexOpen) then
+			if (table.HasValue(SG_ADDRESS_LIST_DANGER, SG_DATA.DialingAddress)) then
+				SG_DATA.DestinationSafe = false
+			end
+			local name = stargate.name(stargate.target(Stargate:entity()))
+			SG_DATA.DestinationName = name
+		end
+
+		Stargate:addOutputCallback("SG_CLBK", function(w, out, var)
+			if (out == "Active") then
+				SG_DATA.Active = WireToLuaBool(var)
+			elseif (out == "Open") then
+				SG_DATA.VortexOpen = WireToLuaBool(var)
+				if (var == 1) then
+					if (table.HasValue(SG_ADDRESS_LIST_DANGER, SG_DATA.DialingAddress)) then
+						SG_DATA.DestinationSafe = false
+					end
+					local name = stargate.name(stargate.target(Stargate:entity()))
+					SG_DATA.DestinationName = name
+
+					if (SG_DATA.Incoming) then
+						if (Iris["Activated"] == 0) then
+							Iris["Activate"] = 1
+						end
+						Stargate["Transmit"] = "YURI_SG_SCR"
+					end
+				end
+			elseif (out == "Dialing Address") then
+				SG_DATA.DialingAddress = var
+			elseif (out == "Dialing Symbol") then
+				SG_DATA.DialingSymbol = var
+			elseif (out == "Inbound") then
+				SG_DATA.Incoming = WireToLuaBool(var)
+				if (var == 0) then
+					Stargate["Transmit"] = ""
+				else
+					Stargate["Transmit"] = "YURI_SG_SCR"
+				end
+			elseif (out == "Ring Symbol") then
+				if (var == nil) then var = "" end
+				SG_DATA.CurrentSymbol = var
+			end
+			StartNet(function()
+				net.writeInt(0, 4, true)
+				net.writeTable(SG_DATA)
+			end)
+		end)
+	end
+	function OnIrisWirelinkChanged()
+		SG_DATA.Iris = WireToLuaBool(Iris["Activated"])
+
+		Iris:addOutputCallback("SG_CLBK", function(w, out, var)
+			if (out == "Activated") then
+				SG_DATA.Iris = WireToLuaBool(var)
+			end
+			StartNet(function()
+				net.writeInt(0, 4, true)
+				net.writeTable(SG_DATA)
+			end)
+		end)
+	end
+	--End
+
+	--Startup
+	if (not(wire.ports["Stargate"] == nil)) then
+		Stargate = wire.ports["Stargate"]
+		OnStargateWirelinkChanged()
+	end
+	if (not(wire.ports["Iris"] == nil)) then
+		Iris = wire.ports["Iris"]
+		OnIrisWirelinkChanged()
+	end
+	--End
+
+	timer.create("SG_Timer", 1.5, 0, function()
+		if (Stargate == nil) then return end
+
+		if (not(stargate.address(Stargate:entity()) == SG_DATA.SelfAddress)) then
+			SG_DATA.SelfAddress = stargate.address(Stargate:entity())
+			StartNet(function()
+				net.writeInt(2, 4, true)
+				net.writeString(SG_DATA.SelfAddress)
+			end)
+		end
+		if (not(stargate.name(Stargate:entity()) == SG_DATA.SelfName)) then
+			SG_DATA.SelfName = stargate.name(Stargate:entity())
+			StartNet(function()
+				net.writeInt(3, 4, true)
+				net.writeString(SG_DATA.SelfName)
+			end)
+		end
+		local lst = stargate.addressList(Stargate:entity())
+		if (not(#lst == #TempAddList)) then
+			TempAddList = lst
+			SG_ADDRESS_LIST = pirateStargateAddressList(TempAddList)
+			StartNet(function()
+				net.writeInt(4, 4, true)
+				net.writeTable(SG_ADDRESS_LIST)
+			end)
+		end
+
+		if (SG_DATA.VortexOpen and SG_DATA.Incoming and not(TempReceived == Stargate["Received"])) then --Check for authentification
+			TempReceived = Stargate["Received"]
+			TryAuthentifyPlayer(TempReceived)
+		end
+
+		if (SG_DATA.Incoming) then --Hack : force transmit every 1.5 seconds the code to force the gate
+			Stargate["Transmit"] = "YURI_SG_SCR"
+		end
+	end)
+
+	hook("net", "SG_Net_SV", function(len, ply)
+		if (Stargate == nil) then return end
+
+		local cmd = net.readInt(4, true)
+		if (cmd == 0) then
+			StartNet(function()
+				net.writeInt(1, 4, true)
+				net.writeTable(SG_DATA)
+				net.writeInt(SG_DATA.SelfType, 4, true)
+				net.writeString(SG_DATA.SelfAddress)
+				net.writeString(SG_DATA.SelfName)
+			end, ply)
+		elseif (cmd == 1) then
+			if (LanAI:GetRank(ply) < 1) then
+				LanAI:SayToGuest(ply, "You do not have enough permissions to do that !")
+				return
+			end
+			if (CurGUI == 0) then return end
+			CurGUI = 0
+			StartNet(function()
+				net.writeInt(5, 4, true)
+				net.writeInt(CurGUI, 4, true)
+			end)
+		elseif (cmd == 2) then
+			if (LanAI:GetRank(ply) < 1) then
+				LanAI:SayToGuest(ply, "You do not have enough permissions to do that !")
+				return
+			end
+			if (CurGUI == 1) then return end
+			CurGUI = 1
+			StartNet(function()
+				net.writeInt(5, 4, true)
+				net.writeInt(CurGUI, 4, true)
+			end)
+		elseif (cmd == 3) then
+			if (LanAI:GetRank(ply) < 1) then
+				LanAI:SayToGuest(ply, "You do not have enough permissions to do that !")
+				return
+			end
+			Stargate["Close"] = 1
+		elseif (cmd == 4) then
+			if (Iris == nil) then return end
+			if (LanAI:GetRank(ply) < 1) then
+				LanAI:SayToGuest(ply, "You do not have enough permissions to do that !")
+				return
+			end
+			if (Iris["Activated"] == 1) then
+				Iris["Activate"] = 0
+			elseif (Iris["Activated"] == 0) then
+				Iris["Activate"] = 1
+			end
+		elseif (cmd == 5) then
+			if (LanAI:GetRank(ply) < 1) then
+				LanAI:SayToGuest(ply, "You do not have enough permissions to do that !")
+				return
+			end
+			local add = net.readString()
+			stargate.dial(Stargate:entity(), add, 1)
+			CurGUI = 0
+			StartNet(function()
+				net.writeInt(5, 4, true)
+				net.writeInt(CurGUI, 4, true)
+			end)
+		end
+	end)
+end

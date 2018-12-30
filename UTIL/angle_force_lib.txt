@@ -1,0 +1,34 @@
+--@name AngleForceLib_E2
+--@author Yuri6037
+
+function ApplyAngleForce(ent, angForce)
+	if (angForce[1] == 0 and angForce[2] == 0 and angForce[3] == 0) then return end
+
+	local phys = ent:getPhysicsObject()
+
+	-- assign vectors
+	local up = ent:up()
+	local left = ent:right() * -1
+	local forward = ent:forward()
+
+	-- apply pitch force
+	if (not(angForce[1] == 0)) then
+		local pitch = up * (angForce[1] * 0.5)
+		phys:applyForceOffset(forward, pitch)
+		phys:applyForceOffset(forward * -1, pitch * -1)
+	end
+
+	-- apply yaw force
+	if (not(angForce[2] == 0)) then
+		local yaw = forward * (angForce[2] * 0.5)
+		phys:applyForceOffset(left, yaw)
+		phys:applyForceOffset(left * -1, yaw * -1)
+	end
+
+	-- apply roll force
+	if (not(angForce[3] == 0)) then
+		local roll  = left * (angForce[3] * 0.5)
+		phys:applyForceOffset(up, roll)
+		phys:applyForceOffset(up * -1, roll * -1)
+	end
+end

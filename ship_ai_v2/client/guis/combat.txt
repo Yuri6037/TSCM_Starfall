@@ -1,0 +1,93 @@
+--@name CombatGui
+--@author Yuri6037
+
+function RenderCombatGUI(x, y)
+	gl.glBindColor(0, 0, 0)
+	--Unfilled rects
+	gl.glUnfilledRect(x + 20, y + 20, 450, 230, 8)
+	gl.glUnfilledRect(x + 515, y + 20, 450, 230, 8)
+
+	--Our stats
+	gl.glBindColor(255, 0, 0)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("Our Ship", x + 300, y + 40)
+	--Health
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRect(x + 64, y + 40, 32, 170)
+	gl.glBindColor(255, 0, 0)
+	if (not(Net.Health == nil)) then
+		local num = (Net.Health * 170) / 100
+		gl.glRect(x + 64, y + 40, 32, num)
+	end
+	gl.glText("Health", x + 40,  y + 210)
+	--Shields
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRect(x + 190, y + 40, 32, 170)
+	gl.glBindColor(0, 64, 255)
+	if (not(Net.ShieldCharge == nil)) then
+		local num = (Net.ShieldCharge * 170) / 100
+		gl.glRect(x + 190, y + 40, 32, num)
+	end
+	gl.glText("Shields", x + 160,  y + 210)
+	--Plating
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRect(x + 316, y + 90, 32, 120)
+	gl.glBindColor(255, 255, 0)
+	if (not(Net.Plating == nil)) then
+		local num = (Net.Plating * 120) / 100
+		gl.glRect(x + 316, y + 90, 32, num)
+	end
+	gl.glText("Plating", x + 286,  y + 210)
+
+	--Target stats
+	gl.glBindColor(0, 0, 0)
+	gl.glBindFont(Screen.StandardFont)
+	local str = ""
+	if (Net.TType == -1) then
+		str = "NULL"
+	elseif (Net.TType == 0) then
+		str = "Player"
+	elseif (Net.TType == 1) then
+		str = "Ship"
+	end
+	gl.glBindColor(255, 0, 0)
+	gl.glText("Target", x + 570, y + 40)
+	gl.glBindColor(0, 0, 0)
+	if (not(Net.TName == nil)) then
+		gl.glText("Name : " .. Net.TName, x + 540, y + 80)
+	end
+	gl.glText("Type : " .. str, x + 540, y + 110)
+	if (not(Net.TDist == nil)) then
+		gl.glText("Dist : " .. Net.TDist, x + 540, y + 140)
+	end
+	if (not(Net.TShields == nil)) then
+		gl.glText("Shields : " .. Net.TShields, x + 540, y + 140)
+	end
+	--Health
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRect(x + 780, y + 40, 32, 170)
+	gl.glBindColor(255, 0, 0)
+	if (not(Net.THealth == nil)) then
+		local num = (Net.THealth * 170) / 100
+		gl.glRect(x + 780, y + 40, 32, num)
+	end
+	gl.glText("Health", x + 750,  y + 210)
+	--Shields
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRect(x + 880, y + 40, 32, 170)
+	gl.glBindColor(0, 64, 255)
+	if (not(Net.TShieldCharge == nil)) then
+		local num = (Net.TShieldCharge * 170) / 100
+		gl.glRect(x + 880, y + 40, 32, num)
+	end
+	gl.glText("Shields", x + 850,  y + 210)
+	--Plating
+	gl.glBindColor(255, 255, 255, 128)
+	gl.glRect(x + 680, y + 90, 32, 120)
+	gl.glBindColor(255, 255, 0)
+	if (not(Net.TPlating == nil)) then
+		local num = (Net.TPlating * 120) / 100
+		gl.glRect(x + 680, y + 90, 32, num)
+	end
+	gl.glText("Plating", x + 650,  y + 210)
+end

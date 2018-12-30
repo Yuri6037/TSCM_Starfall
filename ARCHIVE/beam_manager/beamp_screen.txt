@@ -1,0 +1,76 @@
+--@name PlayerBeam Screen
+--@author Yuri6037
+
+local toBeam = ""
+
+local pbeam = {}
+pbeam.Name = "PBeam"
+local id = render.getTextureID("phoenix_storms/wire/pcb_green")
+function pbeam:OnRender()
+	render.setColor(117, 209, 255)
+	gl.glBindTexture(id)
+	gl.glRect(0, 0, 512, 512)
+
+	gl.glBindColor(0, 0, 255)
+	gl.glRect(0, 0, 512, 8)
+	gl.glRect(0, 0, 8, 512)
+	gl.glRect(0, 504, 512, 8)
+	gl.glRect(504, 0, 8, 512)
+
+	gl.glBindColor(255, 255, 0)
+	gl.glBindFont(Screen.TitleFont)
+	local w = gl.glTextWidth("PlyBeam")
+	gl.glText("PlyBeam", 256 - w / 2, 0)
+
+	gl.glBindFont(Screen.StandardFont)
+
+	--Render cpu info
+	local p = (cpuAverage() / cpuMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("CPU : " .. math.floor(p) .. "%", 10, 470)
+
+	--Render ops info
+	local p = (opsUsed() / opsMax()) * 100.2
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("OPS : " .. math.floor(p) .. "%", 380, 470)
+
+	--Render floor info
+	local p = "Made by Yuri6037"
+
+	gl.glBindFont(Screen.StandardFont)
+	local s = gl.glTextWidth(p)
+	gl.glBindColor(0, 255, 0)
+	gl.glText(p, 256 - s / 2, 470)
+end
+function pbeam:OnShow()
+	toBeam = ""
+
+	Screen:AddControl("Button", 236, 440, 256, 32, {Text = "Beam", Func = function()
+		StartNet(function()
+			net.writeString("PLY_BEAM")
+			net.writeString(toBeam)
+		end)
+	end})
+
+	Screen:AddControl("Button", 10, 440, 256, 32, {Text = "Cancel", Func = function()
+		StartNet(function()
+			net.writeString("RETURN")
+		end)
+	end})
+
+	local names = {}
+	for k, v in pairs(find.allPlayers()) do
+		table.insert(names, v:name())
+	end
+	Screen:AddControl("ListBox", 20, 130, 472, 256, {Data = names, OnSelect = function(key, value)
+		toBeam = value
+	end})
+end
+function pbeam:OnExit()
+end
+function pbeam:OnTouched(mouseX, mouseY)
+end
+
+Screen:Register(pbeam)

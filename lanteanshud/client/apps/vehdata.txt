@@ -1,0 +1,30 @@
+--@name VehicleDataApp (CLIENT)
+--@author Yuri6037
+
+local VName = nil
+local VEnergy = 0
+
+local app = {
+	HasNetwork = true,
+	OverrideList = {},
+	Render = function()
+		if (LocalPlayer:inVehicle()) then
+			GUI.ColoredRect(ScrW / 2 - 16, ScrH / 2, 32, 2, COLOR(255, 255, 255))
+			GUI.ColoredRect(ScrW / 2, ScrH / 2 - 16, 2, 32, COLOR(255, 255, 255))
+
+			if (not(VName == nil)) then
+				GUI.GradiantRect(ScrW / 2 - 256, 10, 512, 32, COLOR(0, 0, 0))
+				GUI.GradiantRect(ScrW / 2 - 256, 10, VEnergy / 100 * 512, 32, COLOR(255, 128, 0))
+
+				local w = GUI.TextSize(VName, SmallFont)
+				GUI.Text(VName, ScrW / 2 - w / 2, 16, SmallFont, COLOR(255, 255, 255))
+			end
+		end
+	end,
+	OnDataReceived = function(data)
+		VName = data.Name
+		VEnergy = data.Energy
+	end
+}
+
+HUD.DefineApp("VehicleData", app, true)

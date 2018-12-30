@@ -1,0 +1,31 @@
+--@name Monitor1_StatusGui
+--@author Yuri6037
+
+local gui = {}
+
+function gui.Render(x, y)
+	if (not(Net.Oxygen == nil) and not(Net.CO2 == nil) and not(Net.Gravity == nil) and not(Net.Temperature == nil)) then
+		gl.glBindColor(255, 255, 255)
+		gl.glText("Interior Oxygen : " .. Net.Oxygen .. "%", 20, 50)
+		gl.glText("Interior CO2 : " .. Net.CO2 .. "%", 20, 100)
+		gl.glText("Interior Gravity : " .. Net.Gravity .. "%", 20, 150)
+		gl.glText("Interior Temperature : " .. Net.Temperature .. "°C", 20, 200)
+
+		if (Net.Gravity >= 70 and Net.Oxygen >= 16 and Net.Temperature >=0 and Net.Temperature <= 40) then
+			gl.glBindColor(0, 255, 0)
+			gl.glText("Interior is pressurized.", 20, 300)
+		else
+			gl.glBindColor(255, 0, 0)
+			gl.glText("Interior is depressurized.", 20, 300)
+		end
+	else
+		gl.glBindColor(255, 0, 0)
+		local w = gl.glTextWidth("LifeSupport Core is disconnected !")
+		gl.glText("LifeSupport Core is disconnected !", 256 - w / 2, 256)
+	end
+end
+
+function gui.CheckInputs(x, y)
+end
+
+RegisterSecondaryGUI(0, gui)

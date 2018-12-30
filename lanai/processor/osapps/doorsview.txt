@@ -1,0 +1,6 @@
+--@name DoorsViewAppUpdater
+--@author Yuri6037
+
+DefineOSApp("doorsview", nil, function()
+	TasksData[CurApp] = Ship.Doors.CommonList
+end)

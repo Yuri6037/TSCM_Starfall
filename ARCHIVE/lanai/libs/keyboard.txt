@@ -1,0 +1,20 @@
+--@name ScreenEngine_KeyboardLib
+--@author Yuri6037
+
+local Layout = {"Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "!", "?"}
+
+--Returns the current pressed char on the virtual keyboard
+function Screen:RenderKeyboard(x, y)
+	local row = 0
+	local col = 0
+	gl.glBindFont(Screen.StandardFont)
+	gl.glBindColor(255, 255, 255)
+	for k, v in pairs(Layout) do
+		gl.glRect(col * 64 + x, row * 64 + y, 64, 64)
+		col = col + 1
+		if (col > 10) then
+			row = row + 1
+			col = 0
+		end
+	end
+end

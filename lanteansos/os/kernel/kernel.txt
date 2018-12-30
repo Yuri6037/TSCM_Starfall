@@ -1,0 +1,357 @@
+--@name Lanteans OS Kernel
+--@author Yuri6037
+
+KERNEL_EXTS = {
+	"multiplatform",
+	"mouse",
+	"time",
+	"extendedapp",
+	"config",
+	"sound",
+	"messages",
+	"dialogs",
+	"appmenu",
+	"customization",
+	"sf_screen",
+	"sf_emitter",
+	"sf_hud"
+}
+
+Parametters = {}
+
+if (CLIENT) then
+    USING_GL = 1
+
+	--Begin client base library
+	ScrW = 0
+	ScrH = 0
+	local OldGUI = GUI
+	local OldGL = gl
+	gl = nil
+
+	--Screen handling
+	local ScreenRegistry = {}
+
+	--Apps
+	local Apps = {}
+	local UninstallProcs = {}
+
+	local KernelVars = {CurScreen = nil, CurScreenID = nil, Self = ents.self(), Player = ents.player(), KillRender = false, IsOnScr = false}
+
+	AppCount = 0
+	OS = {}
+	function OS.GetKernelVars()
+		return KernelVars
+	end
+	function OS.Reboot()
+		for k, v in pairs(Windows) do
+			OS.CloseApp(v.Handle)
+		end
+		AppCount = 0
+		CurScreen = nil
+		CurMsg = nil
+		Windows = {}
+		OS.SwitchScreen("boot")
+	end
+	function OS.AppList()
+		local lst = {}
+		for k, v in pairs(Apps) do
+			table.insert(lst, k)
+		end
+		return lst
+	end
+    function OS.EnableGL()
+		if (OS.IsOnDesktop()) then return end
+		GUI = nil
+		gl = OldGL
+		local FntName, FntSize = OS.GetFontSettings()
+		StandardFont = gl.glGenFonts(FntName, true, FntSize[3])
+		SmallFont = gl.glGenFonts(FntName, true, FntSize[1])
+		LargeFont = gl.glGenFonts(FntName, true, FntSize[2])
+    end
+    function OS.DisableGL()
+		GUI = OldGUI
+		gl = nil
+		local FntName, FntSize = OS.GetFontSettings()
+        StandardFont = GUI.Font(FntName, FntSize[3], true)
+        SmallFont = GUI.Font(FntName, FntSize[1], true)
+        LargeFont = GUI.Font(FntName, FntSize[2], true)
+    end
+	function OS.ValidHandle(hdl)
+		return not(hdl == nil) and not(Windows[hdl] == nil)
+	end
+	function OS.IsOnDesktop()
+		return KernelVars.CurScreenID == "main" or KernelVars.CurScreenID == "sleep"
+	end
+	function OS.SwitchScreen(id)
+		if (not(KernelVars.CurScreen == nil) and not(KernelVars.CurScreen.Close == nil)) then KernelVars.CurScreen:Close() end
+		if (id == nil) then
+			KernelVars.CurScreen = nil
+			KernelVars.CurScreenID = nil
+			return
+		end
+		KernelVars.CurScreen = ScreenRegistry[id]
+		KernelVars.CurScreenID = id
+		if (not(ScreenRegistry[id][1] == USING_GL) and GUI == nil) then
+			OS.DisableGL()
+		elseif (ScreenRegistry[id][1] == USING_GL) then
+			OS.EnableGL()
+		end
+		if (not(KernelVars.CurScreen.Init == nil)) then KernelVars.CurScreen:Init() end
+	end
+	function OS.DefineScreen(id, tbl)
+		local old = ScreenRegistry[id]
+		ScreenRegistry[id] = tbl
+		return old
+	end
+	--Returns a handle
+	function OS.StartApp(name, args, modal)
+		if (AppCount > 14 or Apps[name] == nil or timer.exists("LanteansOS_DefferedStartApp")) then return -1 end
+		if (OS.ValidHandle(CurWindowHdl) and OS.GetApp(CurWindowHdl).Type == name) then
+			error("Application can not duplicate itself !")
+			return -1
+		end
+		local hdl = #Windows + 1
+		timer.create("LanteansOS_DefferedStartApp", 0.1, 1, function()
+			--Before everything, set up class inheritance
+			local instance = OS.NewApp(name, hdl)
+			if (instance == nil) then return end
+			Windows[hdl] = instance
+			local old = CurWindowHdl
+			CurWindowHdl = hdl
+			instance:Init(args)
+			if (modal) then instance:SetModal(old) end
+			AppCount = AppCount + 1
+			if (gl == nil and KernelVars.CurScreenID == "main") then DWMWinAdded(hdl) end
+			--End
+			if (instance.Crashed) then return end --No need to fire window add event if the app crashed in it's initialization state
+		end)
+		return hdl
+	end
+	function OS.NewApp(name, hdl)
+		if (OS.IsUserApp(name) and not(Blacklist[name] == nil)) then
+			OS.Dialog("msg", "Lanteans OS", nil, "App '" .. name .. "' has been blacklisted due to '" .. Blacklist[name] .. "'")
+			return nil
+		end
+		if (Apps[name] == nil) then
+			error("App '" .. name .. "' does not exist !")
+			return nil
+		end
+		if (hdl == nil) then hdl = -1 end
+		local instance = {}
+		--Before everything, set up class inheritance
+		instance.__index = instance
+		setmetatable(Apps[name], WINAPI)
+		setmetatable(instance, Apps[name])
+		instance:Construct(hdl)
+		instance.Type = name
+		if (hdl == -1) then
+			instance:Init()
+			if (instance.Crashed) then return nil end
+		end
+		--End
+		return instance
+	end
+	function OS.DefineApp(name, tbl, internal)
+		local respawn = false
+		if (not(Apps[name] == nil)) then
+			if (OS.TaskKill(name)) then
+				respawn = true
+			end
+			OS.UndefineApp(name)
+		end
+		Apps[name] = tbl
+		tbl.__index = tbl
+		if (USER_REG) then
+			tbl.IsUserApp = true
+			ImplementCrashHandler(tbl)
+		end
+		if (internal and not(USER_REG)) then tbl.CanUndefine = false else tbl.CanUndefine = true end
+		if (respawn) then OS.StartApp(name) end
+	end
+	function OS.DefineUninstall(name, func)
+		checks("function", func)
+		UninstallProcs[name] = function()
+			local b, err = pcall(func)
+			if (not(b)) then
+				local msg = {}
+				while (string.len(err) > DIALOG_MAX_CHARS) do
+					table.insert(msg, err:sub(0, DIALOG_MAX_CHARS))
+					err = err:sub(DIALOG_MAX_CHARS + 1)
+				end
+				table.insert(msg, err)
+				OS.Dialog("msg", "Sorry, the application '" .. name .. "' has crashed :)", nil, msg)
+			end
+		end
+	end
+	function OS.AppExists(name)
+		return not(Apps[name] == nil)
+	end
+    function OS.IsUserApp(name)
+    	if (Apps[name] == nil) then return false end
+		return Apps[name].IsUserApp
+    end
+    function OS.UndefineApp(name)
+    	if (name == nil) then return end
+    	if (not(Apps[name].CanUndefine)) then
+    		OS.Dialog("msg", "Lanteans OS", nil, "Error : Too dangerous to undefine '" .. name .. "'.")
+    		return false
+    	end
+    	Apps[name] = nil
+    	for k, v in pairs(AppMenu.Content) do --Loop through categories
+    		for k1, v1 in pairs(v.Content) do --Loop through registered menu items
+    			if (v1.ID == name) then table.remove(v.Content, k1) end
+    		end
+    		if (#v.Content <= 0) then
+    			AppMenu.Header[v.Name] = nil
+    			table.remove(AppMenu.Content, k)
+    			AppMenuHeight = AppMenuHeight - 32
+    		end
+    	end
+    	if (not(UninstallProcs[name] == nil)) then
+    		UninstallProcs[name]()
+    	end
+    	return true
+    end
+	--handle is not the name ! handle is a generated index relative to an array size
+	function OS.CloseApp(handle, force)
+		if (OS.ValidHandle(handle)) then
+			local app = OS.GetApp(handle)
+			if (not(force)) then
+				app:OnClose()
+			end
+			app:Destroy()
+			if (app.CurFullScreen) then
+				OS.SwitchScreen("main")
+				util.Log("Kernel", LOG_WARN, "Application ", app.Type, " did not terminate fullscreen properly...")
+			end
+			--[[if (app.NetContext) then
+				net.SendPacket("APP", 1, app.Type)
+				util.Log("Kernel", LOG_WARN, "Application ", app.Type, " did not close LanAI connection properly...")
+			end]]--
+			Windows[handle] = nil
+			AppCount = AppCount - 1
+		end
+	end
+
+	--Start initializing kernel extensions
+	for k, v in pairs(KERNEL_EXTS) do
+		local b, err = pcall(function()
+			require("lanteansos/os/kernel/extensions/" .. v)
+		end)
+		if (not(b)) then
+			error("Kernel panic ! (" .. err .. ")")
+		end
+	end
+	OS.GetKernelVars = nil
+	--End
+
+	--Load Fonts from kernel extension
+	local FntName, FntSize = OS.GetFontSettings()
+	StandardFont = GUI.Font(FntName, FntSize[3], true)
+	LargeFont = GUI.Font(FntName, FntSize[2], true)
+	SmallFont = GUI.Font(FntName, FntSize[1], true)
+
+	timer.create("TimeQuotaErrorBypass", 0.0001, 0, function()
+		local cpu = cpuTime() * 100 / cpuMax()
+		if (cpu > 95 and not(KernelVars.KillRender)) then
+			util.Log("Kernel", LOG_WARN, "High CPU (", cpu, "%)")
+			KernelVars.KillRender = true
+			timer.create("ResumeRender", 2, 1, function()
+				local cpuAv = cpuAverage() * 100 / cpuMax()
+				if (cpuAv > 60 and OS.ValidHandle(CurWindowHdl)) then
+					OS.Dialog("msg", "Lanteans OS", nil, "Current application exceeded allocated CPU time...")
+					OS.CloseApp(CurWindowHdl)
+				end
+				KernelVars.KillRender = false
+			end)
+		end
+	end)
+end
+
+if (SERVER) then
+	DriversLoad = 0
+	Tasks = {}
+
+	function WriteConfig(ply, data)
+		local f, msg = io.open("lanteansos_" .. ply:steamID64() .. ".txt", "wb")
+		if (f == nil) then
+			util.Log("Kernel", LOG_ERR, "Error saving config : ", msg)
+			return
+		end
+		f:write(data)
+		f:close()
+	end
+	function ReadConfig(ply)
+		local f, msg = io.open("lanteansos_" .. ply:steamID64() .. ".txt", "rb")
+		if (f == nil) then
+			util.Log("Kernel", LOG_ERR, "Error loading config : ", msg)
+			return ("")
+		end
+		local vondata = f:read("*a")
+		f:close()
+		return (vondata)
+	end
+
+	CurScreen = "boot"
+	Loading = true
+
+	function SetParameter(name, var)
+		Parametters[name] = var
+		net.Broadcast("PARAM", name, var)
+	end
+
+	SendPacket("RELOAD", "SV")
+	SendPacket("TASK", "ENDALL")
+
+	function GetPlayerRank(ply)
+		if (not(IsValid(ply))) then return -1 end
+		if (ply:steamID64() == "76561198092313070") then return 2 end
+		if (globaltables.global.LanAI == nil or globaltables.global.LanAI.RankBySteamID == nil) then return -1 end
+		local rank = globaltables.global.LanAI.RankBySteamID[ply:steamID64()]
+		if (faction.getFaction(ents.owner()) == faction.getFaction(ply)) then
+			if (rank == nil) then
+				return 1
+			else
+				return rank
+			end
+		end
+		if (rank == nil) then
+			return -1
+		else
+			return rank
+		end
+	end
+
+	local InputsName = {}
+	local InputsType = {}
+
+	function PushDriver(...)
+		local intbl = {...}
+		for k, v in pairs(intbl) do
+			if (k % 2 == 0) then
+				table.insert(InputsType, v)
+			else
+				table.insert(InputsName, v)
+			end
+		end
+		DriversLoad = DriversLoad + 1
+	end
+	function CheckDriversLoad()
+		if (Loading) then return end
+		if (DriversLoad <= 0) then
+			wire.createInputs(InputsName, InputsType)
+			SetParameter("LoadTXT", nil)
+			CurScreen = "logon"
+			net.Broadcast("SCREEN", CurScreen)
+		else
+			SetParameter("LoadTXT", "Initializing drivers...")
+			CurScreen = "boot"
+			net.Broadcast("SCREEN", CurScreen)
+		end
+	end
+	function PopDriver()
+		DriversLoad = DriversLoad - 1
+		CheckDriversLoad()
+	end
+end

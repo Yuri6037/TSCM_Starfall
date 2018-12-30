@@ -1,0 +1,116 @@
+--@name ElevatorEngine
+--@author Yuri6037
+--@autoupdate
+
+local ElevatorSpeed = 29.43
+local MaxFloors = 0
+local ElevatorProps = {}
+local MovingProp = wire.ports["MovingProp"]
+local StartProp = wire.ports["StartProp"]
+local EndProp = wire.ports["EndProp"]
+local CurFloor = 1
+
+--Round 2 AdvDupe You're gonna dupe correctly my proc you FUCK
+hook("PreEntityCopy", "ElevatorEngine", function(data)
+	data.MovingProp = MovingProp:index()
+	data.StartProp = StartProp:index()
+	data.EndProp = EndProp:index()
+end)
+hook("PostEntityPaste", "ElevatorEngine", function(data, ent)
+	MovingProp = ent[data.MovingProp]
+	StartProp = ent[data.StartProp]
+	EndProp = ent[data.EndProp]
+	MaxFloors = 0
+	TryIterateBox()
+end)
+--End
+
+function TryIterateBox()
+	if (not(IsValid(StartProp)) or not(IsValid(EndProp))) then
+		print("Could not find valid start and end for elevator !")
+		return
+	end
+	local min = StartProp:pos()
+	local max = EndProp:pos()
+	local tbl = find.inBox(min, max, function(ent) return ent:class() == "prop_physics" end)
+	table.sort(tbl, function(ent, ent1)
+		return (ent:pos().Z < ent1:pos().Z)
+	end)
+	print(#tbl)
+	for k, v in pairs(tbl) do
+		print(v:model())
+		if (v:model() == "models/cerus/modbridge/misc/elevator/ecb111.mdl" or v:model() == "models/cerus/modbridge/misc/elevator/eb111.mdl") then
+			MaxFloors = MaxFloors + 1
+			ElevatorProps[MaxFloors] = v
+			print("Found Start Prop")
+		elseif (v:model() == "models/cerus/modbridge/misc/elevator/ect111.mdl" or v:model() == "models/cerus/modbridge/misc/elevator/et111.mdl") then
+			MaxFloors = MaxFloors + 1
+			ElevatorProps[MaxFloors] = v
+			print("Found End Prop")
+		elseif (v:model() == "models/cerus/modbridge/misc/elevator/ecm111.mdl" or v:model() == "models/cerus/modbridge/misc/elevator/em111.mdl") then
+			MaxFloors = MaxFloors + 1
+			ElevatorProps[MaxFloors] = v
+			print("Found Middle Prop")
+		end
+	end
+end
+
+function InitEngine()
+	wire.createInputs({"MovingProp", "StartProp", "EndProp", "GoFloor"}, {"Entity", "Entity", "Entity", "Normal"})
+	wire.createOutputs({"CurFloor"}, {"Normal"})
+	wire.ports["CurFloor"] = 1
+	TryIterateBox()
+end
+
+InitEngine()
+
+function GoToFloor(id)
+	if (id <= 0 or id > MaxFloors) then
+		print("Floor ID can not exist => WireMod problem probably ignore")
+		return
+	end
+	if (not(IsValid(MovingProp))) then
+		print("No moving prop found !")
+		return
+	end
+	local ang = MovingProp:getAngles()
+	local endpos = ElevatorProps[id]:pos()
+	local cnstforce = endpos - MovingProp:pos()
+	cnstforce:Normalize()
+	if (CurFloor == id or MovingProp:pos():DistToSqr(endpos) <= 0.1) then
+		print("Elevator is already there")
+		return
+	end
+	wire.ports["CurFloor"] = 0
+	local phys = MovingProp:getPhysicsObject()
+	phys:enableMotion(true)
+	phys:enableGravity(false)
+	hook("think", "ElevatorEngine", function()
+		if (MovingProp:pos():DistToSqr(endpos) <= 0.1) then
+			hook.remove("think", "ElevatorEngine")
+			MovingProp:setPos(endpos)
+			phys:enableMotion(false)
+			CurFloor = id
+			wire.ports["CurFloor"] = CurFloor
+			print("Reached floor " .. CurFloor)
+			return
+		end
+		MovingProp:setAngles(ang)
+		local force = cnstforce * phys:getMass() * ElevatorSpeed
+		phys:applyForceCenter(force)
+	end)
+end
+
+hook("input", "ElevatorEngine", function(input, val)
+	if (input == "StartProp") then
+		StartProp = val
+		TryIterateBox()
+	elseif (input == "EndProp") then
+		EndProp = val
+		TryIterateBox()
+	elseif (input == "MovingProp") then
+		MovingProp = val
+	elseif (input == "GoFloor") then
+		GoToFloor(val)
+	end
+end)

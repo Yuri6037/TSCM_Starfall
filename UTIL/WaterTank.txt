@@ -1,0 +1,38 @@
+--@name WaterTank
+--@author Yuri6037
+--@autoupdate
+
+wire.createInputs({"Max Water", "Water"}, {"Normal", "Normal"})
+
+local Self = ents.self()
+local pos = Self:pos() + Self:up() * 20
+local ang = Self:getAngles()
+ang:RotateAroundAxis(Self:up(), 90)
+local WaterProp = holograms.create(pos, ang, "models/hunter/plates/plate1x2.mdl")
+WaterProp:setMaterial("models/shadertest/shader4")
+WaterProp:setParent(Self)
+
+function SetWaterPercent(p)
+	if (p <= 0) then
+		WaterProp:setNoDraw(true)
+	else
+		WaterProp:setNoDraw(false)
+		local scale = Vector(1, 1, p * 14)
+		local pos = Self:pos() + Self:up() * p * 20
+		WaterProp:setScale(scale)
+		WaterProp:setPos(pos)
+	end
+end
+
+SetWaterPercent(0)
+
+local Max = 0
+local Cur = 0
+
+hook("input", "WaterTank", function(input, val)
+	if (input == "Max Water") then Max = val end
+	if (input == "Water") then Cur = val end
+	if (not(Max == 0)) then
+		SetWaterPercent(Cur / Max)
+	end
+end)

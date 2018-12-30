@@ -1,0 +1,74 @@
+--@name WeaponsCommands
+--@author Yuri6037
+
+AIRegisterCommand("fire", function(args, ply)
+	local o = args[1]
+	if (o == "beams") then
+		StartBeams()
+		StartComputerCore()
+		return Command.PASSING, "Firing with beams."
+	elseif (o == "damagers") then
+		StartAngles()
+		StartComputerCore()
+		return Command.PASSING, "Firing with angle weapons."
+	elseif (o == "cannons") then
+		StartTSCM()
+		StartComputerCore()
+		return Command.PASSING, "Firing with cannons."
+	elseif (o == "all") then
+		StartBeams()
+		StartAngles()
+		StartTSCM()
+		StartPulsarEmitters()
+		StartComputerCore()
+		return Command.PASSING, "Firing with everything."
+	elseif (o == "repair") then
+		StartRepair()
+		return Command.PASSING, "Firing repair beam."
+	elseif (o == "pulsars") then
+		StartPulsarEmitters()
+		StartComputerCore()
+		return Command.PASSING, "Firing with pulsar emitters."
+	elseif (o == "off") then
+		StopWeapons()
+		return Command.PASSING, "Stopping weapons."
+	end
+	return Command.INVALID_ARGUMENT, "option (beams, damagers, cannons, pulsars, repair, off)"
+end, {"Manages fire.", "<command> <option>", "Option : beams, damagers, cannons, pulsars, repair, off"}, {"string"}, {"fire with"})
+
+AIRegisterCommand("analyse", function(args, ply)
+	if (IsValid(Target.Entity)) then
+		EngageShipAnalysis(Target.Entity)
+	end
+	return Command.PASSING
+end, {"Analyses target ship.", "<command>"}, {}, {})
+
+AIRegisterCommand("safetyprotocol", function(args)
+	if (args[1] == "FLEE_PROTOCOL" or args[1] == "NORMAL_PROTOCOL") then
+		SetCombatSafetyProtocol(ECombatSafetyProtocol.FLEE_PROTOCOL)
+		return Command.PASSING, "Combat safety protocol set to " .. args[1]
+	elseif (args[1] == "DEATH_PROTOCOL") then
+		SetCombatSafetyProtocol(ECombatSafetyProtocol.DEATH_PROTOCOL)
+		return Command.PASSING, "Combat safety protocol set to " .. args[1]
+	elseif (args[1] == "DISABLED") then
+		SetCombatSafetyProtocol(ECombatSafetyProtocol.DISABLED)
+		return Command.PASSING, "Combat safety protocol set to " .. args[1]
+	end
+	return Command.INVALID_ARGUMENT, "option (FLEE_PROTOCOL/NORMAL_PROTOCOL, DEATH_PROTOCOL, DISABLED)"
+end, {"Changes the safety protocol currently being used.", "<command> <option>", "Option : FLEE_PROTOCOL/NORMAL_PROTOCOL, DEATH_PROTOCOL, DISABLED"}, {"string"})
+
+AIRegisterCommand("autoalign", function(args)
+	local pos, ang = nil, nil
+	if (not(Target.Entity == nil)) then
+		pos, ang = AutoFaceTarget(Target.Entity)
+	elseif (not(Target.Player == nil)) then
+		pos, ang = AutoFaceTarget(Target.Player)
+	elseif (not(Target.Node == nil)) then
+		pos, ang = AutoFaceTarget(Target.Node)
+	end
+	if (pos == nil or ang == nil) then
+		return Command.ERROR_CUSTOM, "could not aquire target"
+	end
+	WarpToAngle(Angle(ang.X, ang.Y, ang.Z))
+	return Command.PASSING, "Aligning with target..."
+end, {"Automatically rotates the ship to face the active target.", "<command>"}, {}, {"align"})

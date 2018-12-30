@@ -1,0 +1,164 @@
+--@name WireLightManipulator
+--@author Yuri6037
+
+wire.createInputs({"Speed 0", "Speed 1", "Activate", "MinR 0", "MinR 1", "MaxR 0", "MaxR 1", "MinG 0", "MinG 1", "MaxG 0", "MaxG 1", "MinB 0", "MinB 1", "MaxB 0", "MaxB 1"}, {"Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal"})
+wire.createOutputs({"Speed", "R", "G", "B", "MinR", "MinG", "MinB", "MaxR", "MaxG", "MaxB"}, {"Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal"})
+
+local R = 0
+local G = 0
+local B = 0
+
+local RMax = 128
+local GMax = 128
+local BMax = 128
+
+local RMin = 32
+local GMin = 32
+local BMin = 32
+
+Speed = 100
+
+local RMinChanged = false
+local GMinChanged = false
+local BMinChanged = false
+local RMaxChanged = false
+local GMaxChanged = false
+local BMaxChanged = false
+
+local SpeedChanged = false
+
+function math.clamp(n, low, high) return math.min(math.max(n, low), high) end
+
+timer.create("WireLightManipulator_ConsoleCommander", 0.1, 0, function()
+	local ir0 = wire.ports["MinR 0"]
+	local ir1 = wire.ports["MinR 1"]
+
+	local ar0 = wire.ports["MaxR 0"]
+	local ar1 = wire.ports["MaxR 1"]
+
+	if (ir0 == 1) then
+		RMin = RMin + 1
+		RMinChanged = true
+	elseif (ir1 == 1) then
+		RMin = RMin - 1
+		RMinChanged = true
+	elseif (ar0 == 1) then
+		RMax = RMax + 1
+		RMaxChanged = true
+	elseif (ar1 == 1) then
+		RMax = RMax - 1
+		RMaxChanged = true
+	end
+
+	local ig0 = wire.ports["MinG 0"]
+	local ig1 = wire.ports["MinG 1"]
+
+	local ag0 = wire.ports["MaxG 0"]
+	local ag1 = wire.ports["MaxG 1"]
+
+	if (ig0 == 1) then
+		GMin = GMin + 1
+		GMinChanged = true
+	elseif (ig1 == 1) then
+		GMin = GMin - 1
+		GMinChanged = true
+	elseif (ag0 == 1) then
+		GMax = GMax + 1
+		GMaxChanged = true
+	elseif (ag1 == 1) then
+		GMax = GMax - 1
+		GMaxChanged = true
+	end
+
+	local ib0 = wire.ports["MinB 0"]
+	local ib1 = wire.ports["MinB 1"]
+
+	local ab0 = wire.ports["MaxB 0"]
+	local ab1 = wire.ports["MaxB 1"]
+
+	if (ib0 == 1) then
+		BMin = BMin + 1
+		BMinChanged = true
+	elseif (ib1 == 1) then
+		BMin = BMin - 1
+		BMinChanged = true
+	elseif (ab0 == 1) then
+		BMax = BMax + 1
+		BMaxChanged = true
+	elseif (ab1 == 1) then
+		BMax = BMax - 1
+		BMaxChanged = true
+	end
+
+	RMin = math.clamp(RMin, 0, 255)
+	RMax = math.clamp(RMax, 0, 255)
+	GMin = math.clamp(GMin, 0, 255)
+	GMax = math.clamp(GMax, 0, 255)
+	BMin = math.clamp(BMin, 0, 255)
+	BMax = math.clamp(BMax, 0, 255)
+
+	--Set variables for screens
+	if (RMinChanged) then
+		wire.ports["MinR"] = RMin
+		RMinChanged = false
+	elseif (RMaxChanged) then
+		wire.ports["MaxR"] = RMax
+		RMaxChanged = false
+	end
+	if (GMinChanged) then
+		wire.ports["MinG"] = GMin
+		GMinChanged = false
+	elseif (GMaxChanged) then
+		wire.ports["MaxG"] = GMax
+		GMaxChanged = false
+	end
+	if (BMinChanged) then
+		wire.ports["MinB"] = BMin
+		BMinChanged = false
+	elseif (BMaxChanged) then
+		wire.ports["MaxB"] = BMax
+		BMaxChanged = false
+	end
+
+	local s0 = wire.ports["Speed 0"]
+	local s1 = wire.ports["Speed 1"]
+	if (s0 == 1) then
+		Speed = Speed + 1
+		SpeedChanged = true
+	elseif (s1 == 1) then
+		Speed = Speed - 1
+		SpeedChanged = true
+	end
+	Speed = math.clamp(Speed, 100, 1000)
+	if (SpeedChanged) then
+		wire.ports["Speed"] = Speed
+		SpeedChanged = false
+	end
+end)
+
+hook("think", "WireLightManipulator_Updater", function()
+	if (wire.ports["Activate"] == 1) then
+		--Animation code here
+		R = R + time.frameTime() * Speed
+		if (R >= RMax) then
+			R = RMin
+		end
+		G = G + time.frameTime() * Speed
+		if (G >= GMax) then
+			G = GMin
+		end
+		B = B + time.frameTime() * Speed
+		if (B >= BMax) then
+			B = BMin
+		end
+
+		--Set variables for wire lights
+		wire.ports["R"] = R
+		wire.ports["G"] = G
+		wire.ports["B"] = B
+	else
+		wire.ports["R"] = 0
+		wire.ports["G"] = 0
+		wire.ports["B"] = 0
+	end
+end)

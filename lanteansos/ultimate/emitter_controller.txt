@@ -1,0 +1,35 @@
+--@name EmitterControllerApp
+--@author Yuri6037
+
+local function DrawCurWindow()
+	render.clear(0, 0, 0, 0)
+	if (OS.ValidHandle(CurWindowHdl)) then
+		local app = OS.GetApp(CurWindowHdl)
+		local x, y = app.X, app.Y
+		app.X = 0
+		app.Y = 0
+		local mt = Matrix()
+		mt = mt:scale(Vector(512 / app.Width, 1024 / app.Height))
+		render.pushMatrix(mt)
+			DrawWindow(CurWindowHdl)
+			GUI.SetTranslation(app.X, app.Y)
+			app:Render()
+			GUI.SetTranslation(0, 0)
+		render.popMatrix()
+		app.X = x
+		app.Y = y
+		if (not(app.DrawCursor == nil)) then
+			local x, y = OS.MousePos()
+			GUI.WindowButton(x, y, app.DrawCursor)
+		end
+	end
+end
+
+--[[if (not(globaltables.global.LanteansOSEmitterRT == nil)) then
+	globaltables.global.LanteansOSEmitterRT = nil
+end
+globaltables.global.LanteansOSEmitterRT = rendertarget.create(1024, 512)]]--
+
+--[[timer.create("LanteansOS_EmitterController", 0.5, 0, function()
+	globaltables.global.LanteansOSEmitterRT:drawToTexture(DrawCurWindow)
+end)]]--

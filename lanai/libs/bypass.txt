@@ -1,0 +1,172 @@
+--@name BypassLib
+--@author Yuri6037
+
+bypass = {}
+local iterators = {}
+function bypass.Iterator(id, tbl, iterateFunc, endFunc)
+	if (#tbl <= 0) then
+		if (not(endFunc == nil)) then
+			endFunc()
+		end
+		return
+	end
+	iterators[id] = 1
+	timer.create("LoopHacker_" .. id, 0.01, 0, function()
+		local v = tbl[iterators[id]]
+		iterateFunc(iterators[id], v)
+		iterators[id] = iterators[id] + 1
+
+		if (iterators[id] > #tbl) then
+			if (not(endFunc == nil)) then
+				endFunc()
+			end
+			timer.remove("LoopHacker_" .. id)
+			return
+		end
+	end)
+end
+
+function bypass.SlowIterator(id, tbl, iterateFunc, endFunc)
+	if (#tbl <= 0) then
+		if (not(endFunc == nil)) then
+			endFunc()
+		end
+		return
+	end
+	iterators[id] = 1
+	timer.create("LoopHacker_" .. id, 0.5, 0, function()
+		local v = tbl[iterators[id]]
+		iterateFunc(iterators[id], v)
+		iterators[id] = iterators[id] + 1
+
+		if (iterators[id] > #tbl) then
+			if (not(endFunc == nil)) then
+				endFunc()
+			end
+			timer.remove("LoopHacker_" .. id)
+			return
+		end
+	end)
+end
+
+function bypass.CheckOPS()
+	if (cpuTime() > 0.0001) then
+		return true
+	end
+	return false
+end
+
+--Constraints retriever Start
+local Thread = {CurEntNum = 0, Internal = nil}
+local GettingConstraints = false
+local ConstrainedEntities = {}
+local ErrorString = nil
+local Callbacks = {OnSuccess = nil, OnError = nil}
+local Done = {}
+local function FixEntityTable(tbl)
+	local t = {}
+	if (type(tbl) == "table") then
+		for k, v in pairs(tbl) do
+			if (bypass.CheckOPS()) then
+				coroutine.yield()
+			end
+			if (not(Done[v])) then
+				table.insert(t, v)
+				Done[v] = true
+			end
+		end
+	end
+	return t
+end
+local function GetEnts(e)
+	if (not(IsValid(e))) then
+		return
+	end
+	if (not(Done[e])) then
+		table.insert(ConstrainedEntities, e)
+		Thread.CurEntNum = Thread.CurEntNum + 1
+		Done[e] = true
+	end
+	if (bypass.CheckOPS()) then
+        coroutine.yield()
+	end
+	local t = FixEntityTable(e:getSingleConstrainedEnts())
+	if (not(t == nil)) then
+		for k, v in pairs(t) do
+			if (bypass.CheckOPS()) then
+				coroutine.yield()
+			end
+			table.insert(ConstrainedEntities, v)
+			Thread.CurEntNum = Thread.CurEntNum + 1
+			GetEnts(v)
+		end
+	end
+end
+local function ConstraintsRetrieverThink()
+	if (coroutine.status(Thread.Internal) == "suspended") then
+		coroutine.resume(Thread.Internal)
+	elseif (coroutine.status(Thread.Internal) == "dead") then
+		if (not(ErrorString == nil)) then
+			GettingConstraints = false
+			Thread = {CurEntNum = 0, Internal = nil}
+			ErrorString = nil
+			Callbacks.OnError(ConstrainedEntities, #ConstrainedEntities, ErrorString)
+			Callbacks = {OnSuccess = nil, OnError = nil}
+			ConstrainedEntities = {}
+
+			hook.remove("think", "ConstraintsRetriever_StateUpdater")
+		elseif (GettingConstraints) then
+			GettingConstraints = false
+			Thread = {CurEntNum = 0, Internal = nil}
+			ErrorString = nil
+			Callbacks.OnError(ConstrainedEntities, #ConstrainedEntities, "StoppedWorking")
+			Callbacks = {OnSuccess = nil, OnError = nil}
+			ConstrainedEntities = {}
+
+			hook.remove("think", "ConstraintsRetriever_StateUpdater")
+		else
+			GettingConstraints = false
+			Thread = {CurEntNum = 0, Internal = nil}
+			ErrorString = nil
+			Callbacks.OnSuccess(ConstrainedEntities, #ConstrainedEntities)
+			Callbacks = {OnSuccess = nil, OnError = nil}
+			ConstrainedEntities = {}
+
+			hook.remove("think", "ConstraintsRetriever_StateUpdater")
+		end
+	end
+end
+--Takes an entity as argument and will fire the callback when done
+function bypass.StartConstraintsRetriever(ent, successCallback, errorCallback)
+	if (GettingConstraints) then return end
+	if (not(type(successCallback) == "function")) then return end
+	if (not(type(errorCallback) == "function")) then return end
+	Callbacks.OnSuccess = successCallback
+	Callbacks.OnError = errorCallback
+	GettingConstraints = true
+	Thread.Internal = coroutine.create(function()
+		xpcall(function()
+			GetEnts(ent)
+			GettingConstraints = false
+		end, function(err)
+			if (err == nil) then
+				ErrorString = "Unknown"
+			else
+				ErrorString = err
+			end
+		end)
+	end)
+	hook("think", "ConstraintsRetriever_StateUpdater", ConstraintsRetrieverThink)
+	return Thread
+end
+function bypass.StopConstraintsRetriever()
+	coroutine.stop(Thread.Internal)
+
+end
+function bypass.IsConstraintsRetrieverRunning()
+	return GettingConstraints
+end
+function bypass.GetRetrievedConstraintsBool()
+	if (GettingConstraints) then error("ConstraintsRetriever is not done !") end
+	return Done
+end

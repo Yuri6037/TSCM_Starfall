@@ -1,0 +1,33 @@
+--@name FullscreenExclusiveScreen
+--@author Yuri6037
+
+--Special screen that allows for rendering one application unmovable in the center
+
+local scr = {
+	Init = function(self)
+		OS.StartApp(SingleApp)
+	end,
+	Render = function(self)
+		local app = OS.GetApp(CurWindowHdl)
+		if (app == nil) then return end
+		app:SetPos(LOCATION_CENTER)
+		GUI.TexturedRect(0, 0, ScrW, ScrH, MainTex, MainColor)
+		GUI.GradiantRect(0, 0, ScrW, 32, COLOR(255, 255, 255))
+		--DrawMenuBar()
+		GUI.ColoredRect(app.X, app.Y, app.Width, app.Height, app.Background)
+		app:Render()
+		GUI.SetTranslation(0, 0)
+	end,
+	Update = function(self, ticks)
+		local app = OS.GetApp(CurWindowHdl)
+		if (app == nil) then return end
+		if (app.ShouldUpdate) then app:Update(ticks) end
+	end,
+	Touched = function(self)
+		local app = OS.GetApp(CurWindowHdl)
+		if (app == nil) then return end
+		app:Touched(OS.MousePos())
+	end
+}
+
+OS.DefineScreen("exclusivefullscreen", scr)

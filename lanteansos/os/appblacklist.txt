@@ -1,0 +1,8 @@
+--@name AppBlacklist
+--@author Yuri6037
+
+--A registry of blacklisted apps/categories
+
+Blacklist = {
+	["happ1"] = "Illegal API usage / virus"
+}

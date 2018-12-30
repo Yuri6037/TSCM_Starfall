@@ -1,0 +1,39 @@
+--@name Ship AI II ServerBootstrap
+--@author Yuri6037
+
+--Main server file
+--@include ship_ai_v2/shipai_v2.txt
+
+--Libs includes
+--@include ship_ai_v2/lib/boolean_invert_hacker.txt
+--@include ship_ai_v2/lib/string_lib.txt
+--@include ship_ai_v2/lib/safe_net.txt
+--@include ship_ai_v2/lib/opsloop_hack_lib.txt
+
+--Constants
+--@include ship_ai_v2/constants.txt
+
+require("ship_ai_v2/lib/safe_net.txt")
+
+Loading = true
+
+wire.createInputs({"Screen"}, {"Entity"})
+
+InWait = true
+
+hook("think", "AI_II_Bootstrap", function()
+	if (not(InWait)) then
+		hook.remove("think", "AI_II_Bootstrap")
+		return
+	end
+	if (not(wire.ports["Screen"] == nil) and IsValid(wire.ports["Screen"]) and wire.ports["Screen"]:class() == "starfall_screen") then
+		SetNetEntity(wire.ports["Screen"])
+		StartNet(function()
+			net.writeString("FOUND_ENT")
+			net.writeEntity(ents.self())
+		end)
+		require("ship_ai_v2/shipai_v2.txt")
+		InWait = false
+		hook.remove("think", "AI_II_Bootstrap")
+	end
+end)

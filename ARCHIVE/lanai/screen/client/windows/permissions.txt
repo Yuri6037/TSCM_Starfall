@@ -1,0 +1,12 @@
+--@name WindowPM
+--@author Yuri6037
+
+Screen:RegisterWindow("PM", "Permissions", 512, 300, function()
+	--Open func
+end, function()
+	--Close func
+end, function()
+	--Render func
+end, function()
+	--Touch func
+end)

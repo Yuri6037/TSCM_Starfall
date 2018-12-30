@@ -1,0 +1,195 @@
+--@name TripleScreenProtocol
+--@author Yuri6037
+
+local Packets = {}
+
+IsMonitor = nil
+
+Monitors = {
+	Monitor1 = nil,
+	Monitor2 = nil
+}
+
+function InitTripleScreenProtocol()
+	if (IsMonitor == nil) then error("TripleScreenProtocol is not initialized !") return end
+
+	channels.listenPrivate(function(...)
+		local args = {...}
+
+		local type = args[2]
+		local monitor = args[3]
+		local id = args[4]
+		local data = args[5]
+
+		if (type == "REMOTE" and IsMonitor) then
+			if (monitor == ents.self():index()) then
+				if (not(Packets[id].ReadData == nil)) then
+					Packets[id].ReadData(data)
+				end
+			end
+		elseif (type == "COMMAND" and not(IsMonitor)) then
+			if (not(Packets[id].ReadData == nil)) then
+				Packets[id].ReadData(monitor, data)
+			end
+		elseif (type == "SEND_DATA" and IsMonitor) then
+			SendTripleScreenPacket(-1, "BOOT")
+		end
+	end)
+
+	if (not(IsMonitor)) then
+		if (channels.canSend()) then
+			channels.sendPrivate("SEND_DATA")
+		end
+	else
+		SendTripleScreenPacket(-1, "BOOT")
+	end
+end
+
+
+function RegisterTripleScreenPacket(id, tbl)
+	Packets[id] = tbl
+end
+function SendTripleScreenPacket(monitor, id, ...)
+	if (IsMonitor == nil) then error("TripleScreenProtocol is not initialized !") return end
+
+	if (monitor == nil) then return end
+
+	if (IsMonitor) then
+		local arg = {...}
+		if (not(Packets[id] == nil)) then
+
+			if (Packets[id].NotMonitor) then
+				error("Tried to send non-monitor packet from a monitor : this is not allowed !")
+				return
+			end
+
+			if (Packets[id].WriteData == nil) then return end
+
+			local data = Packets[id].WriteData(arg)
+			if (channels.canSend()) then
+				channels.sendPrivate("COMMAND", ents.self():index(), id, data)
+			end
+		end
+	else
+		local arg = {...}
+		if (not(Packets[id] == nil) and Packets[id].NotMonitor) then
+			if (Packets[id].WriteData == nil) then return end
+
+			local data = Packets[id].WriteData(arg)
+			if (channels.canSend()) then
+				channels.sendPrivate("REMOTE", monitor, id, data)
+			end
+		end
+	end
+end
+
+function BroadcastTripleScreenPacket(id, ...)
+	SendTripleScreenPacket(Monitors.Monitor1, id, ...)
+	SendTripleScreenPacket(Monitors.Monitor2, id, ...)
+end
+
+function BroadcastTripleScreenGuiChanged(gui)
+	if (gui == -1) then
+		BroadcastTripleScreenPacket("FUNC", "NULLGUI")
+	else
+		local g = GetGUI(gui)
+		local mon1Gui = g.SecondaryIDS.Monitor1
+		local mon2Gui = g.SecondaryIDS.Monitor2
+		SendTripleScreenPacket(Monitors.Monitor1, "FUNC", "CHGUI", mon1Gui)
+		SendTripleScreenPacket(Monitors.Monitor2, "FUNC", "CHGUI", mon2Gui)
+		BroadcastTripleScreenPacket("DATA", Net)
+	end
+end
+
+RegisterTripleScreenPacket("FUNC", {
+	NotMonitor = true,
+	WriteData = function(args)
+		return {Type = args[1], Par = args[2]}
+	end,
+	ReadData = function(args)
+		local t = args.Type
+		if (t == "LOCK") then
+			Screen:Display("Lockdown")
+		elseif (t == "UNLOCK") then
+			Screen:Display("Main")
+		elseif (t == "POWERSAVE") then
+			if (args.Par) then
+				UsingPowerSave = true
+				gl.glEnable(GL_POWERSAVE)
+			else
+				UsingPowerSave = false
+				gl.glDisable(GL_POWERSAVE)
+			end
+		elseif (t == "CHGUI") then
+			CurGUI = args.Par
+			DrawGuiChangeAnim = true
+		elseif (t == "NULLGUI") then
+			CurGUI = -1
+			DrawGuiChangeAnim = true
+		end
+	end
+})
+RegisterTripleScreenPacket("DATA", {
+	NotMonitor = true,
+	WriteData = function(args)
+		return {Net = args[1]}
+	end,
+	ReadData = function(args)
+		Net = args.Net
+
+		local gui = GetSecondaryGUI(CurGUI)
+		if (not(gui == nil) and not(gui.ComputeNetStream == nil)) then
+			Net = gui.ComputeNetStream(Net)
+		end
+	end
+})
+RegisterTripleScreenPacket("BOOT", {
+	NotMonitor = false,
+	WriteData = function(args)
+		return {ID = ents.self():index()}
+	end,
+	ReadData = function(monitor, args)
+		if (Monitors.Monitor1 == nil) then
+			Monitors.Monitor1 = args.ID
+		elseif (Monitors.Monitor2 == nil) then
+			Monitors.Monitor2 = args.ID
+		end
+
+		if (not(Screen.Current == nil)) then
+			if (Screen.Current.Name == "Lockdown") then
+				SendTripleScreenPacket(monitor, "FUNC", "LOCK")
+				return
+			end
+		end
+		BroadcastTripleScreenGuiChanged(CurGUI)
+	end
+})
+
+RegisterTripleScreenPacket("MONITOR_FUNC", {
+	NotMonitor = false,
+	WriteData = function(args)
+		return {ID = args[1], VAR = args[2]}
+	end,
+	ReadData = function(monitor, args)
+		StartNet(function()
+			net.writeString("MFunc")
+			net.writeString(args.ID)
+			net.writeType(args.VAR)
+		end)
+	end
+})
+
+RegisterTripleScreenPacket("LIST_DATA", {
+	NotMonitor = true,
+	WriteData = function(args)
+		local n = args[1]
+		return {Type = n, List = args[2]}
+	end,
+	ReadData = function(args)
+		local lst = args.List
+		local t = args.Type
+		if (t == "WARP") then
+			WarpList = lst
+		end
+	end
+})

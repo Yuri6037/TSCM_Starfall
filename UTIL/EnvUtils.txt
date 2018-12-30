@@ -1,0 +1,25 @@
+--@name EnvUtils
+--@author Yuri6037
+
+local b = starfall.getTypeDef("Entity")
+
+function b:IsInSpace()
+	local envData = self:getEnvironmentData().Entity
+	if (envData == nil) then return true end
+	return false
+end
+
+function b:IsPlanet()
+	local envData = self:getEnvironmentData().Entity
+	return envData:class() == "stargazer_environment"
+end
+
+function b:IsBreathable()
+	local envData = self:getEnvironmentData().Oxygen
+	return envData >= 0.2
+end
+
+function b:HasGravity()
+    local envData = self:getEnvironmentData().Gravity
+    return envData == 1
+end

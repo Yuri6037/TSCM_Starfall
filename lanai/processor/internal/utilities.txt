@@ -1,0 +1,213 @@
+--@name LanAI Utilities
+--@author Yuri6037
+
+local NullModifier = Color(255, 255, 255)
+
+--Enumerations for alert materials
+Materials = {
+	Evac = {
+		{
+			Base = "cmats/flash_red",
+			Modifier = NullModifier
+		},
+		{
+			Base = "cmats/flash_red",
+			Modifier = NullModifier
+		}
+	},
+	LowAlert = {
+		{
+			Base = "glow/flash_blue",
+			Modifier = NullModifier
+		},
+		{
+			Base = "glow/flash_blue",
+			Modifier = NullModifier
+		},
+	},
+	NormalAlert = {
+		{
+			Base = "glow/flash_white",
+			Modifier = Color(255, 195, 0)
+		},
+		{
+			Base = "glow/flash_white",
+			Modifier = Color(255, 195, 0)
+		}
+	},
+	HighAlert = {
+		{
+			Base = "glow/flash_white",
+			Modifier = Color(255, 131, 0)
+		},
+		{
+			Base = "glow/flash_white",
+			Modifier = Color(255, 131, 0)
+		}
+	}
+}
+
+--Basic enumeration for sounds
+Sounds = {
+	ALERT = "alarm/sga_offworld-alarm.wav",
+	EVAC = "alarm/sga_selfdestruct-alarm.wav",
+	NALERT = "alarm/destiny_alarm.wav",
+	HALERT = "alarm/destiny_siren.wav"
+}
+
+--Basic enumartion for directions
+EDirection = {
+	UP = 0,
+	DOWN = 1,
+	LEFT = 2,
+	RIGHT = 3,
+	FORWARD = 4,
+	BACKWARD = 5
+}
+--Basic enumartion for shield divert power
+EShieldDivertPower = {
+	BALANCE = -1,
+	FRONT = 1,
+	BACK = 2,
+	LEFT = 3,
+	RIGHT = 4,
+	TOP = 5,
+	BOTTOM = 6
+}
+--End
+
+ADMIN_CODE = "42420000"
+OFFICER_CODE = "00000000"
+UNLOCK_TIME = 3
+
+local old = IsValid
+function IsValid(ent)
+	if (type(ent) == "string" or type(ent) == "number" or type(ent) == "boolean") then return false end
+	return old(ent)
+end
+
+function PlayerInBox(ply, min, max)
+	return (VectorInBox(ply:pos(), min, max))
+end
+
+function VectorInBox(vec, min, max)
+	local x = min.x
+	local y = min.y
+	local z = min.z
+
+	local x1 = max.x
+	local y1 = max.y
+	local z1 = max.z
+
+	local cX = vec.x
+	local cY = vec.y
+	local cZ = vec.z
+
+	if (cX >= x and cX <= x1 or cX <= x and cX >= x1) then
+		if (cY >= y and cY <= y1 or cY <= y and cY >= y1) then
+			if (cZ >= z and cZ <= z1 or cZ <= z and cZ >= z1) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+function GetPlayerMaxHealth(ply)
+	if (ply:health() > ply:maxHealth()) then
+		return ply:health()
+	end
+	return ply:maxHealth()
+end
+
+function GetGlobals()
+	if (globaltables.global.LanAI == nil) then
+		globaltables.global.LanAI = {}
+	end
+	return globaltables.global.LanAI
+end
+
+function WNot(b)
+	if (type(b) == "number") then
+		if (b == 1) then return 0 end
+		if (b == 0) then return 1 end
+	end
+end
+
+function util.FindFactionsMembers()
+	local fac = faction.getFaction(ents.owner())
+	if (fac == nil) then
+		return {ents.owner()}
+	end
+	return faction.getOnlinePlayers(fac)
+end
+
+function util.IsPlayerInFaction(ply)
+	local f = faction.getFaction(ply)
+	local f1 = faction.getFaction(ents.owner())
+	return f == f1
+end
+
+function util.TraceLine(startPos, endPos, tbl)
+	if (not(util.isInWorld(startPos))) then return {Entity = nil, Hit = false} end
+		return trace.traceLine(startPos, endPos, tbl, trace.MASK_SOLID, false)
+end
+
+function util.DelayFunc(conditionalfunc, func)
+
+end
+
+function util.Iterator(id, tbl, func, endfunc)
+	if (#tbl <= 0) then
+		if (not(endfunc == nil)) then endfunc() end
+		return
+	end
+	local secs = 0.5
+	local t, n = time.curTime(), 0
+	hook("think", "Iterator_" .. id, function()
+		local need = #tbl * (time.curTime() - t) / secs
+		while (n <= need) do
+			if (not(tbl[n] == nil)) then
+				func(n, tbl[n])
+			end
+			n = n + 1
+		end
+		util.Log("Core.Utils", LOG_DEBUG, "n = ", n)
+		if (n >= #tbl) then
+			if (not(endfunc == nil)) then endfunc() end
+			hook.remove("think", "Iterator_" .. id)
+		end
+	end)
+end
+
+local Hooks = {}
+local HooksDbg = {}
+
+function util.CreateHook(name)
+	Hooks[name] = {}
+	HooksDbg[name] = false
+	_G["Hook" .. name] = function(fnc)
+		table.insert(Hooks[name], fnc)
+	end
+end
+
+function util.RunHook(name, ...)
+	if (not(HooksDbg[name])) then
+		util.Log("Hooks." .. name, LOG_DEBUG, "Running ", #Hooks[name], " function(s)")
+		HooksDbg[name] = true
+	end
+	for k, v in pairs(Hooks[name]) do
+		v(...)
+	end
+end
+
+function util.ProxyTable(onset, onget)
+	local dummyluanosense = {
+		__index = onget,
+		__newindex = onset
+	}
+	local result = {}
+	setmetatable(result, dummyluanosense)
+	return (result)
+end

@@ -1,0 +1,171 @@
+--@name WarpGui
+--@author Yuri6037
+
+local areaContent = {}
+local renderedAreaContent = {}
+local messagesNumber = 0
+local maxLines = 7
+local scrollNumber = 1
+local selectedElement = nil
+
+--Component data
+local compX = 10
+local compY = 0
+local compWidth = 256
+local compHeight = 256
+
+local function updateConsole()
+	renderedAreaContent = {}
+	local done = (maxLines - 1) + 1
+	local parser = scrollNumber
+	--done = done - 1
+	while done > -1 do
+		table.insert(renderedAreaContent, areaContent[parser])
+		parser = parser + 1
+		done = done - 1
+	end
+end
+
+local function scrollUp()
+	if (messagesNumber <= maxLines) then
+		return
+	end
+
+	if (scrollNumber == (messagesNumber - maxLines)) then
+		return
+	end
+	scrollNumber = scrollNumber + 1
+	updateConsole()
+end
+
+local function scrollDown()
+	if (messagesNumber <= maxLines) then
+		return
+	end
+
+	if (scrollNumber == 1) then
+		return
+	end
+	scrollNumber = scrollNumber - 1
+	updateConsole()
+end
+
+--
+-- Adds a line to this console
+--
+local function addLine(line)
+	table.insert(areaContent, line)
+	messagesNumber = messagesNumber + 1
+	if (messagesNumber <= maxLines) then
+		table.insert(renderedAreaContent, line)
+	elseif (messagesNumber > maxLines) then
+		scrollNumber = messagesNumber - maxLines
+		updateConsole()
+	end
+end
+
+function RenderWarpGUI(x, y)
+	gl.glBindColor(0, 0, 255, 170)
+	gl.glRect(x + compX, y + compY, compWidth, compHeight)
+
+	local j = 5
+	for k, v in pairs(renderedAreaContent) do
+		local current = v
+		gl.glBindColor(255, 255, 255)
+		gl.glBindFont(Screen.StandardFont)
+		gl.glText(current, x + compX + 5, (y + compY + j))
+
+		if (not(selectedElement == nil) and selectedElement == current) then
+			gl.glBindColor(255, 0, 0)
+			gl.glUnfilledRect(x + compX, y + (compY + j), compWidth - 32, 32, 4)
+		end
+
+		if (Screen:IsMouseInRect(x + compX, y + (compY + j), compWidth - 32, 32)) then
+			if (Screen:KeyUse()) then
+				selectedElement = current
+			end
+			gl.glBindColor(255, 255, 0)
+			gl.glUnfilledRect(x + compX, y + (compY + j), compWidth - 32, 32, 4)
+		end
+		j = j + 32
+	end
+
+	--Beam Manager
+	gl.glBindColor(0, 128, 255)
+	if (Screen:IsMouseInRect(x + 700, y + 20, 256, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 700, y + 20, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("Warp Back", x + 730, y + 20)
+
+	--Engage warp
+	gl.glBindColor(0, 128, 255)
+	if (Screen:IsMouseInRect(x + 700, y + 210, 256, 32)) then
+		gl.glBindColor(255, 128, 0)
+	end
+	gl.glRect(x + 700, y + 210, 256, 32)
+	gl.glBindColor(255, 255, 255)
+	gl.glBindFont(Screen.StandardFont)
+	gl.glText("Engage Warp", x + 730, y + 210)
+
+	--Rendering scroll buttons
+	--Up
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(x + compX + compWidth - 32, y + compY, 32, 32)) then
+		gl.glBindColor(0, 255, 0)
+	end
+	gl.glRect(x + compX + compWidth - 32, y + compY, 32, 32)
+	--Down
+	gl.glBindColor(0, 0, 255)
+	if (Screen:IsMouseInRect(x + compX + compWidth - 32, y + (compY + compHeight) - 32, 32, 32)) then
+		gl.glBindColor(0, 255, 0)
+	end
+	gl.glRect(x + compX + compWidth - 32, y + (compY + compHeight) - 32, 32, 32)
+
+	--Rendering back warp button
+	--[[gl.glBindColor(255, 128, 0)
+	if (Screen:IsMouseInRect(x + 400, y + 70, 256, 128)) then
+		gl.glBindColor(255, 0, 0)
+	end
+	gl.glRect(x + 400, y + 70, 256, 128)
+	gl.glBindColor(255, 255, 255)
+	gl.glText("Warp Back", x + 450, y + 117)]]--
+end
+
+function CheckWarpInputs(x, y)
+	if (Screen:IsMouseInRect(x + compX + compWidth - 32, y + compY, 32, 32)) then
+		scrollDown()
+	elseif (Screen:IsMouseInRect(x + compX + compWidth - 32, y + (compY + compHeight) - 32, 32, 32)) then
+		scrollUp()
+	elseif (Screen:IsMouseInRect(x + 700, y + 210, 256, 32) and not(selectedElement == nil)) then
+		StartNet(function()
+			net.writeString("warp_" .. selectedElement)
+		end)
+	elseif (Screen:IsMouseInRect(x + 700, y + 20, 256, 32)) then
+		StartNet(function()
+			net.writeString("warpBack")
+		end)
+	end
+end
+
+--Registry
+function UpdateWarpRegistry(tbl)
+	areaContent = {}
+	renderedAreaContent = {}
+	selectedElement = nil
+	messagesNumber = 0
+
+	addLine("hiigara")
+	addLine("shakuras")
+	addLine("spaceStation")
+	addLine("hell")
+	addLine("desert")
+	addLine("build")
+	addLine("earth")
+
+	for k, v in pairs(tbl) do
+		addLine(v)
+	end
+end

@@ -1,0 +1,62 @@
+--@name Lanteans HUD ServerMain
+--@author Yuri6037
+
+function PlayerChatFunc(msg, ply)
+	if (msg == "!config") then
+		net.SendPacket("OPENCONFIG", ply)
+	end
+end
+
+local Apps = {}
+CurApps = {}
+PlysData = {}
+
+HUD = {}
+function HUD.DefineApp(name, app, active)
+	Apps[name] = app
+	if (active) then CurApps[name] = app end
+end
+
+function HUD.ActivateApp(name, b, ply)
+	if (not(IsValid(ply))) then error("Can not activate an application for NULL !") end
+	if (Apps[name] == nil) then error("No such application found !") end
+	if (b) then
+		PlysData[ply].Apps[name] = Apps[name]
+		if (not(Apps[name].OnActivated == nil)) then
+			Apps[name].OnActivated(ply)
+		end
+	else
+		PlysData[ply].Apps[name] = nil
+		if (not(Apps[name].OnDeactivated == nil)) then
+			Apps[name].OnDeactivated(ply)
+		end
+	end
+end
+
+local CurAppsData = nil
+local CurAppName = nil
+local NeedUpdate = false
+function CheckVar(name, value)
+	if (CurAppsData[CurAppName] == nil) then CurAppsData[CurAppName] = {} end
+	if (not(CurAppsData[CurAppName][name] == value)) then
+		CurAppsData[CurAppName][name] = value
+		NeedUpdate = true
+	end
+end
+function SetNeedsUpdate()
+	NeedUpdate = true
+end
+
+timer.create("LanteansHUD_ServerUpdate", 0.5, 0, function()
+	for k, v in pairs(PlysData) do
+		for k1, v1 in pairs(v.Apps) do
+			CurAppsData = v.AppsData
+			CurAppName = k1
+			NeedUpdate = false
+			v1.Update(k)
+			if (NeedUpdate) then
+				net.SendPacket("APP_UPDATE", k, CurAppName, CurAppsData[CurAppName])
+			end
+		end
+	end
+end)
