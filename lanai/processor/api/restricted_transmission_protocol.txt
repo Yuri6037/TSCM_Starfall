@@ -1,0 +1,74 @@
+--@name Restricted version of the transmission protocol for Client apps ONLY
+--@author Yuri6037
+
+local Packets = {}
+
+local PacketQueue = {}
+
+function GetPacketByName(name)
+	return Packets[name]
+end
+function RegisterPacket(name, tbl)
+	Packets[name] = tbl
+end
+
+function SendPacket(name, ...)
+	local args = {...}
+	local p = GetPacketByName(name)
+	if (p == nil) then
+		error("Tried to write a non existant packet '", name, "'")
+		return
+	end
+	if (p.WriteData == nil) then
+		error("Invalid packet send side for ", name)
+		return
+	end
+
+	local data, reliable = p.WriteData(args)
+	--Insert packet in queue
+	if (reliable) then
+		table.insert(PacketQueue, {Name = name, Data = data})
+	elseif (channels.canSend()) then
+		channels.sendPrivate(1, name, data)
+	end
+end
+
+timer.create("LanAI_RestrictedTransmissionProtocol", 0.1, 0, function()
+	local pck = PacketQueue[1]
+	if (not(pck == nil) and channels.canSend()) then
+		channels.sendPrivate(1, pck.Name, pck.Data)
+		table.remove(PacketQueue, 1)
+	end
+end)
+
+local function CheckValidCore(ent)
+	return (ent:getCore() == ents.self():getCore())
+end
+
+local function Receiver(...)
+	local arg = {...}
+
+	if (arg[2] == 1 or not(CheckValidCore(arg[1]))) then
+		return
+	end
+
+	local cmd = arg[3]
+	local target = arg[4]
+	if (not(target == nil) and not(target == ents.self())) then return end
+	local args = arg[5]
+
+	if (cmd == nil) then
+		return
+	end
+
+	local p = GetPacketByName(cmd)
+	if (p == nil) then
+		return
+	end
+	if (p.ReadData == nil) then
+		return
+	end
+	p.ReadData(args)
+end
+
+channels.listenPrivate("TransmissionProtocol", Receiver)

@@ -1,4 +1,4 @@
---@name InternalSecuritySystem
+--@name InternalSecurity SecondarySystem
 --@author Yuri6037
 
 local MessageTold = {}
@@ -9,25 +9,6 @@ PlayerMsgTbl = {
 	["76561198042520202"] = "Hey Kosmos, thank you for helping my master to develop me !",
 	["76561198149481169"] = "You've got to be kidding, damn spy !!!"
 }
-
-local function GetPlayerFeetsProp(ply)
-	local p = ply:getPos()
-	p:Add(Vector(0, 0, -200))
-	local tr = util.TraceLine(ply:getPos(), p, {ply})
-	if (IsValid(tr.Entity)) then
-		return true, tr.Entity
-	end
-	return false, nil
-end
-local function GetPlayerHeadProp(ply)
-	local p = ply:getPos()
-	p:Add(Vector(0, 0, 999))
-	local tr = util.TraceLine(ply:getPos(), p, {ply})
-	if (IsValid(tr.Entity)) then
-		return true, tr.Entity
-	end
-	return false, nil
-end
 
 local PlayerItHooks = {}
 local PlayerItHooksEnd = {}

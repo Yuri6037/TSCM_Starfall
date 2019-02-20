@@ -1,6 +1,9 @@
 --@name MultiTargetingSystem
 --@author Yuri6037
 
+--Targetting system variables
+Target = {Player = nil, Entity = nil, Node = nil}
+
 TargetType = {
 	NODE = 1,
 	ENTITY = 2,

@@ -7,6 +7,7 @@
 --@require lanai/libs/screen/safe_net.txt
 --@require lanteansos/libs/network.txt
 --@require lanai/libs/processor/string_lib.txt
+--@requiresv lanai/processor/api/restricted_transmission_protocol.txt
 --@requirecl UTIL/UTF8Lib.txt
 --@requirecl lanai/libs/bypass.txt
 
@@ -278,22 +279,25 @@ if (CLIENT) then
 	end, true)
 else
 	local Plys = {}
-	local ChName = "LanAI_CommandInterface_" .. ents.owner():index()
 	local AIHelp = {}
 
-	channels.listen(ChName, function(...)
-		local args = {...}
-		if (args[2] == nil) then --Broadcast help packet
-			AIHelp = args[3]
-			net.Broadcast("RECVHELP", args[3])
-		else --Normal chat packet
-			local plst = args[2]
-			local msg = args[3]
-			for k, v in pairs(plst) do
-				net.SendPacket("RECVCHAT", v, msg)
+	RegisterPacket("LANAI_CHAT", {
+		ReadData = function(args)
+			for k, v in pairs(args.Players) do
+				net.SendPacket("RECVCHAT", v, args.Data)
 			end
+		end,
+		WriteData = function(args)
+			return {Player = args[1], Message = args[2]}, true
 		end
-	end)
+	})
+
+	RegisterPacket("LANAI_CHAT_HELP", {
+		ReadData = function(args)
+			AIHelp = args.Data
+			net.Broadcast("RECVHELP", args.Data)
+		end
+	})
 
 	net.RegPacket(0, "HUDLINK", function()
 		Plys[net.readEntity()] = true
@@ -313,8 +317,6 @@ else
 		if (not(string.StartsWith(msg, "!ai"))) then
 			msg = "!ai " .. msg
 		end
-		if (channels.canSend()) then
-			channels.send(ChName, ply, msg)
-		end
+		SendPacket("LANAI_CHAT", ply, msg)
 	end, nil, true)
 end

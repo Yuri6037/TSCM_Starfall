@@ -4,6 +4,12 @@
 --@autoupdate
 --@shared
 
+--
+-- Lanteans OS 1024*1024 special HUD with all apps included
+-- Pase using SF HUD tool
+-- Report bugs and/or ask for improvements here https://github.com/Yuri6037/TSCM_Starfall
+--
+
 Edition = "ultimate"
 --@includedir lanteansos/ultimate/
 

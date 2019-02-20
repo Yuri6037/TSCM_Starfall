@@ -1,4 +1,4 @@
---@name LanAI_LibProtocol
+--@name LanAI_LibProtocolSystem
 --@author Yuri6037
 
 --[[

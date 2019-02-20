@@ -1,7 +1,5 @@
---@name AIUtilities
+--@name AIUtilities PrimarySystem
 --@author Yuri6037
-
---@includedir lanai/processor/ai_cmds/
 
 Command = {
 	PASSING = 0,
@@ -19,23 +17,24 @@ AIErrorMessages = {
 	"I don't understand what you mean, sorry..."
 }
 
-local ChName = "LanAI_CommandInterface_" .. ents.owner():index()
-local ChatQueue = {}
+RegisterPacket("LANAI_CHAT", {
+	ReadData = function(args)
+		OnChatMessage(args.Message, args.Player)
+	end,
+	WriteData = function(args)
+		return {Players = args[1], Data = args[2]}, true
+	end
+})
+
+RegisterPacket("LANAI_CHAT_HELP", {
+	WriteData = function(args)
+		return {Data = args[1]}, true
+	end
+})
 
 function aiSendHelp(helptbl)
-	table.insert(ChatQueue, {PlyLst = nil, Data = helptbl})
+	SendPacket("LANAI_CHAT_HELP", helptbl)
 end
-function aiGetHUDChannel()
-	return ChName
-end
-
-task.Start(function()
-	local pck = ChatQueue[1]
-	if (not(pck == nil) and channels.canSend()) then
-		channels.send(ChName, pck.PlyLst, pck.Data)
-		table.remove(ChatQueue, 1)
-	end
-end, "LanAI_CommandInterface_DefferedSender", 0.1)
 
 function aiSay(msg, ply)
 	if (ply == nil) then
@@ -50,10 +49,10 @@ function aiSay(msg, ply)
 				end
 			end
 		end
-		table.insert(ChatQueue, {PlyLst = plst, Data = msg})
+		SendPacket("LANAI_CHAT", plst, msg)
 		util.Log("AI.Msg", LOG_INFO, msg)
 	else
-		table.insert(ChatQueue, {PlyLst = {ply}, Data = msg})
+		SendPacket("LANAI_CHAT", {ply}, msg)
 	end
 end
 

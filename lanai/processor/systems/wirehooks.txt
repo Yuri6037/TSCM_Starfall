@@ -1,0 +1,17 @@
+--@name WireHooksSystem
+--@author Yuri6037
+
+wire.createInputs({"ShipName"}, {"String"})
+if (not(wire.ports["ShipName"] == nil) and not(wire.ports["ShipName"] == "")) then
+	ShipName = wire.ports["ShipName"]
+end
+
+hook("input", "LanAI_AssignShipName", function(inp, val)
+	if (inp == "ShipName" and not(val == nil) and not(val == "")) then
+		ShipName = val
+		wire.ports["ShipName"] = ShipName
+	end
+end)
+
+wire.createOutputs({"ShipName", "TasksNum"}, {"String", "Normal"})
+wire.ports["TasksNum"] = 0

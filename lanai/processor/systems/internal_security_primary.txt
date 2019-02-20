@@ -1,0 +1,36 @@
+--@name IntenalSecurity PrimarySystem
+--@author Yuri6037
+
+PlayersInsideShip = {}
+PlayersInsideShipList = {}
+
+function GetPlayerFeetsProp(ply)
+	local p = ply:getPos()
+	p:Add(Vector(0, 0, -200))
+	local tr = util.TraceLine(ply:getPos(), p, {ply})
+	if (IsValid(tr.Entity)) then
+		return true, tr.Entity
+	end
+	return false, nil
+end
+
+function GetPlayerHeadProp(ply)
+	local p = ply:getPos()
+	p:Add(Vector(0, 0, 999))
+	local tr = util.TraceLine(ply:getPos(), p, {ply})
+	if (IsValid(tr.Entity)) then
+		return true, tr.Entity
+	end
+	return false, nil
+end
+
+for k, v in pairs(find.allPlayers()) do
+	local b, e = GetPlayerHeadProp(v)
+	local b1, e1 = GetPlayerFeetsProp(v)
+	if (b and b1) then
+		if (e:owner() == ents.owner() and e1:owner() == ents.owner()) then
+			table.insert(PlayersInsideShipList, v)
+			PlayersInsideShip[v] = true
+		end
+	end
+end

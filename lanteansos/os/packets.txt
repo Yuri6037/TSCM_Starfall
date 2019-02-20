@@ -1,6 +1,15 @@
 --@name PacketRegistry
 --@author Yuri6037
 
+RegisterPacket("LANAI_CHAT", { --Not supported
+	ReadData = function(args)
+	end,
+})
+RegisterPacket("LANAI_CHAT_HELP", { --Not supported
+	ReadData = function(args)
+	end
+})
+
 --The Preload system packet
 RegisterPacket("PRELOAD", {
 	ReadData = function(args)

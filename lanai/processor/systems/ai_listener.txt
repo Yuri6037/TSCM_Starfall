@@ -1,12 +1,12 @@
 --@name LanAI CommandListener
 --@author Yuri6037
 
-channels.listen(aiGetHUDChannel(), function(...)
-	local args = {...}
-	if (IsValid(args[2]) and not(args[3] == nil)) then
-		OnChatMessage(args[3], args[2])
-	end
-end)
+--channels.listen(aiGetHUDChannel(), function(...)
+--	local args = {...}
+--	if (IsValid(args[2]) and not(args[3] == nil)) then
+--		OnChatMessage(args[3], args[2])
+--	end
+--end)
 
 if (EnableLegacyChat) then
 	chat.listen(OnChatMessage)

@@ -74,8 +74,13 @@ EShieldDivertPower = {
 	TOP = 5,
 	BOTTOM = 6
 }
---End
 
+--The ship variables
+Ship = {}
+EvacuationBeam = nil
+Lockdown = false
+Evacuation = false
+SelfDestruct = false
 ADMIN_CODE = "42420000"
 OFFICER_CODE = "00000000"
 UNLOCK_TIME = 3

@@ -109,55 +109,49 @@ local function SetEntPosIndependent(ent, pos)
 	ent:setParent(old)
 end
 
+local function CheckOpen()
+	local pos = Core:pos() + Core:up() * OpenMultA;
+
+	return (pos:DistToSqr(SidePropA:pos()) <= 10)
+end
+
 local function StartOpenAnim()
 	if (timer.exists("CoreProtector_HoloAnimCheck")) then return end
+	if (CheckOpen()) then return end
 	SetEntPosIndependent(SidePropA, Core:pos() + Core:up() * OpenMultA)
 	SetEntPosIndependent(SidePropB, Core:pos() + Core:up() * OpenMultB)
 	HoloSidePropA:setNoDraw(false)
 	HoloSidePropB:setNoDraw(false)
 	HoloSidePropA:setVel(Vector(0, 0, Speed))
 	HoloSidePropB:setVel(Vector(0, 0, -Speed))
-	local test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * OpenMultB)
-	local negative = false
-	if (test.Y < 0) then negative = true end
-	timer.create("CoreProtector_HoloAnimCheck", 1, 0, function()
-		test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * OpenMultB)
-		if (negative) then test.Y = -test.Y end
-		if (test.Y <= 0) then
-			HoloSidePropA:setNoDraw(true)
-			HoloSidePropB:setNoDraw(true)
-			HoloSidePropA:setPos(Core:pos() + Core:up() * OpenMultA)
-			HoloSidePropB:setPos(Core:pos() + Core:up() * OpenMultB)
-			HoloSidePropA:setVel(Vector(0, 0, 0))
-			HoloSidePropB:setVel(Vector(0, 0, 0))
-			timer.remove("CoreProtector_HoloAnimCheck")
-		end
+	timer.create("CoreProtector_HoloAnimCheck", 10, 1, function()
+		HoloSidePropA:setNoDraw(true)
+		HoloSidePropB:setNoDraw(true)
+		HoloSidePropA:setPos(Core:pos() + Core:up() * OpenMultA)
+		HoloSidePropB:setPos(Core:pos() + Core:up() * OpenMultB)
+		HoloSidePropA:setVel(Vector(0, 0, 0))
+		HoloSidePropB:setVel(Vector(0, 0, 0))
+		timer.remove("CoreProtector_HoloAnimCheck")
 	end)
 end
 
 local function StartCloseAnim()
 	if (timer.exists("CoreProtector_HoloAnimCheck")) then return end
+	if (not(CheckOpen())) then return end
 	HoloSidePropA:setNoDraw(false)
 	HoloSidePropB:setNoDraw(false)
 	HoloSidePropA:setVel(Vector(0, 0, Speed))
 	HoloSidePropB:setVel(Vector(0, 0, -Speed))
-	local test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * CloseMultB)
-	local negative = false
-	if (test.Y < 0) then negative = true end
-	timer.create("CoreProtector_HoloAnimCheck", 1, 0, function()
-		test = HoloSidePropA:worldToLocal(Core:pos() + Core:up() * CloseMultB)
-		if (negative) then test.Y = -test.Y end
-		if (test.Y <= 0) then
-			HoloSidePropA:setNoDraw(true)
-			HoloSidePropB:setNoDraw(true)
-			HoloSidePropA:setPos(Core:pos() + Core:up() * CloseMultA)
-			HoloSidePropB:setPos(Core:pos() + Core:up() * CloseMultB)
-			HoloSidePropA:setVel(Vector(0, 0, 0))
-			HoloSidePropB:setVel(Vector(0, 0, 0))
-			SetEntPosIndependent(SidePropA, Core:pos() + Core:up() * CloseMultA)
-			SetEntPosIndependent(SidePropB, Core:pos() + Core:up() * CloseMultB)
-			timer.remove("CoreProtector_HoloAnimCheck")
-		end
+	timer.create("CoreProtector_HoloAnimCheck", 7, 1, function()
+		HoloSidePropA:setNoDraw(true)
+		HoloSidePropB:setNoDraw(true)
+		HoloSidePropA:setPos(Core:pos() + Core:up() * CloseMultA)
+		HoloSidePropB:setPos(Core:pos() + Core:up() * CloseMultB)
+		HoloSidePropA:setVel(Vector(0, 0, 0))
+		HoloSidePropB:setVel(Vector(0, 0, 0))
+		SetEntPosIndependent(SidePropA, Core:pos() + Core:up() * CloseMultA)
+		SetEntPosIndependent(SidePropB, Core:pos() + Core:up() * CloseMultB)
+		timer.remove("CoreProtector_HoloAnimCheck")
 	end)
 end
 
