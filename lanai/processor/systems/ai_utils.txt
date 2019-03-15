@@ -18,23 +18,10 @@ AIErrorMessages = {
 }
 
 RegisterPacket("LANAI_CHAT", {
-	ReadData = function(args)
-		OnChatMessage(args.Message, args.Player)
-	end,
 	WriteData = function(args)
 		return {Players = args[1], Data = args[2]}, true
 	end
 })
-
-RegisterPacket("LANAI_CHAT_HELP", {
-	WriteData = function(args)
-		return {Data = args[1]}, true
-	end
-})
-
-function aiSendHelp(helptbl)
-	SendPacket("LANAI_CHAT_HELP", helptbl)
-end
 
 function aiSay(msg, ply)
 	if (ply == nil) then

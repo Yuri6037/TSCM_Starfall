@@ -41,8 +41,6 @@ ProcessorFiles = {
 			"protocol",
 			"basic_packets",
             "ai_utils",
-            "ai_decoder",
-            "ai_answer",
 			"permissions",
             "multitarget", --Important system commands and combat system depends on it
             "points_manager",
@@ -50,6 +48,8 @@ ProcessorFiles = {
         },
         Secondary = {
 			"lib_protocol",
+            "ai_decoder",
+            "ai_answer",
             "ai_listener",
             "ship_auto_load",
             "automatic_mode",
