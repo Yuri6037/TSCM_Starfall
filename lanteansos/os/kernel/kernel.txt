@@ -272,6 +272,65 @@ end
 if (SERVER) then
 	DriversLoad = 0
 	Tasks = {}
+	Configs = {}
+
+	function ReadConfigDB()
+		local id = 1
+		local f = io.open("lanteansos_db_1.txt", "rb")
+		while (not(f == nil)) do
+			local steam = f:read(17)
+			while (not(steam == nil)) do
+				local size = f:read(2)
+				size = tonumber("0x" .. size)
+				local data = f:read(size)
+				Configs[steam] = data
+				steam = f:read(17)
+			end
+			id = id + 1
+			f:close()
+			f = io.open("lanteansos_db_" .. id .. ".txt", "rb")
+		end
+	end
+
+	function ConvertOldDB()
+		local fles = files.list()
+		for _, v in pairs(fles) do
+			local info = string.Split(v, "_")[1]
+			if (info == "lanteansos") then
+				local steam = string.Split(v, "_")[2]
+				if (not(steam == nil)) then
+					steam = steam:sub(0, steam:len() - 4)
+					local f = io.open(v, "rb")
+					local data = f:read("*a")
+					f:close()
+					if (steam:len() == 17) then
+						Configs[steam] = data
+						files.delete(v)
+					end
+				end
+			end
+		end
+	end
+
+	function WriteConfigDB()
+		local id = 1
+		local f = io.open("lanteansos_db_" .. id .. ".txt", "wb")
+		local max = files.getMaxSize()
+		for k, v in pairs(Configs) do
+			f:write(k, string.format("%.2x", string.len(v)), v)
+			local curSize = f:seek()
+			if (curSize >= max - 500) then
+				id = id + 1
+				f:close()
+				f = io.open("lanteansos_db_" .. id .. ".txt", "wb")
+			end
+		end
+		f:close()
+	end
+
+	ReadConfigDB()
+	ConvertOldDB()
+	WriteConfigDB()
 
 	function WriteConfig(ply, data)
 		local f, msg = io.open("lanteansos_" .. ply:steamID64() .. ".txt", "wb")

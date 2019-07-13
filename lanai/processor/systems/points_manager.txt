@@ -89,7 +89,7 @@ local function SaveFiles()
 			local str = k .. "=" .. v.x .. "," .. v.y .. "," .. v.z
 			data = data .. str .. "\n"
 		end
-		aifiles.Overwrite(beamsFile, data)
+		aifiles.Overwrite(BeamsFile, data)
 	end
 	if (WarpsEdited) then
 		local data = ""
@@ -97,7 +97,7 @@ local function SaveFiles()
 			local str = k .. "=" .. v.x .. "," .. v.y .. "," .. v.z
 			data = data .. str .. "\n"
 		end
-		aifiles.Overwrite(warpsFile, data)
+		aifiles.Overwrite(WarpsFile, data)
 	end
 	BeamsEdited = false
 	WarpsEdited = false
