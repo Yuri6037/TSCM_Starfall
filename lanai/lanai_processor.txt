@@ -6,11 +6,11 @@
 
 --
 -- LanAI X Main processor file
--- Pase using SF Processor tool
+-- Paste using SF Processor tool
 -- Report bugs and/or ask for improvements here https://github.com/Yuri6037/TSCM_Starfall
 --
 
---For dynamic beams push wire GPS ~105 units to the bottom
+--For dynamic beams push wire GPS ~150 units to the bottom
 
 --Beware lib_protocol might still be able to crash accross LanAI instances, if it happens,
 --please remove it temporarly from Systems.Secondary

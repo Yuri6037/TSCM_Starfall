@@ -8,7 +8,7 @@
 --
 -- Lanteans OS Standard 1024*512 screen with only basic OS functionality no ship management provided
 -- Does not require connection with LanAI X
--- Pase using SF Screen tool
+-- Paste using SF Screen tool
 -- Report bugs and/or ask for improvements here https://github.com/Yuri6037/TSCM_Starfall
 --
 

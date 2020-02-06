@@ -56,21 +56,21 @@ AIRegisterCommand("stargate", function(cmd, ply)
 		end
 		DialGate(cmd[2])
 		return Command.PASSING, "Dialing " .. cmd[2] .. "..."
-	elseif (cmd[1] == "iris") then
+	elseif (cmd[1] == "iris" or cmd[1] == "shield") then
 		if (cmd[2] == nil or (not(cmd[2] == "on") and not(cmd[2] == "off"))) then
 			return Command.INVALID_ARGUMENT, "2 (on/off)"
 		end
-		if (Ship.Stargate.Iris == nil) then return Command.ERROR_CUSTOM, "no iris on the gate" end
+		if (Ship.Stargate.Iris == nil) then return Command.ERROR_CUSTOM, "no shield on the gate" end
 		if (cmd[2] == "on") then
 			Ship.Stargate.Iris["Activate"] = 1
-			return Command.PASSING, "Activated gate iris !"
+			return Command.PASSING, "Activated gate shield !"
 		else
 			Ship.Stargate.Iris["Activate"] = 0
-			return Command.PASSING, "Deactivated gate iris !"
+			return Command.PASSING, "Deactivated gate shield !"
 		end
 	elseif (cmd[1] == "close" or cmd[1] == "off") then
 		CloseGate()
 		return Command.PASSING, "Closed gate !"
 	end
-	return Command.INVALID_ARGUMENT, "1 (info/dial/iris/close)"
-end, {"Creates a warp/beam point.", "<command> <option> [arg]", "Option : info, dial, iris, close"}, {"string", "player:string"}, {}, 1)
+	return Command.INVALID_ARGUMENT, "1 (info/dial/iris/shield/close)"
+end, {"Manages the stargate installed aboard the ship", "<command> <option> [arg]", "Option : info, dial, iris, shield, close"}, {"string", "player:string"}, {}, 1)

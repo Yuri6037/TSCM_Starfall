@@ -27,7 +27,7 @@ AIDictionarry = {
 		end
 	},
 	{
-		Keys = {"how", "am", "i"},
+		Keys = {"how", "am", "i/I"},
 		Result = function()
 			return "I'm not sure how I can answer that..."
 		end
@@ -39,7 +39,7 @@ AIDictionarry = {
 		end
 	},
 	{
-		Keys = {"what/who", "am", "i"},
+		Keys = {"what/who", "am", "i/I"},
 		Result = function()
 			return "You are an entity of class Player in a game called Garry's Mod powered by Valve's Source Engine"
 		end
@@ -95,7 +95,7 @@ AIDictionarry = {
 		end
 	},
 	{
-		Keys = {"where", "am"},
+		Keys = {"where", "am", "i/I"},
 		Result = function(ply)
 			local data = ply:getEnvironmentData()
 			local env = GetPlayerLoc(ply)

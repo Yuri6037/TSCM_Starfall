@@ -14,7 +14,7 @@ local BC2X = -ScrW
 
 local scr = {
 	Render = function(self)
-		if (not(OS.IsEmitter())) then
+		if (not(OS.IsEmitter()) and not(OS.IsHUD())) then
 			local b = false
 			local col = COLOR(0, 255, 0)
 			if (Parametters["Info"] == "EVACUATION ENGAGED" or Parametters["Info"] == "LOCKDOWN ENGAGED") then

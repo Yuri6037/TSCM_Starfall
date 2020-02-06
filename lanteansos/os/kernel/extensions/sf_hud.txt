@@ -39,6 +39,7 @@ if (OS.IsHUD()) then
 		net.SendPacket("DISCONNECT")
 	end
 	local function DrawRT()
+		render.clear(0, 0, 0, 0)
 		KernelVars.CurScreen:Render()
 		KernelVars.CurScreen:Update(time.frameTime())
 	end

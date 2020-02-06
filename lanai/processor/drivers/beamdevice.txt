@@ -254,7 +254,7 @@ function BeamEntityListToVector(lst, vec)
 			BeamCycle = 0
 			task.End("LanAI_BeamEntListToVecCycle", true) --Immediatly kill beam cycling task
 		end
-	end, "LanAI_BeamEntListToVecCycle", 1)
+	end, "LanAI_BeamEntListToVecCycle", 2)
 	return true
 end
 

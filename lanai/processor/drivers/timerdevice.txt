@@ -9,7 +9,7 @@ function StartTimerCountdown(time, callback)
 	IsRunning = true
 	TimeRemaining = time
 	task.Start(function()
-		local mins = TimeRemaining / 60
+		local mins = math.floor(TimeRemaining / 60)
 		local secs = TimeRemaining - (mins * 60)
 		for k, v in pairs(Ship.Timers) do
 			v["Reset"] = 1
@@ -56,9 +56,15 @@ function RemoveTime(time)
 end
 
 Ship.Timers = {}
-RegisterDriver({"destiny_timer"}, function(ent)
-	ent:getWirelink()["Disable Use"] = 1
-	ent:getWirelink()["Normal Font"] = 1
-	table.insert(Ship.Timers, ent:getWirelink())
-	return true
+RegisterDriver({"destiny_timer", "starfall_emitter"}, function(ent)
+	if (ent:class() == "starfall_emitter" and starfall.getName(ent) == "BigTimer") then
+		table.insert(Ship.Timers, ent:getWirelink())
+		return true
+	elseif (ent:class() == "destiny_timer") then
+		ent:getWirelink()["Disable Use"] = 1
+		ent:getWirelink()["Normal Font"] = 1
+		table.insert(Ship.Timers, ent:getWirelink())
+		return true
+	end
+	return false
 end)

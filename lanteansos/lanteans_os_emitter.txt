@@ -7,7 +7,7 @@
 
 --
 -- Lanteans OS 1024*512 special Emitter with all apps included
--- Pase using SF HUD tool
+-- Paste using SF HUD tool
 -- Report bugs and/or ask for improvements here https://github.com/Yuri6037/TSCM_Starfall
 --
 

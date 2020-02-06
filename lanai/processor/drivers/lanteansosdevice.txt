@@ -98,6 +98,11 @@ RegisterPacket("LOGIN", {
 		end
 	end
 })
+RegisterPacket("LOS_OPEN", {
+	WriteData = function(args)
+		return {Player = args[1]}, true
+	end
+})
 --End
 
 HookPostLoad(function()

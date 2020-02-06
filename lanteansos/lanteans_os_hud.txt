@@ -6,7 +6,7 @@
 
 --
 -- Lanteans OS 1024*1024 special HUD with all apps included
--- Pase using SF HUD tool
+-- Paste using SF HUD tool
 -- Report bugs and/or ask for improvements here https://github.com/Yuri6037/TSCM_Starfall
 --
 
@@ -18,28 +18,33 @@ Edition = "ultimate"
 
 if (SERVER) then
 	DisconnectProtocol()
-	function ChatListener(msg, ply)
-		if (msg == "!os") then
-			net.SendPacket("HUDMgr", ply)
-		end
-	end
+
 	local PNum = 0
+	RegisterPacket("LOS_OPEN", {
+		ReadData = function(args)
+			net.SendPacket("HUDMgr", args.Player)
+		end
+	})
 	net.RegPacket(200, "HUDMgr", function()
 		local t = net.readString()
 		local p = net.readEntity()
 		if (t == "L") then
-			chat.listen(ChatListener, p)
 			PNum = PNum + 1
 			if (PNum == 1) then
 				ConnectProtocol()
 			end
 		elseif (t == "U") then
-			chat.stop(ChatListener, p)
 			PNum = PNum - 1
 			if (PNum <= 0) then DisconnectProtocol() end
 		end
 	end, function() end)
 elseif (CLIENT) then
+	function ReloadDesktopEnvironment()
+		render.clear(0, 0, 0, 0)
+		GUI.RoundedRect(5, 5, ScrW - 10, 27, COLOR(255, 255, 255, 200))
+		GUI.RoundedRect(ScrW / 2 - 256, ScrH - 50, 512, 40, COLOR(255, 255, 255, 200))
+		GUI.Text("A", (ScrW / 2 - 256) + 5, ScrH - 46, StandardFont, COLOR(0, 0, 0))
+	end
 	local function KillPanel(pnl)
 		DestroyRTs()
 		pnl:Remove()
@@ -55,7 +60,7 @@ elseif (CLIENT) then
 		end
 	end
 	OS.DefineApp("logout", app)
-	OS.AddAppMenuItem("logout", "Logout", "Tools")
+	OS.AddAppMenuItem("logout", "Logout", "System")
 	function LoadVGUI()
 		local w, h = render.getScreenRes()
 		local pnl = vgui.create("DPanel")
@@ -85,16 +90,12 @@ elseif (CLIENT) then
 		Panel = pnl
 	end
 
-	net.RegPacket(200, "HUDMgr", LoadVGUI, function(args)
+	net.RegPacket(200, "HUDMgr", function()
+		CreateRTs()
+		LoadVGUI()
+	end, function(args)
 		net.writeString(args[1])
 		net.writeEntity(args[2])
-	end)
-
-	hook("playerbindpress", "LanteansOS_HudOpenKeyBind", function(ply, bind, pressed)
-		if (hud.isLinked() and bind == "gm_showteam") then
-			CreateRTs()
-			LoadVGUI()
-		end
 	end)
 
 	hook("hudlink", "LanteansOS_HudLink", function(ply)

@@ -52,3 +52,7 @@ AIRegisterCommand("officercode", function(args, ply)
 	end
 	OFFICER_CODE = args[1]
 end, {"Set the officer code (use only shivers, max length 8)", "<command>"}, {"string"}, {}, 1)
+
+AIRegisterCommand("openos", function(args, ply)
+	SendPacket("LOS_OPEN", ply)
+end, {"Open Lanteans OS", "<command>"}, {}, {"openlanteansos", "lanteansosopen", "osopen"})

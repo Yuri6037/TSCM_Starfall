@@ -1,0 +1,94 @@
+--@name BigTimer
+--@author Yuri6037
+--@class emitter
+--@autoupdate
+--@shared
+
+local self = ents.self()
+local Text = "00:00"
+local Minutes = 0
+local Seconds = 0
+
+local function StartNet(func, ply)
+	if (net.start(ents.self(), false)) then
+		func()
+	else
+		return
+	end
+
+	if (CLIENT) then
+		net.sendToServer()
+	elseif (IsValid(ply)) then
+		net.send(ply)
+	else
+		net.broadcast()
+	end
+end
+
+if (SERVER) then
+	local function UpdateText(mins, secs)
+		Minutes = mins
+		Seconds = secs
+		Text = mins .. ":" .. secs
+		StartNet(function()
+			net.writeString(Text)
+			if (Minutes == 0) then
+				net.writeBool(true)
+			else
+				net.writeBool(false)
+			end
+		end)
+	end
+
+	wire.createInputs({"Reset", "Minutes", "Seconds"}, {"Normal", "Normal", "Normal"})
+
+	self:setColor(Color(0, 0, 0, 0))
+
+	hook("input", "Wire_Interface_Changed", function(iwire, var)
+		if (iwire == "Minutes") then
+			UpdateText(math.round(var), Seconds)
+		elseif (iwire == "Seconds") then
+			UpdateText(Minutes, math.round(var))
+		end
+	end)
+else
+	local Scale = 0.2
+	local Red = true
+	local fnt = render.createFont("Arial Black", 62, 900, true, false, false, false, 0)
+
+	hook("net", "DoorIndicator_Receive", function()
+		Text = net.readString()
+		Red = net.readBool()
+	end)
+
+	hook("render", "DoorIndicator_Renderer", function()
+		if (ents.player():pos():DistToSqr(ents.self():pos()) > 30000) then return end
+
+		local size,_ = render.getTextSize(fnt, Text)
+		size = size + 10
+
+		CurSize = size
+
+		local p = self:obbCenter()
+		p:Add(Vector(-16 * Scale, -(size / 2) * Scale, -1))
+		p = self:localToWorld(p)
+		local a = self:getAngles()
+		a:RotateAroundAxis(a:Up(), 90)
+
+		render.start3D2D(p, a, Scale)
+			render.setColor(255, 255, 255, 200)
+			if (not(Text == nil) and not(Text == "")) then
+				render.drawRoundedRect(8, 0, 0, size, 64)
+			end
+			if (not(Text == nil) and not(Text == "")) then
+				if (Red) then
+					render.setColor(255, 0, 0)
+				else
+					render.setColor(0, 128, 255)
+				end
+				render.drawText(fnt, size / 2, 2, Text, render.TEXT_ALIGN_CENTER)
+			end
+		render.end3D2D()
+	end)
+end
+

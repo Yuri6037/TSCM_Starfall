@@ -5,7 +5,7 @@ local app = {
 	OverrideList = {
 	},
 	Render = function()
-		local txt = "RT Usage : " .. rendertarget.getRemainingRTCount() .. "/" .. rendertarget.getMaxRTCount()
+		local txt = "RT Usage : " .. rendertarget.getMaxRTCount() - rendertarget.getRemainingRTCount() .. "/" .. rendertarget.getMaxRTCount()
 		local w = GUI.TextSize(txt, SmallFont)
 		GUI.Text(txt, ScrW / 2 - w / 2, ScrH - 24, SmallFont, COLOR(255, 255, 255))
 	end

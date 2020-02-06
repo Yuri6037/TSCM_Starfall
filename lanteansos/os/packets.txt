@@ -171,4 +171,8 @@ RegisterPacket("LOGIN", {
 		end
 	end
 })
+RegisterPacket("LOS_OPEN", {
+	ReadData = function(args)
+	end
+})
 --End

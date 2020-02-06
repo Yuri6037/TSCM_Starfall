@@ -84,10 +84,10 @@ AIRegisterCommand("cloak", function(args, ply)
 	end
 	local o = args[1]
 	if (o == "on") then
-		Ship.Shield["Activate"] = 1
+		Ship.Cloak["Activate"] = 1
 		return Command.PASSING, "Ship is now cloaked."
 	elseif (o == "off") then
-		Ship.Shield["Activate"] = 0
+		Ship.Cloak["Activate"] = 0
 		return Command.PASSING, "Ship is now uncloaked."
 	end
 	return Command.INVALID_ARGUMENT, "1 (option on/off)"
